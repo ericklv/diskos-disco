@@ -275,7 +275,7 @@ static void zst_paint(int k){
     int on_power = chg || usage_plugged_in() == 1;
     show_if(g_zst[k].batt, pct >= 0&&g_zst[k].scr!=SCR_QUICK); show_if(g_zst[k].bolt, pct >= 0 && on_power);
     if(pct >= 0){
-        int p = pct > 100 ? 100 : pct, w = (14 * p + 50) / 100, low = !on_power && p <= 15; if(w < 3 && p > 0) w = 3;
+        int p = pct > 100 ? 100 : pct, w = (18 * p + 50) / 100, low = !on_power && p <= 15; if(w < 3 && p > 0) w = 3;
         if(lv_obj_get_style_width(g_zst[k].fill,0)!=w)lv_obj_set_width(g_zst[k].fill,w);                         /* (a no-op when unchanged) */
         lv_color_t c = low ? TC(STATUS_DANGER) : TC(TEXT_PRIMARY);
         if(!lv_color_eq(lv_obj_get_style_bg_color(g_zst[k].fill, 0), c)){   /* every 2 s on every status bar: write only on a change */
@@ -313,17 +313,17 @@ lv_obj_t *zune_status(lv_obj_t *root, int scr){
     lv_obj_set_style_text_font(sl, TF(UI_12), 0); lv_obj_set_style_text_color(sl, TC(ACCENT_PRIMARY), 0);
     lv_obj_set_style_margin_right(sl, 3, 0);
     lv_obj_t *l = lv_label_create(row); kit_keep(l); lv_label_set_text(l, "");
-    lv_obj_set_style_text_font(l,scr==SCR_QUICK?TF(UI_16):scr==SCR_HOME?zune_font(&font_zune_bold_14):TF(UI_12),0);lv_obj_set_style_text_color(l,TC(TEXT_PRIMARY),0);
+    lv_obj_set_style_text_font(l,TF(UI_16),0);lv_obj_set_style_text_color(l,TC(TEXT_PRIMARY),0);
     lv_obj_t *bolt = lv_label_create(row); kit_keep(bolt); lv_label_set_text(bolt, LV_SYMBOL_CHARGE);
     lv_obj_set_style_text_font(bolt, TF(UI_10), 0); lv_obj_set_style_text_color(bolt, TC(ACCENT_PRIMARY), 0);
     lv_obj_set_style_margin_left(bolt, 3, 0); lv_obj_set_style_margin_right(bolt, -3, 0);
-    lv_obj_t *batt = zplain(row, 21, 10);                          /* body 18 x 10 + a 2 x 4 nub */
-    lv_obj_t *body = zplain(batt, 18, 10); lv_obj_set_style_radius(body, 2, 0);
+    lv_obj_t *batt = zplain(row, 27, 14);                          /* body 18 x 10 + a 2 x 4 nub */
+    lv_obj_t *body = zplain(batt, 22, 12); lv_obj_set_style_radius(body, 2, 0);
     lv_obj_set_style_border_width(body, 1, 0); lv_obj_set_style_border_color(body, TC(TEXT_PRIMARY), 0);
     lv_obj_set_style_border_opa(body, LV_OPA_70, 0);
-    lv_obj_t *fill = zplain(body, 14, 6); lv_obj_set_pos(fill, 2, 2); lv_obj_set_style_radius(fill, 1, 0);
+    lv_obj_t *fill = zplain(body, 18, 8); lv_obj_set_pos(fill, 2, 2); lv_obj_set_style_radius(fill, 1, 0);
     lv_obj_set_style_bg_opa(fill, LV_OPA_COVER, 0);
-    lv_obj_t *nub = zplain(batt, 2, 4); lv_obj_set_pos(nub, 19, 3); lv_obj_set_style_radius(nub, 1, 0);
+    lv_obj_t *nub = zplain(batt, 3, 6); lv_obj_set_pos(nub, 23, 3); lv_obj_set_style_radius(nub, 1, 0);
     lv_obj_set_style_bg_color(nub, TC(TEXT_PRIMARY), 0); lv_obj_set_style_bg_opa(nub, LV_OPA_70, 0);
     int k = 0; while(k < ZSTAT_MAX && g_zst[k].row) k++;
     if(k == ZSTAT_MAX) k = 0;

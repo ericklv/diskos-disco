@@ -377,7 +377,6 @@ static void weather_app_refresh(void)
     set_if(g_wd_cond, g_have ? cond : (wfail ? "Weather unavailable" : "Fetching..."));
     const char *l = simple_cfg_get_str("weather_loc", "");
     char loc[64]; snprintf(loc, sizeof loc, "%.60s", (l && l[0]) ? l : (have_fc && fc.loc[0] ? fc.loc : "Auto (by IP)"));
-    if(th_zune()) for(char *c = loc; *c; c++) if(*c >= 'a' && *c <= 'z') *c -= 32;
     set_if(g_wd_loc, loc);
     char hl[40] = "";
     if(have_fc && fc.ok) snprintf(hl, sizeof hl, "H %d\xC2\xB0  L %d\xC2\xB0", fc.hi, fc.lo);
@@ -388,7 +387,7 @@ static void weather_app_refresh(void)
     if(have_fc && fc.ok){ for(int i = 0; i < fc.n; i++) if(fc.s[i].day * 1440 + fc.s[i].hour * 60 > now_abs){ first = i; break; } }
     for(int k = 0; k < WD_SLOTS; k++){
         int i = first >= 0 ? first + k : -1;
-        if(th_simple() && k<4 && g_wd_pill[k]){
+        if((th_simple()||th_zune()) && k<4 && g_wd_pill[k]){
             if(i<0 || i>=fc.n)lv_obj_add_flag(g_wd_pill[k],LV_OBJ_FLAG_HIDDEN);
             else lv_obj_remove_flag(g_wd_pill[k],LV_OBJ_FLAG_HIDDEN);
         }
@@ -397,7 +396,7 @@ static void weather_app_refresh(void)
         const char *ic = wd_icon(fc.s[i].code, night);
         set_if(g_wd_icon[k], ic); lv_obj_set_style_text_color(g_wd_icon[k], wd_col(ic), 0);
         char b[16]; snprintf(b, sizeof b, "%d\xC2\xB0", fc.s[i].t); set_if(g_wd_temp[k], b);
-        snprintf(b, sizeof b, th_disco_family() ? "%02d:00" : "%02d", fc.s[i].hour); set_if(g_wd_hour[k], b);
+        snprintf(b, sizeof b, (th_disco_family()||th_zune()) ? "%02d:00" : "%02d", fc.s[i].hour); set_if(g_wd_hour[k], b);
     }
     set_if(g_wd_hint, (have_fc && fc.ok) ? "" : (fc_state ? "Loading forecast..." : "Forecast unavailable"));
 }
@@ -585,33 +584,27 @@ void weather_app_create(lv_obj_t *root)
         simple_keep_label(g_wd_ctemp);simple_keep_label(g_wd_cicon);simple_keep_label(g_wd_loc);
         simple_keep_label(g_wd_cond);simple_keep_label(g_wd_hl);simple_keep_label(g_wd_hint);
     }
-    if(th_zune()){                                                /* Figma 60: the next hours round the rim, now big in the middle */
-        LV_FONT_DECLARE(font_zune_light_88) LV_FONT_DECLARE(font_zune_regular_13) LV_FONT_DECLARE(font_zune_regular_14)
-        LV_FONT_DECLARE(font_zune_semibold_11) LV_FONT_DECLARE(font_zune_regular_12)
+    if(th_zune()){
+        LV_FONT_DECLARE(font_zune_light_32) LV_FONT_DECLARE(font_zune_light_46) LV_FONT_DECLARE(font_zune_light_24) LV_FONT_DECLARE(font_zune_regular_14)
         const lv_font_t *zune_font(const lv_font_t *base);
-        lv_obj_add_flag(ring, LV_OBJ_FLAG_HIDDEN);
-        for(int k = 0; k < WD_SLOTS; k++){
-            float a = (-90.0f + k * (360.0f / WD_SLOTS)) * 0.0174533f;
-            lv_obj_add_flag(g_wd_icon[k], LV_OBJ_FLAG_HIDDEN);
-            lv_obj_set_style_text_font(g_wd_temp[k], zune_font(&font_zune_regular_13), 0);
-            lv_obj_set_style_text_color(g_wd_temp[k], k ? TC(TEXT_SECONDARY) : TC(ACCENT_PRIMARY), 0);
-            lv_obj_align(g_wd_temp[k], LV_ALIGN_CENTER, (int32_t)lroundf(150 * cosf(a)), (int32_t)lroundf(150 * sinf(a)));
-            lv_obj_add_flag(g_wd_hour[k], LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(ring,LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_text_font(g_wd_loc,zune_font(&font_zune_light_32),0);lv_obj_set_style_text_color(g_wd_loc,TC(TEXT_PRIMARY),0);lv_obj_set_style_text_align(g_wd_loc,LV_TEXT_ALIGN_LEFT,0);lv_obj_set_size(g_wd_loc,272,45);lv_label_set_long_mode(g_wd_loc,LV_LABEL_LONG_DOT);lv_obj_align(g_wd_loc,LV_ALIGN_TOP_LEFT,44,49);
+        lv_obj_set_style_text_font(g_wd_ctemp,zune_font(&font_zune_light_46),0);lv_obj_set_style_text_color(g_wd_ctemp,TC(TEXT_PRIMARY),0);lv_obj_align(g_wd_ctemp,LV_ALIGN_TOP_LEFT,44,92);
+        LV_FONT_DECLARE(font_weather20)
+        lv_obj_set_style_text_font(g_wd_cicon,&font_weather20,0);lv_obj_set_style_transform_scale(g_wd_cicon,320,0);lv_obj_align(g_wd_cicon,LV_ALIGN_TOP_LEFT,274,106);lv_obj_set_style_text_font(g_wd_cond,zune_font(&font_zune_regular_14),0);lv_obj_set_style_text_align(g_wd_cond,LV_TEXT_ALIGN_LEFT,0);lv_label_set_long_mode(g_wd_cond,LV_LABEL_LONG_DOT);lv_obj_set_size(g_wd_cond,150,22);lv_obj_align(g_wd_cond,LV_ALIGN_TOP_LEFT,119,120);
+        lv_obj_set_style_text_font(g_wd_hl,zune_font(&font_zune_regular_14),0);lv_obj_align(g_wd_hl,LV_ALIGN_TOP_LEFT,119,98);
+        lv_obj_t*divider=lv_obj_create(root);lv_obj_remove_style_all(divider);kit_keep(divider);lv_obj_set_size(divider,1,130);lv_obj_set_pos(divider,179,163);lv_obj_set_style_bg_color(divider,TC(CONTROL_TRACK),0);lv_obj_set_style_bg_opa(divider,LV_OPA_COVER,0);lv_obj_remove_flag(divider,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
+        for(int k=0;k<WD_SLOTS;k++){
+            if(k>=4){lv_obj_add_flag(g_wd_temp[k],LV_OBJ_FLAG_HIDDEN);lv_obj_add_flag(g_wd_hour[k],LV_OBJ_FLAG_HIDDEN);lv_obj_add_flag(g_wd_icon[k],LV_OBJ_FLAG_HIDDEN);continue;}
+            lv_obj_t*cell=lv_obj_create(root);lv_obj_remove_style_all(cell);kit_keep(cell);g_wd_pill[k]=cell;lv_obj_set_pos(cell,k%2?190:38,163+k/2*67);lv_obj_set_size(cell,144,62);lv_obj_remove_flag(cell,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_t*mark=lv_obj_create(cell);lv_obj_remove_style_all(mark);kit_keep(mark);lv_obj_set_pos(mark,0,6);lv_obj_set_size(mark,3,46);lv_obj_set_style_bg_color(mark,k?TC(CONTROL_TRACK):TC(ACCENT_PRIMARY),0);lv_obj_set_style_bg_opa(mark,LV_OPA_COVER,0);lv_obj_remove_flag(mark,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_parent(g_wd_hour[k],cell);lv_obj_set_parent(g_wd_temp[k],cell);lv_obj_set_parent(g_wd_icon[k],cell);
+            lv_obj_set_style_text_font(g_wd_hour[k],zune_font(&font_zune_regular_14),0);lv_obj_set_style_text_color(g_wd_hour[k],TC(TEXT_MUTED),0);lv_obj_align(g_wd_hour[k],LV_ALIGN_TOP_LEFT,11,0);
+            lv_obj_set_style_text_font(g_wd_temp[k],zune_font(&font_zune_light_24),0);lv_obj_set_style_text_color(g_wd_temp[k],TC(TEXT_PRIMARY),0);lv_obj_align(g_wd_temp[k],LV_ALIGN_TOP_LEFT,11,23);lv_obj_align(g_wd_icon[k],LV_ALIGN_TOP_LEFT,96,27);
+            kit_keep(g_wd_hour[k]);kit_keep(g_wd_temp[k]);kit_keep(g_wd_icon[k]);
         }
-        lv_obj_align(g_wd_cicon, LV_ALIGN_TOP_MID, 0, 56);
-        lv_obj_set_style_text_font(g_wd_ctemp, zune_font(&font_zune_light_88), 0); lv_obj_set_style_text_color(g_wd_ctemp, TC(TEXT_PRIMARY), 0);
-        lv_obj_align(g_wd_ctemp, LV_ALIGN_TOP_MID, 8, 86);
-        lv_obj_set_style_text_font(g_wd_cond, zune_font(&font_zune_regular_14), 0); lv_obj_set_style_text_color(g_wd_cond, TC(TEXT_MUTED), 0);
-        lv_obj_set_width(g_wd_cond, 200); lv_obj_align(g_wd_cond, LV_ALIGN_TOP_MID, 0, 200);
-        lv_obj_set_style_text_font(g_wd_loc, &font_zune_semibold_11, 0); lv_obj_set_style_text_letter_space(g_wd_loc, 2, 0);
-        lv_obj_set_style_text_color(g_wd_loc, TC(TEXT_PRIMARY), 0); lv_obj_align(g_wd_loc, LV_ALIGN_TOP_MID, 0, 224);
-        lv_obj_set_style_text_font(g_wd_hl, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(g_wd_hl, TC(TEXT_MUTED), 0);
-        lv_obj_align(g_wd_hl, LV_ALIGN_TOP_MID, 0, 244);
-        lv_obj_set_style_text_font(g_wd_hint, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(g_wd_hint, TC(TEXT_MUTED), 0);
-        lv_obj_align(g_wd_hint, LV_ALIGN_TOP_MID, 0, 262);
-        lv_obj_t *ks[] = { g_wd_cicon, g_wd_ctemp, g_wd_cond, g_wd_loc, g_wd_hl, g_wd_hint };
-        for(unsigned k = 0; k < sizeof ks / sizeof ks[0]; k++) kit_keep(ks[k]);
-        for(int k = 0; k < WD_SLOTS; k++){ kit_keep(g_wd_temp[k]); kit_keep(g_wd_hour[k]); }
+        lv_obj_set_style_text_font(g_wd_hint,zune_font(&font_zune_regular_14),0);lv_obj_set_width(g_wd_hint,230);lv_obj_align(g_wd_hint,LV_ALIGN_TOP_MID,0,304);lv_label_set_long_mode(g_wd_hint,LV_LABEL_LONG_DOT);
+        lv_obj_t *labels[]={g_wd_loc,g_wd_ctemp,g_wd_cicon,g_wd_cond,g_wd_hl,g_wd_hint};for(unsigned k=0;k<sizeof labels/sizeof *labels;k++)kit_keep(labels[k]);
     }
     if(th_braun()){                                               /* Braun: the grille, a panel under the dial, dark type */
         br_face(root); lv_obj_t *pd = br_disc(root, 180, 180, 104, BR_PANEL); lv_obj_move_to_index(pd, 1);

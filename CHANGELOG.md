@@ -1043,3 +1043,9 @@ card wipes. Every diskOS user should update; updating requires the complete inst
 - Restore lower-rim brightness control as a 90-degree arc.
 - Add scrolling title/artist heading with pause/resume interaction; stop its animation while hidden or the display is off.
 - Preserve existing radio/EQ actions, long presses and copy navigation restrictions.
+
+### Zune development: matching utility screens
+- Match five Working Modes controls and four Weather forecast cells to the QS text-grid layout.
+- Enlarge Search letters, radial touch targets, Search/Cancel text and results.
+- Enlarge and tighten EQ Edit/Rename/on-off controls.
+- Match shared clock text to QS and enlarge battery icons. No additional polling, network fetches or periodic timers.

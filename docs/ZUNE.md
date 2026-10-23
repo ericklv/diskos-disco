@@ -84,3 +84,11 @@ Unchanged metadata, QS styles, menu captions and standby clock/artwork avoid red
 Six configurable actions now fill a two-column layout with short labels and explicit state text. The left column stays within the round bezel. Clock and battery percentage use larger text. A 90-degree lower-rim arc controls brightness, with its label inside.
 
 The heading is a scrolling song-title / artist banner: title in white, artist muted. Tap to pause; “paused / resume” replaces the metadata, and tapping resumes. It uses the existing transport path, including its playback restrictions. Empty playback shows “no music”. Scrolling stops when leaving QS or turning the panel off. Existing Wi-Fi/Bluetooth/EQ taps and holds, configurable ordering and Disc Shelf copy restrictions remain.
+
+## Matching utility screens
+
+Working Modes uses five 144x56 text targets in the QS two-column layout. Existing source-switch commands and switching/active feedback are retained; no spinner or new timer is needed.
+
+Search uses larger letters and radial hit regions split into non-overlapping angular sectors. The search caption, Cancel, and result text are larger. EQ Edit/Rename and the on/off caption are larger and grouped more tightly. Shared status rows use the QS-sized clock type and larger battery icons; QS keeps its percentage.
+
+Weather follows the same typography and column spacing: location, current temperature and condition/icon above four forecast cells. Location editing, automatic location and existing fetch scheduling remain unchanged. Forecast labels are reused; missing cells are hidden and long locations truncate within the header.

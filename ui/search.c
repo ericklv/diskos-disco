@@ -63,7 +63,7 @@ static void zcap(const char *t){
 static void zrow(lv_obj_t *r, lv_obj_t *t, lv_obj_t *sub){
     lv_obj_set_style_bg_opa(r, LV_OPA_TRANSP, 0); lv_obj_set_style_bg_opa(r, LV_OPA_TRANSP, LV_STATE_PRESSED);
     lv_obj_set_style_opa(r, LV_OPA_60, LV_STATE_PRESSED); kit_keep(r);
-    lv_obj_set_style_text_font(t, zune_font(&font_zune_regular_19), 0); lv_obj_set_style_text_color(t, TC(TEXT_PRIMARY), 0); kit_keep(t);
+    lv_obj_set_style_text_font(t, TF(UI_24), 0); lv_obj_set_style_text_color(t, TC(TEXT_PRIMARY), 0); kit_keep(t);
     if(sub){ lv_obj_set_style_text_font(sub, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(sub, TC(TEXT_MUTED), 0); kit_keep(sub); }
 }
 /* ---- results page --------------------------------------------------------------------------------- */
@@ -130,7 +130,7 @@ static void res_row(const mdb_song_t *s){
     lv_obj_set_pos(a, 12, 31); lv_obj_set_size(a, 244, 20);
     lv_obj_set_style_text_font(a, ui_font_user(16), 0);
     lv_obj_set_style_text_color(a, TC(TEXT_LYRICS), 0);
-    if(th_zune()){ zrow(r, t, a); lv_obj_set_pos(t, 12, 4); lv_obj_set_pos(a, 14, 30); lv_obj_set_height(r, 50); }
+    if(th_zune()){ zrow(r, t, a); lv_obj_set_pos(t, 12, 4); lv_obj_set_pos(a, 14, 34); lv_obj_set_height(r, 56); }
 }
 /* an artist hit: one line with the microphone; a tap opens the artist's albums */
 static char g_res_art[5][MDB_STR];

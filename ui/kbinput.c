@@ -7,6 +7,7 @@
 #include <string.h>
 #include <math.h>
 #include "zune_dial.h"
+#include "lvgl/src/core/lv_obj_event_private.h"
 
 /* Text entry (Wi-Fi password, MA Sendspin server and name, playlist names): a full-screen modal with Search's
  * field and big keyboard. */
@@ -196,7 +197,7 @@ void kbinput_open(const char *title, const char *initial, kbinput_done_cb_t cb){
 /* ==== Zune (Figma 08): the letters round the rim - tap one, it lights in the accent; the field in the middle on a
  * hairline, what it's for above it; Aa, 123, backspace and done as four discs; cancel (and show, for a password) ==== */
 LV_FONT_DECLARE(font_zune_light_28) LV_FONT_DECLARE(font_zune_regular_12) LV_FONT_DECLARE(font_zune_regular_13)
-LV_FONT_DECLARE(font_zune_regular_14) LV_FONT_DECLARE(font_zune_regular_17)
+LV_FONT_DECLARE(font_zune_regular_14) LV_FONT_DECLARE(font_zune_regular_17) LV_FONT_DECLARE(font_zune_regular_19)
 #define ZK_MAX 32
 static const char *const ZK_SET[4] = {
     "abcdefghijklmnopqrstuvwxyz-._",
@@ -204,16 +205,22 @@ static const char *const ZK_SET[4] = {
     "0123456789 !\"#$%&'()*+,/:;<=>?",
     "@[\\]^`{|}~" };
 static struct { lv_obj_t *ta, *key[ZK_MAX], *lbl[ZK_MAX], *hit[ZK_MAX], *aa, *aa_l, *mode_l, *show_l; int page, n; } ZK;
+static void zk_hit_test(lv_event_t *e){
+ lv_hit_test_info_t *info=lv_event_get_param(e);if(!info||!info->res)return;
+ int i=(int)(intptr_t)lv_event_get_user_data(e);lv_obj_t*h=lv_event_get_target(e);lv_area_t a;lv_obj_get_coords(lv_obj_get_parent(h),&a);
+ float dx=info->point->x-a.x1-180,dy=info->point->y-a.y1-180,r2=dx*dx+dy*dy,angle=atan2f(dy,dx)*57.2957795f+90;if(angle<0)angle+=360;
+ int nearest=ZK.n?(int)floorf(angle*ZK.n/360+0.5f)%ZK.n:-1;info->res=r2>=124*124&&r2<=174*174&&nearest==i;
+}
 static void zk_paint(void){
     const char *set = ZK_SET[ZK.page]; int n = (int)strlen(set); if(n > ZK_MAX) n = ZK_MAX; ZK.n = n;
     for(int i = 0; i < ZK_MAX; i++){
         if(i >= n){ lv_obj_add_flag(ZK.key[i], LV_OBJ_FLAG_HIDDEN); lv_obj_add_flag(ZK.hit[i], LV_OBJ_FLAG_HIDDEN); continue; }
         float a = (-90.0f + 360.0f * i / n) * 0.0174533f;
         int cx = 180 + (int)lroundf(146 * cosf(a)), cy = 180 + (int)lroundf(146 * sinf(a));
-        lv_obj_set_pos(ZK.key[i], cx - 14, cy - 14); lv_obj_set_pos(ZK.hit[i], cx - 8, cy - 8);
+        lv_obj_set_pos(ZK.key[i], cx - 14, cy - 14); lv_obj_set_pos(ZK.hit[i], cx - 22, cy - 22);
         char t[2] = { set[i], 0 };
         lv_label_set_text(ZK.lbl[i], set[i] == ' ' ? "sp" : t);              /* space: "sp", small */
-        lv_obj_set_style_text_font(ZK.lbl[i], zune_font(set[i] == ' ' ? &font_zune_regular_12 : &font_zune_regular_17), 0);
+        lv_obj_set_style_text_font(ZK.lbl[i], zune_font(set[i] == ' ' ? &font_zune_regular_14 : &font_zune_regular_19), 0);
         lv_obj_center(ZK.lbl[i]);
         lv_obj_set_user_data(ZK.hit[i], (void *)(uintptr_t)(unsigned char)set[i]);
         lv_obj_remove_flag(ZK.key[i], LV_OBJ_FLAG_HIDDEN); lv_obj_remove_flag(ZK.hit[i], LV_OBJ_FLAG_HIDDEN);
@@ -269,8 +276,8 @@ static lv_obj_t *zk_text(lv_obj_t *m, const char *t, lv_color_t c, int cx, int y
     lv_obj_add_flag(o, LV_OBJ_FLAG_CLICKABLE); lv_obj_remove_flag(o, LV_OBJ_FLAG_SCROLLABLE); lv_obj_set_ext_click_area(o, 10);
     lv_obj_set_style_opa(o, LV_OPA_50, LV_STATE_PRESSED);
     lv_obj_t *l = lv_label_create(o); kit_keep(l); lv_label_set_text(l, t);
-    lv_obj_set_style_text_font(l, zune_font(&font_zune_regular_14), 0); lv_obj_set_style_text_color(l, c, 0);
-    lv_obj_align(o, LV_ALIGN_TOP_MID, cx - 180, y);
+    lv_obj_set_style_text_font(l, zune_font(&font_zune_regular_17), 0); lv_obj_set_style_text_color(l, c, 0);
+    lv_obj_update_layout(l);lv_obj_set_size(o,lv_obj_get_width(l)+16,40);lv_obj_center(l);lv_obj_align(o, LV_ALIGN_TOP_MID, cx - 180, y-4);
     ui_on(o, cb, LV_EVENT_CLICKED, NULL, act, UI_CORE);
     return l;
 }
@@ -290,8 +297,8 @@ void zkb_build(lv_obj_t *m, lv_obj_t *ta, const char *title, int password){
     for(char *c = low; *c; c++) if(*c >= 'A' && *c <= 'Z' && (c == low || c[-1] == ' ')) *c += 32;
     lv_obj_t *t = lv_label_create(m); kit_keep(t); lv_label_set_text(t, low);
     lv_label_set_long_mode(t, LV_LABEL_LONG_DOT); lv_obj_set_width(t, 200); lv_obj_set_style_text_align(t, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_font(t, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(t, TC(TEXT_MUTED), 0);
-    lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 96);
+    lv_obj_set_style_text_font(t, zune_font(&font_zune_regular_19), 0); lv_obj_set_style_text_color(t, TC(TEXT_MUTED), 0);
+    lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 89);
     for(int i = 0; i < ZK_MAX; i++){
         lv_obj_t *k = lv_obj_create(m); lv_obj_remove_style_all(k); kit_keep(k);
         lv_obj_set_size(k, 28, 28); lv_obj_set_style_radius(k, LV_RADIUS_CIRCLE, 0);
@@ -300,7 +307,7 @@ void zkb_build(lv_obj_t *m, lv_obj_t *ta, const char *title, int password){
         ZK.key[i] = k;
         ZK.lbl[i] = lv_label_create(k); kit_keep(ZK.lbl[i]); lv_obj_set_style_text_color(ZK.lbl[i], TC(TEXT_PRIMARY), 0);
         lv_obj_t *h = lv_obj_create(m); lv_obj_remove_style_all(h); kit_keep(h);
-        lv_obj_set_size(h, 16, 16); lv_obj_set_ext_click_area(h, 8);
+        lv_obj_set_size(h, 44, 44); lv_obj_set_ext_click_area(h, 4);lv_obj_add_flag(h,LV_OBJ_FLAG_ADV_HITTEST);lv_obj_add_event_cb(h,zk_hit_test,LV_EVENT_HIT_TEST,(void*)(intptr_t)i);
         lv_obj_add_flag(h, LV_OBJ_FLAG_CLICKABLE); lv_obj_remove_flag(h, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_event_cb(h, zk_key_cb, LV_EVENT_ALL, NULL);
         ZK.hit[i] = h;
@@ -318,8 +325,8 @@ void zkb_build(lv_obj_t *m, lv_obj_t *ta, const char *title, int password){
     static const lv_point_precise_t CK[3] = { { 15, 23 }, { 20, 28 }, { 31, 17 } };
     lv_obj_t *ck = lv_line_create(dn); lv_line_set_points(ck, CK, 3);
     lv_obj_set_style_line_width(ck, 3, 0); lv_obj_set_style_line_rounded(ck, true, 0); lv_obj_set_style_line_color(ck, TC(ON_ACCENT), 0);
-    if(password){ zk_text(m, "cancel", TC(TEXT_MUTED), 150, 252, cancel_btn, "kb.zune.cancel");
-                  ZK.show_l = zk_text(m, "show", TC(ACCENT_PRIMARY), 214, 252, zk_show_cb, "kb.zune.show"); }
+    if(password){ zk_text(m, "cancel", TC(TEXT_MUTED), 132, 252, cancel_btn, "kb.zune.cancel");
+                  ZK.show_l = zk_text(m, "show", TC(ACCENT_PRIMARY), 228, 252, zk_show_cb, "kb.zune.show"); }
     else zk_text(m, "cancel", TC(TEXT_MUTED), 180, 252, cancel_btn, "kb.zune.cancel");
     zk_paint();
 }

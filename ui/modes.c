@@ -358,75 +358,31 @@ static void squash_modes_create(lv_obj_t *root){
     }
     lv_obj_remove_flag(root,LV_OBJ_FLAG_SCROLLABLE);mark_selected();
 }
-static lv_obj_t *g_zmname;
-LV_FONT_DECLARE(font_zune_light_32) LV_FONT_DECLARE(font_zune_regular_12) LV_FONT_DECLARE(font_zune_regular_13)
-LV_FONT_DECLARE(font_zune_semibold_11) LV_FONT_DECLARE(font_zune_regular_14)
-const lv_font_t *zune_font(const lv_font_t *base);
+LV_FONT_DECLARE(font_zune_light_32) LV_FONT_DECLARE(font_zune_light_24) LV_FONT_DECLARE(font_zune_regular_14)
+#include "zune_dial.h"
 #define ZM_N 5
-static const int ZM_SLOT[ZM_N] = { 0, 1, 5, 4, 2 };   /* playback, usb dac, usb storage, airplay, bt receiver */
-static const char *const ZM_NAME[ZM_N] = { "playback", "usb dac", "usb storage", "airplay", "bt receiver" };
-static const char *const ZM_SUB[ZM_N] = { "normal listening", "the disc is a computer's sound card", "the computer sees the sd card",
-                                          "stream from an iphone or mac", "a phone plays through the disc" };
-static lv_obj_t *g_zmc[ZM_N], *g_zmg[ZM_N], *g_zmcap[ZM_N], *g_zmsub, *g_zmspin;
-static int zm_of_slot(int slot){ for(int k = 0; k < ZM_N; k++) if(ZM_SLOT[k] == slot) return k; return -1; }
-static void zspin_exec(void *var, int32_t v){ lv_arc_set_rotation((lv_obj_t *)var, v % 360); }
-static void zmodes_paint(int slot, int pending){
-    int on = zm_of_slot(slot);
-    for(int k = 0; k < ZM_N; k++){
-        int a = k == on && !pending;
-        lv_obj_set_style_bg_color(g_zmc[k], a ? TC(ACCENT_PRIMARY) : TC(SURFACE), 0);
-        lv_obj_set_style_text_color(g_zmg[k], TC(TEXT_PRIMARY), 0);
-        lv_obj_set_style_text_color(g_zmcap[k], k == on ? TC(ACCENT_PRIMARY) : TC(TEXT_MUTED), 0);
-    }
-    lv_anim_delete(g_zmspin, zspin_exec);
-    if(pending && on >= 0){
-        lv_obj_remove_flag(g_zmspin, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_align_to(g_zmspin, g_zmc[on], LV_ALIGN_CENTER, 0, 0);
-        lv_anim_t an; lv_anim_init(&an); lv_anim_set_var(&an, g_zmspin); lv_anim_set_exec_cb(&an, zspin_exec);
-        lv_anim_set_values(&an, 0, 360); lv_anim_set_duration(&an, 1100); lv_anim_set_repeat_count(&an, LV_ANIM_REPEAT_INFINITE);
-        lv_anim_start(&an);
-        lv_label_set_text(g_zmname, "switching");
-        char b[64]; snprintf(b, sizeof b, "to %s \xC2\xB7 playback pauses", ZM_NAME[on]); lv_label_set_text(g_zmsub, b);
-    } else {
-        lv_obj_add_flag(g_zmspin, LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text(g_zmname, on >= 0 ? ZM_NAME[on] : "playback");
-        char b[80]; snprintf(b, sizeof b, "active \xC2\xB7 %s", ZM_SUB[on >= 0 ? on : 0]); lv_label_set_text(g_zmsub, b);
-    }
+static const int ZM_SLOT[ZM_N]={0,1,5,4,2};
+static const char *const ZM_NAME[ZM_N]={"playback","usb dac","storage","airplay","bt receiver"};
+static const char *const ZM_SUB[ZM_N]={"local files","computer audio","SD card access","wireless audio","phone audio"};
+static lv_obj_t *g_zm_mark[ZM_N],*g_zm_label[ZM_N],*g_zm_sub[ZM_N];
+static void zmodes_paint(int slot,int pending){
+ for(int k=0;k<ZM_N;k++){if(!g_zm_label[k])continue;int active=slot==ZM_SLOT[k];
+ lv_color_t ink=active?TC(ACCENT_PRIMARY):TC(TEXT_PRIMARY),mark=active?TC(ACCENT_PRIMARY):TC(CONTROL_TRACK);
+ if(!lv_color_eq(lv_obj_get_style_text_color(g_zm_label[k],0),ink))lv_obj_set_style_text_color(g_zm_label[k],ink,0);
+ if(!lv_color_eq(lv_obj_get_style_bg_color(g_zm_mark[k],0),mark))lv_obj_set_style_bg_color(g_zm_mark[k],mark,0);
+ const char *sub=active?(pending?"switching...":"active"):ZM_SUB[k];if(strcmp(lv_label_get_text(g_zm_sub[k]),sub))lv_label_set_text(g_zm_sub[k],sub);
+ }
 }
-static void zm_tap(lv_event_t *e){ row_cb(ZM_SLOT[(int)(intptr_t)lv_event_get_user_data(e)]); }
+static void zm_tap(lv_event_t *e){int k=(int)(intptr_t)lv_event_get_user_data(e);if(k>=0&&k<ZM_N)row_cb(ZM_SLOT[k]);}
 static void zmodes_create(lv_obj_t *root){
-    lv_obj_remove_flag(root, LV_OBJ_FLAG_SCROLLABLE);
-    for(int k = 0; k < ZM_N; k++){
-        float a = (-90.0f + k * 72.0f) * 0.0174533f;
-        int cx = 180 + (int)lroundf(cosf(a) * 120), cy = 180 + (int)lroundf(sinf(a) * 120) - 10;
-        lv_obj_t *c = lv_obj_create(root); lv_obj_remove_style_all(c); kit_keep(c); g_zmc[k] = c;
-        lv_obj_set_size(c, 56, 56); lv_obj_set_pos(c, cx - 28, cy - 28); lv_obj_set_style_radius(c, LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_bg_opa(c, LV_OPA_COVER, 0); lv_obj_remove_flag(c, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_t *g = lv_label_create(c); kit_keep(g); g_zmg[k] = g; lv_label_set_text(g, MODES[ZM_SLOT[k]].glyph);
-        lv_obj_set_style_text_font(g, TF(UI_20), 0); lv_obj_center(g);
-        lv_obj_t *cap = lv_label_create(root); kit_keep(cap); g_zmcap[k] = cap; lv_label_set_text(cap, ZM_NAME[k]);
-        lv_obj_set_style_text_font(cap, zune_font(&font_zune_regular_12), 0);
-        lv_obj_update_layout(cap); lv_obj_set_pos(cap, cx - lv_obj_get_width(cap) / 2, cy + 32);
-        if(k == 0) lv_obj_add_flag(cap, LV_OBJ_FLAG_HIDDEN);           /* the top one's name is the big one in the middle */
-        lv_obj_t *h = lv_obj_create(root); lv_obj_remove_style_all(h); kit_keep(h);
-        lv_obj_set_size(h, 24, 24); lv_obj_set_pos(h, cx - 12, cy - 12);
-        lv_obj_add_flag(h, LV_OBJ_FLAG_CLICKABLE); lv_obj_remove_flag(h, LV_OBJ_FLAG_SCROLLABLE); lv_obj_set_ext_click_area(h, 20);
-        ui_on(h, zm_tap, LV_EVENT_CLICKED, (void *)(intptr_t)k, "modes.zune", UI_CORE);
-    }
-    g_zmspin = lv_arc_create(root); kit_keep(g_zmspin);
-    lv_obj_remove_style(g_zmspin, NULL, LV_PART_KNOB); lv_obj_remove_flag(g_zmspin, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_size(g_zmspin, 68, 68); lv_arc_set_bg_angles(g_zmspin, 0, 90); lv_arc_set_value(g_zmspin, 0);
-    lv_obj_set_style_arc_width(g_zmspin, 3, LV_PART_MAIN); lv_obj_set_style_arc_color(g_zmspin, TC(ACCENT_PRIMARY), LV_PART_MAIN);
-    lv_obj_set_style_arc_rounded(g_zmspin, true, LV_PART_MAIN); lv_obj_set_style_arc_width(g_zmspin, 0, LV_PART_INDICATOR);
-    lv_obj_add_flag(g_zmspin, LV_OBJ_FLAG_HIDDEN);
-    g_zmname = lv_label_create(root); kit_keep(g_zmname);
-    lv_obj_set_style_text_font(g_zmname, zune_font(&font_zune_light_32), 0); lv_obj_set_style_text_color(g_zmname, TC(TEXT_PRIMARY), 0);
-    lv_obj_align(g_zmname, LV_ALIGN_TOP_MID, 0, 160);
-    g_zmsub = lv_label_create(root); kit_keep(g_zmsub);
-    lv_obj_set_style_text_font(g_zmsub, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(g_zmsub, TC(ACCENT_PRIMARY), 0);
-    lv_label_set_long_mode(g_zmsub, LV_LABEL_LONG_SCROLL_CIRCULAR); lv_obj_set_width(g_zmsub, 150);
-    lv_obj_set_style_text_align(g_zmsub, LV_TEXT_ALIGN_CENTER, 0); lv_obj_align(g_zmsub, LV_ALIGN_TOP_MID, 0, 200);
-    mark_selected();
+ lv_obj_remove_flag(root,LV_OBJ_FLAG_SCROLLABLE);zune_status(root,SCR_WORKMODE);
+ lv_obj_t*title=lv_label_create(root);kit_keep(title);lv_label_set_text(title,"working modes");lv_obj_set_style_text_font(title,zune_font(&font_zune_light_32),0);lv_obj_set_style_text_color(title,TC(TEXT_PRIMARY),0);lv_obj_set_pos(title,44,49);lv_obj_set_size(title,272,57);lv_label_set_long_mode(title,LV_LABEL_LONG_DOT);
+ lv_obj_t*line=lv_obj_create(root);lv_obj_remove_style_all(line);kit_keep(line);lv_obj_set_pos(line,179,116);lv_obj_set_size(line,1,166);lv_obj_set_style_bg_opa(line,LV_OPA_COVER,0);lv_obj_set_style_bg_color(line,TC(CONTROL_TRACK),0);lv_obj_remove_flag(line,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
+ for(int k=0;k<ZM_N;k++){int x=k%2?190:38,y=113+k/2*60;lv_obj_t*b=lv_obj_create(root);lv_obj_remove_style_all(b);kit_keep(b);lv_obj_set_pos(b,x,y);lv_obj_set_size(b,144,56);lv_obj_remove_flag(b,LV_OBJ_FLAG_SCROLLABLE);lv_obj_add_flag(b,LV_OBJ_FLAG_CLICKABLE);ui_on(b,zm_tap,LV_EVENT_CLICKED,(void*)(intptr_t)k,"modes.zune",UI_CORE);
+ lv_obj_t*m=lv_obj_create(b);lv_obj_remove_style_all(m);kit_keep(m);lv_obj_set_pos(m,0,7);lv_obj_set_size(m,3,42);lv_obj_set_style_bg_opa(m,LV_OPA_COVER,0);lv_obj_remove_flag(m,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);g_zm_mark[k]=m;
+ for(int j=0;j<2;j++){lv_obj_t*l=lv_label_create(b);kit_keep(l);lv_label_set_text(l,j?ZM_SUB[k]:ZM_NAME[k]);lv_obj_set_style_text_font(l,zune_font(j?&font_zune_regular_14:&font_zune_light_24),0);lv_obj_set_style_text_color(l,j?TC(TEXT_MUTED):TC(TEXT_PRIMARY),0);lv_obj_set_pos(l,11,j?31:0);lv_obj_set_size(l,130,lv_font_get_line_height(zune_font(j?&font_zune_regular_14:&font_zune_light_24)));lv_label_set_long_mode(l,LV_LABEL_LONG_DOT);if(j)g_zm_sub[k]=l;else g_zm_label[k]=l;}
+ }
+ mark_selected();
 }
 
 void modes_create(lv_obj_t *root){

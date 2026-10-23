@@ -550,6 +550,8 @@ static void stats_seed_demo(void){
     }
     sqlite3_finalize(st); sqlite3_exec(d,"COMMIT;",0,0,0); sqlite3_close(d);
 }
+static char zfollow_saved[160];
+static void zfollow_done(const char *s){snprintf(zfollow_saved,sizeof zfollow_saved,"%s",s?s:"CANCEL");}
 int main(int argc, char **argv){
     if(argc != 6){ fprintf(stderr,"usage: host-render PRESET VARIANT home|np|actions UP_NEXT OUT.ppm\n"); return 2; }
     setenv("TZ","UTC",1); tzset();
@@ -1234,7 +1236,7 @@ int main(int argc, char **argv){
         else if(!strcmp(page,"battery")){void usage_demo(int);scr=SCR_USAGE;screen_show(scr);usage_demo(getenv("CHG")!=NULL);}
         else if(!strcmp(page,"discoopts")){void settings_open_disco(void);setlist_open("Display");scr=SCR_SETLIST;screen_show(scr);settings_open_disco();}
         else if(!strncmp(page,"scr",3)){scr=atoi(page+3);}
-        else if(!strcmp(page,"weather")){void weather_demo(void);scr=SCR_WEATHER;screen_show(scr);weather_demo();}
+        else if(!strcmp(page,"weather")){void weather_demo(void);scr=SCR_WEATHER;screen_show(scr);if(!getenv("WX_EMPTY"))weather_demo();if(getenv("WX_LOCATION")){lv_obj_t*l=find_text(screen_get_root(scr),"Amsterdam");assert(l);lv_label_set_text(l,getenv("WX_LOCATION"));assert(lv_obj_get_width(l)==272&&lv_label_get_long_mode(l)==LV_LABEL_LONG_DOT);}}
         else if(!strcmp(page,"low")){home_set_status(10,0,1,1);void usage_note_battery(int,int);usage_note_battery(10,0);}else if(!strcmp(page,"charging"))home_set_status(67,1,1,1);
         else if(!strncmp(page,"saver",5)){
             cfg_set_int_deferred("saver_style",5);
@@ -1750,6 +1752,27 @@ int main(int argc, char **argv){
                 for(int x=12;x<=130;x+=8){nav_pointer.point.x=x;nav_wait(15);}nav_pointer.state=LV_INDEV_STATE_RELEASED;nav_wait(500);assert(!ui_np_fsart_active());
             }
             lv_indev_delete(in);puts("PASS shared immersive: controls tap, cancelled edge swipe, completed edge Back with scrubbing off and on");
+        }
+        if(getenv("REVIEW_ZUNE_FOLLOWUP")){
+            kbinput_open("search","",zfollow_done);nav_wait(50);
+            const char *sets[]= {
+    "abcdefghijklmnopqrstuvwxyz-._",
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ-._",
+    "0123456789 !\"#$%&'()*+,/:;<=>?",
+    "@[\\]^`{|}~" };
+            for(int page=0;page<4;page++){
+                if(page==1||page==3)lv_obj_send_event(ui_action_find("kb.zune.shift"),LV_EVENT_CLICKED,NULL);
+                if(page==2)lv_obj_send_event(ui_action_find("kb.zune.mode"),LV_EVENT_CLICKED,NULL);
+                nav_wait(40);int n=strlen(sets[page]);
+                for(int i=0;i<n;i++){
+                    char txt[]={sets[page][i],0};lv_obj_t *label=find_visible_text(lv_layer_top(),sets[page][i]==' '?"sp":txt);assert(label);lv_obj_t*key=lv_obj_get_parent(label),*modal=lv_obj_get_parent(key),*hit=lv_obj_get_child(modal,lv_obj_get_index(key)+1);assert(lv_obj_has_flag(hit,LV_OBJ_FLAG_ADV_HITTEST));lv_area_t ma;lv_obj_get_coords(modal,&ma);
+                    float angle=(-90.0f+360.0f*i/n)*0.0174532925f;for(int r=128;r<=170;r+=21){lv_point_t pt={ma.x1+180+(int)lroundf(r*cosf(angle)),ma.y1+180+(int)lroundf(r*sinf(angle))};assert(lv_obj_hit_test(hit,&pt));}
+                }
+            }
+            lv_obj_send_event(ui_action_find("kb.zune.cancel"),LV_EVENT_CLICKED,NULL);nav_wait(50);assert(!strcmp(zfollow_saved,"CANCEL"));
+            kbinput_open("search","",zfollow_done);nav_wait(30);lv_obj_t*label=find_visible_text(lv_layer_top(),"a");assert(label);lv_obj_t*key=lv_obj_get_parent(label);lv_obj_t*hit=lv_obj_get_child(lv_obj_get_parent(key),lv_obj_get_index(key)+1);lv_obj_send_event(hit,LV_EVENT_SHORT_CLICKED,NULL);lv_obj_send_event(ui_action_find("kb.zune.done"),LV_EVENT_CLICKED,NULL);nav_wait(40);assert(!strcmp(zfollow_saved,"a"));
+            screen_show(SCR_WORKMODE);nav_wait(50);const char*names[]={"playback","usb dac","storage","airplay","bt receiver"};for(int i=0;i<5;i++){lv_obj_t*l=find_visible_text(screen_get_root(SCR_WORKMODE),names[i]);assert(l);lv_obj_t*b=lv_obj_get_parent(l);assert(lv_obj_get_width(b)==144&&lv_obj_get_height(b)==56);lv_area_t a;lv_obj_get_coords(b,&a);assert(a.x1>=38&&a.x2<=333&&a.y1>=113&&a.y2<=288);}
+            screen_show(SCR_QUICK);nav_wait(50);puts("PASS Zune follow-up: keyboard sector targets on all pages, cancel, typed submission, five visible mode targets");
         }
         if(getenv("REVIEW_ZQS_BANNER")){
             screen_show(SCR_QUICK);nav_wait(100);send_result=0;
@@ -2536,6 +2559,7 @@ render:
     if(getenv("VOLUME_CONCEPT")){volume_concept(atoi(getenv("VOLUME_CONCEPT")));lv_refr_now(d);}
     if(getenv("TOAST")){ui_toast(getenv("TOAST"));nav_wait(400);lv_refr_now(d);}   /* a pop-up on any screen, for checking its fit */
     if(getenv("BACK_HINT")){void ui_back_hint(int,int);ui_back_hint(180,atoi(getenv("BACK_HINT")));nav_wait(200);lv_refr_now(d);}   /* the back arrow, for checking it shows */
+    if(th_zune()){zune_status_refresh();nav_wait(40);lv_refr_now(d);}
     FILE *f=fopen(argv[5],"wb"); if(!f) return 1;
     fprintf(f,"P6\n360 360\n255\n");
     for(size_t i=0;i<sizeof pixels;i+=3){
