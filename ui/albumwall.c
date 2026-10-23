@@ -19,14 +19,10 @@
 #include "theme_kit.h"
 LV_FONT_DECLARE(font_zune_light_21) LV_FONT_DECLARE(font_zune_regular_13) LV_FONT_DECLARE(font_zune_light_50)
 
-/* Album Wall: an Apple-style COVER FLOW that FLOWS. The centred album faces the viewer; the covers to
- * each side are angled (an affine squash, dimmed) with a faded reflection. A swipe slides the whole strip
- * one album over, with the two covers changing orientation cross-fading between a "facing" and a "turned"
- * pose. No GPU: each cover is decoded once and BAKED into two ready-to-blit sprites (a 148px facing sprite
- * and a 64px turned sprite, reflection included), kept in an LRU + prefetched in a window - so the flow
- * animation only translates + blends static bitmaps (no per-frame transforms) and stays smooth. Covers
- * come from the art cache (a track from the album must have been played); un-cached albums show a dark
- * placeholder. Tap the centre to play, long-press to open its tracks (dispatched from main.c). */
+/* Shared Coverflow: Zune's curved carousel, with colours and labels from the active theme.
+ * Decode covers on the existing bounded worker/cache path; animate only visible card geometry.
+ * Tap the centre cover to open its tracks; hold it to play (main.c dispatches the gesture).
+ */
 
 #define AW_SRC    148      /* cached cover native size (must match artcache's c.bmp) */
 #define AW_REFL   32       /* reflection height */
@@ -38,15 +34,13 @@ LV_FONT_DECLARE(font_zune_light_21) LV_FONT_DECLARE(font_zune_regular_13) LV_FON
 #define AW_LRU    13       /* baked sprites resident (9 visible span + prefetch) */
 #define AW_PREFETCH 5      /* decode this far each side while browsing */
 
-/* slot centres at integer positions -2..+2; the strip interpolates between them */
-static const float SLOT_X[5] = { 52, 90, 180, 270, 308 };
 
 static lv_obj_t *g_root;
 static lv_obj_t *g_front[AW_CARDS];   /* facing sprite widget per card */
 static lv_obj_t *g_side[AW_CARDS];    /* turned sprite widget per card */
 static lv_obj_t *g_initial;
 static lv_obj_t *g_name, *g_artist, *g_counter, *g_zpos;   /* g_zpos: Zune's position arc at the bottom */
-#define AW_Y (th_zune() ? 103 : 72)   /* the facing cover's top (Zune, Figma 31:105: under the pivot title) */
+#define AW_Y 103   /* the facing cover's top (Zune, Figma 31:105: under the pivot title) */
 
 static char  (*g_names)[MDB_STR];
 static char  (*g_artists)[MDB_STR];
@@ -234,13 +228,6 @@ static sprite_t *aw_sprite(int idx){
 
 /* ---- flow geometry ------------------------------------------------------------------------------ */
 static int aw_wrap(int idx){ return ((idx % g_nalb) + g_nalb) % g_nalb; }
-static float aw_xmap(float p){
-    if(p <= -2) return SLOT_X[0] + (p + 2) * (SLOT_X[1]-SLOT_X[0]);
-    if(p >=  2) return SLOT_X[4] + (p - 2) * (SLOT_X[4]-SLOT_X[3]);
-    int i = (int)floorf(p) + 2; if(i<0) i=0; if(i>3) i=3;
-    float frac = p - floorf(p);
-    return SLOT_X[i] + (SLOT_X[i+1]-SLOT_X[i]) * frac;
-}
 /* render one card at continuous position epos (0 = centre). Sets both its sprites' pos + opacity. */
 static void aw_render_card(int c){
     float epos = c - (AW_CARDS/2) + g_off;      /* card c's base is (c - centre) */
@@ -255,12 +242,7 @@ static void aw_render_card(int c){
 
     int fade = 255;                              /* edge fade in/out */
     if(a > 2.25f){ fade = (int)((2.75f - a)/0.5f * 255); if(fade<0) fade=0; }
-    int fo, so;                                  /* facing vs turned crossfade */
-    if(a <= 1.0f){ fo = (int)((1.0f - a)*255); so = (int)(a*255); }
-    else { fo = 0; so = 255; }
-    fo = fo*fade/255; so = so*fade/255;
-
-    if(th_zune()){                                /* Zune (Figma 31:105): flat covers sweeping down an arc, shrinking and dimming */
+    { /* Shared Coverflow: flat covers sweep down an arc, shrinking and dimming. */
         float b = a > 2.0f ? 2.0f : a, sd = epos < 0 ? -1.0f : 1.0f;
         float sz = b <= 1 ? 150 - 54 * b : 96 - 32 * (b - 1);
         float xc = 180 + sd * (b <= 1 ? 82 * b : 82 + 49 * (b - 1));
@@ -274,13 +256,7 @@ static void aw_render_card(int c){
         lv_obj_add_flag(si, LV_OBJ_FLAG_HIDDEN);
         return;
     }
-    float x = aw_xmap(epos);
-    lv_obj_set_pos(fi, (int)(x - AW_SRC/2), AW_Y);
-    lv_obj_set_style_image_opa(fi, (lv_opa_t)fo, 0);
-    if(fo>0) lv_obj_clear_flag(fi, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(fi, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_set_pos(si, (int)(x - AW_SIDE_W/2), AW_Y + 6);
-    lv_obj_set_style_image_opa(si, (lv_opa_t)so, 0);
-    if(so>0) lv_obj_clear_flag(si, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(si, LV_OBJ_FLAG_HIDDEN);
+
 }
 static void aw_labels(void){
     if(g_nalb<=0) return;
@@ -481,13 +457,12 @@ static void aw_prefetch_cb(lv_timer_t *t){ (void)t;
 
 
 /* ---- lifecycle ---------------------------------------------------------------------------------- */
-static void aw_back_cb(lv_event_t *e){ if(lv_event_get_code(e)==LV_EVENT_CLICKED) screen_back(); }
+static void aw_back_cb(lv_event_t *e){ if(lv_event_get_code(e)==LV_EVENT_CLICKED){void library_open_overview(void);library_open_overview();} }
 static lv_obj_t *aw_img(void){
     lv_obj_t *im = lv_image_create(g_root); lv_obj_add_flag(im, LV_OBJ_FLAG_HIDDEN);
-    if(th_zune()){ lv_image_set_inner_align(im, LV_IMAGE_ALIGN_TOP_LEFT); lv_obj_set_height(im, AW_SRC); }   /* Zune: no reflection (cropped off) */
+    lv_image_set_inner_align(im,LV_IMAGE_ALIGN_TOP_LEFT);lv_obj_set_height(im,AW_SRC); /* square cover, no reflection */
     return im;
 }
-static void aw_znext_cb(lv_event_t *e){ if(lv_event_get_code(e)==LV_EVENT_CLICKED){ void library_open_pivot(int v); library_open_pivot(2); } }
 
 void albumwall_create(lv_obj_t *root){
     g_root = root;
@@ -535,20 +510,9 @@ void albumwall_refresh(void){
     lv_obj_set_style_bg_color(g_root, TC(CANVAS), 0);
     lv_obj_set_style_bg_opa(g_root, LV_OPA_COVER, 0);
     g_zpos = NULL;
-    if(th_zune()){                                      /* Zune: the albums pivot, artists peeking in at the right */
-        lv_obj_t *t = zune_pivot(g_root, "albums", aw_back_cb);
-        lv_obj_t *nx = lv_label_create(g_root); kit_keep(nx);
-        lv_label_set_text(nx, "artists"); lv_label_set_long_mode(nx, LV_LABEL_LONG_CLIP); lv_obj_set_width(nx, 200);
-        lv_obj_set_style_text_font(nx, lv_obj_get_style_text_font(t, 0), 0); lv_obj_set_style_text_letter_space(nx, -2, 0);
-        lv_obj_set_style_text_color(nx, TC(TEXT_PRIMARY), 0); lv_obj_set_style_text_opa(nx, LV_OPA_40, 0);
-        lv_point_t sz; lv_text_get_size(&sz, "albums", lv_obj_get_style_text_font(t, 0), -2, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-        lv_obj_update_layout(t);
-        lv_obj_set_pos(nx, lv_obj_get_x(t) + sz.x + 24, lv_obj_get_y(t));
-        lv_obj_add_flag(nx, LV_OBJ_FLAG_CLICKABLE); lv_obj_set_ext_click_area(nx, 8);
-        lv_obj_add_event_cb(nx, aw_znext_cb, LV_EVENT_CLICKED, NULL);
-        zune_status(g_root, SCR_ALBUMWALL);
-    } else
-    ui_header_cb(g_root, "Albums", aw_back_cb);
+    if(th_zune())zune_pivot(g_root,"albums",aw_back_cb);else ui_header_cb(g_root,"Albums",aw_back_cb);
+    void library_category_nav(lv_obj_t *,int);library_category_nav(g_root,1);
+    if(th_zune())zune_status(g_root,SCR_ALBUMWALL);
 
     g_nalb = g_names ? mdb_albums(g_names, g_artists, g_counts, g_names_cap) : 0;
     if(g_nalb <= 0){

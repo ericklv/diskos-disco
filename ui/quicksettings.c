@@ -37,7 +37,7 @@ LV_FONT_DECLARE(font_icons_28)          /* FontAwesome 28px */
 #define QS_ARC_W     TH_ARC_CTL         /* brightness: a control arc, rounded ends */
 
 enum { T_WIFI, T_BT, T_LIB, T_RESCAN, T_MODE, T_SET, T_N };
-enum { Q_EQ=T_N, Q_SEARCH, Q_QUEUE, Q_UPNEXT, Q_SHORTCUTS, Q_WEATHER, Q_LYRICS, Q_INFO, Q_IMMERSIVE, Q_FOLDERS, Q_FAVS, Q_PLAYBACK, Q_COUNT };
+enum { Q_EQ=T_N, Q_SEARCH, Q_QUEUE, Q_UPNEXT, Q_SHORTCUTS, Q_WEATHER, Q_LYRICS, Q_INFO, Q_IMMERSIVE, Q_FOLDERS, Q_FAVS, Q_PLAYBACK, Q_GAIN, Q_SHUFFLE, Q_SLEEP, Q_COUNT };
 static const qs_item_t CATALOG[Q_COUNT]={
     {"w","Wi-Fi",LV_SYMBOL_WIFI},{"b","Bluetooth",LV_SYMBOL_BLUETOOTH},
     {"l","Library",LV_SYMBOL_DIRECTORY},{"r","Rescan",LV_SYMBOL_REFRESH},
@@ -48,17 +48,22 @@ static const qs_item_t CATALOG[Q_COUNT]={
     {"y","Lyrics",LV_SYMBOL_AUDIO},{"i","Song Info",LV_SYMBOL_FILE},
     {"v","Immersive",LV_SYMBOL_IMAGE},{"d","Folders",LV_SYMBOL_DIRECTORY},
     {"a","Favourites","\xEF\x80\x84"},
-    {"p","Play mode",LV_SYMBOL_LOOP}
+    {"p","Play mode",LV_SYMBOL_LOOP},
+    {"g","Gain",LV_SYMBOL_CHARGE},{"j","Shuffle",LV_SYMBOL_SHUFFLE},{"t","Sleep","\xEF\x86\x86"}
 };
+static const char *qs_config_key(void){return th_zune()?"zune_qs_items":th_null()?"null_qs_items":th_disco_family()?"disco_qs_items":"qs_items";}
 int quicksettings_item_count(void){return Q_COUNT;}
 int quicksettings_item_limit(void){return (th_null()||th_simple())?8:th_disco()?7:6;}
 int quicksettings_playback_item(void){return Q_PLAYBACK;}
 int quicksettings_equalizer_item(void){return Q_EQ;}
-int quicksettings_item_active(int id){int p=simple_cfg_get_int("eq_preset",0);return id==T_WIFI?wifi_radio_live()>0:id==T_BT?bt_state()==BT_ON:id==T_RESCAN?scanner_active():id==T_MODE?ui_get_source_mode()!=0:id==Q_EQ?p>0&&p<=20:id==Q_PLAYBACK?simple_cfg_get_int("work_mode",0)!=0:0;}
+int ui_sleep_state(int *secs_left);
+void ui_set_gain(int high);
+void npmenu_open_sleep(void);
+int quicksettings_item_active(int id){int p=simple_cfg_get_int("eq_preset",0);return id==T_WIFI?wifi_radio_live()>0:id==T_BT?bt_state()==BT_ON:id==T_RESCAN?scanner_active():id==T_MODE?ui_get_source_mode()!=0:id==Q_EQ?p>0&&p<=20:id==Q_PLAYBACK?simple_cfg_get_int("work_mode",0)!=0:id==Q_GAIN?simple_cfg_get_int("audio_gain",0)!=0:id==Q_SHUFFLE?simple_cfg_get_int("work_mode",0)==1:id==Q_SLEEP?ui_sleep_state(NULL)==1:0;}
 static const char*playback_glyph(void){static const char*const g[]={LV_SYMBOL_RIGHT,LV_SYMBOL_SHUFFLE,LV_SYMBOL_LOOP "1",LV_SYMBOL_LOOP,LV_SYMBOL_RIGHT "1"};int v=simple_cfg_get_int("work_mode",0);return g[v>=0&&v<5?v:0];}
 const qs_item_t *quicksettings_item(int id){return id>=0 && id<Q_COUNT?&CATALOG[id]:NULL;}
 int quicksettings_items_load(int *out){
-    const char *code=simple_cfg_get_str(th_null()?"null_qs_items":th_disco_family()?"disco_qs_items":"qs_items",NULL);int n=0,all[Q_COUNT],limit=quicksettings_item_limit();
+    const char *code=simple_cfg_get_str(qs_config_key(),NULL);int n=0,all[Q_COUNT],limit=quicksettings_item_limit();
     if(code)for(const char *p=code;*p && n<Q_COUNT;p++)for(int id=0;id<Q_COUNT;id++)if(*p==CATALOG[id].code[0]){
         int duplicate=0;for(int k=0;k<n;k++)if(all[k]==id)duplicate=1;
         if(!duplicate)all[n++]=id;
@@ -66,6 +71,7 @@ int quicksettings_items_load(int *out){
     }
     if(!code || (code[0] && !n)){
         if(th_null()||th_simple()){static const int nd[]={T_WIFI,T_BT,T_MODE,Q_EQ,T_RESCAN,Q_SEARCH,Q_WEATHER,T_SET};memcpy(out,nd,sizeof nd);return 8;}
+        if(th_zune()){static const int zd[]={T_WIFI,T_BT,Q_GAIN,Q_SHUFFLE,Q_SLEEP,T_MODE};memcpy(out,zd,sizeof zd);return 6;}
         if(!th_disco_family()){for(int i=0;i<T_N;i++)out[i]=i;return T_N;}
         static const int defaults[]={T_WIFI,T_BT,T_MODE,T_LIB,Q_EQ,Q_SEARCH,T_SET};
         memcpy(out,defaults,sizeof defaults);return sizeof defaults/sizeof defaults[0];
@@ -87,8 +93,8 @@ int quicksettings_items_save(const int *items,int count){
         for(int j=0;j<i;j++)if(items[j]==items[i])return -1;
         codes[i]=CATALOG[items[i]].code[0];
     }
-    codes[count]=0;snprintf(old,sizeof old,"%s",simple_cfg_get_str(th_null()?"null_qs_items":th_disco_family()?"disco_qs_items":"qs_items","wbmlefs"));
-    if(simple_cfg_set_str(th_null()?"null_qs_items":th_disco_family()?"disco_qs_items":"qs_items",codes)<0){simple_cfg_set_str_deferred(th_null()?"null_qs_items":th_disco_family()?"disco_qs_items":"qs_items",old);cfg_flush();return -1;}
+    codes[count]=0;snprintf(old,sizeof old,"%s",simple_cfg_get_str(qs_config_key(),"wbmlefs"));
+    if(simple_cfg_set_str(qs_config_key(),codes)<0){simple_cfg_set_str_deferred(qs_config_key(),old);cfg_flush();return -1;}
     return 0;
 }
 static int g_items[QS_MAX_ITEMS],g_nitems,g_style=-1,g_style_raw=-1;
@@ -120,7 +126,9 @@ static const char *mode_glyph(void){
     }
 }
 const char *quicksettings_item_glyph(int id){const qs_item_t *item=quicksettings_item(id);return id==Q_PLAYBACK?playback_glyph():id==T_MODE?mode_glyph():item?item->icon:LV_SYMBOL_SETTINGS;}
+static void zqs_paint(void);
 static void paint_radios(void){
+    if(th_zune()){zqs_paint();return;}
     if(th_disco_family()){dq_paint();return;}
     lv_color_t acc = th_ringlike()?ui_current_accent():TC(ACCENT_PRIMARY);
     int pending=-1;
@@ -159,6 +167,9 @@ static void pick_cb(int i){                                       /* short taps 
         case Q_FOLDERS: folderbrowser_open();break;
         case Q_FAVS: library_open_favourites();screen_show(SCR_LIBRARY);break;
         case Q_PLAYBACK:ui_np_mode_next();break;
+        case Q_GAIN:{int high=!simple_cfg_get_int("audio_gain",0);ui_set_gain(high);simple_cfg_set_int("audio_gain",high);ui_toast(high?"High gain":"Low gain");}break;
+        case Q_SHUFFLE:ui_np_set_playmode(simple_cfg_get_int("work_mode",0)==1?0:1);break;
+        case Q_SLEEP:npmenu_open_sleep();break;
     }
 }
 static void base_pick(int slot){if(slot>=0&&slot<g_nitems){pick_cb(g_items[slot]);quicksettings_refresh(ui_is_playing());}}
@@ -187,7 +198,7 @@ static void prog_tick(lv_timer_t *t){
 /* rescan: while the library scan runs, the Rescan icon turns red and spins (1 turn/s) */
 static void spin_exec(void *var, int32_t v){ lv_obj_set_style_transform_rotation((lv_obj_t *)var, v, 0); }
 static void rescan_show(int on){
-    if(th_disco_family()||th_null()){g_scanning=on;return;}
+    if(th_disco_family()||th_null()||th_zune()){g_scanning=on;return;}
     if(on == g_scanning) return;
     g_scanning = on;
     lv_obj_t *ic = g_orb.icon[T_RESCAN];
@@ -265,7 +276,7 @@ static void controls_build(lv_obj_t *root){
     memset(g_dq_row,0,sizeof g_dq_row);memset(g_dq_ico,0,sizeof g_dq_ico);memset(g_dq_val,0,sizeof g_dq_val);
     memset(g_dq_name,0,sizeof g_dq_name);memset(g_dq_badge,0,sizeof g_dq_badge);
     g_nitems=quicksettings_items_load(g_items);g_style_raw=simple_cfg_get_int("disco_qs_style",1)==1;g_style=g_style_raw;
-    snprintf(g_codes,sizeof g_codes,"%s",simple_cfg_get_str(th_null()?"null_qs_items":th_disco_family()?"disco_qs_items":"qs_items","wbmlefs"));
+    snprintf(g_codes,sizeof g_codes,"%s",simple_cfg_get_str(qs_config_key(),"wbmlefs"));
     for(int i=0;i<T_N;i++){lv_obj_add_flag(g_orb.btn[i],LV_OBJ_FLAG_HIDDEN);if(g_orb.cap[i])lv_obj_add_flag(g_orb.cap[i],LV_OBJ_FLAG_HIDDEN);}
     g_controls=lv_obj_create(root);lv_obj_remove_style_all(g_controls);lv_obj_set_size(g_controls,360,360);
     lv_obj_clear_flag(g_controls,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
@@ -378,7 +389,8 @@ static void disco_layout(lv_obj_t *root){
 }
 /* Battery fill: normal text colour, low red, charging green; no pulse or glow. */
 static void zqs_create(lv_obj_t *root);
-static void zqs_paint(void);
+static void zqs_items_build(void);
+static lv_obj_t *zqs_test_button(int slot);
 void quicksettings_create(lv_obj_t *root)
 {
     g_root=root;
@@ -580,10 +592,10 @@ void quicksettings_build(void){
     if(th_simple()){simple_qs_build();return;}
     if(th_null()){null_qs_build();return;}
     if(!g_root)return;
-    if(th_zune()){ zqs_paint(); return; }
+    if(th_zune()){zqs_items_build();zqs_paint();return;}
     if(!th_disco_family()){base_build();return;}
     int style=simple_cfg_get_int("disco_qs_style",1)==1;
-    if(style!=g_style_raw || strcmp(g_codes,simple_cfg_get_str(th_null()?"null_qs_items":th_disco_family()?"disco_qs_items":"qs_items","wbmlefs")))controls_build(g_root);
+    if(style!=g_style_raw || strcmp(g_codes,simple_cfg_get_str(qs_config_key(),"wbmlefs")))controls_build(g_root);
     dq_paint();
 }
 
@@ -609,7 +621,7 @@ void qsconfig_create(lv_obj_t *root){
 void qsconfig_refresh(void){ }
 
 /* Host regression seams; no hardware commands are issued by these helpers. */
-lv_obj_t *quicksettings_test_button(int slot){extern lv_obj_t*null_test_qs_field(int);if(th_simple())return simple_test_qs_button(slot);if(th_null())return null_test_qs_field(slot);return slot>=0&&slot<g_nitems?(th_disco()?g_dq_row[slot]:g_orb.btn[slot]):NULL;}
+lv_obj_t *quicksettings_test_button(int slot){extern lv_obj_t*null_test_qs_field(int);if(th_simple())return simple_test_qs_button(slot);if(th_null())return null_test_qs_field(slot);if(th_zune())return zqs_test_button(slot);return slot>=0&&slot<g_nitems?(th_disco()?g_dq_row[slot]:g_orb.btn[slot]):NULL;}
 lv_obj_t *quicksettings_test_disc(void){return g_cover_clip;}
 
 void quicksettings_null_action(int id,int hold){if(hold && (id==T_WIFI || id==T_BT))onboarding_discovered(HINT_RADIO_HOLD);if(hold&&id==T_WIFI)wifi_open();else if(hold&&id==T_BT)bt_open();else if(hold&&id==Q_EQ)screen_show(SCR_EQ);else if(hold && id>=0 && id<Q_COUNT)ui_toast(CATALOG[id].name);else if(!hold)pick_cb(id);}
@@ -620,61 +632,33 @@ void quicksettings_null_action(int id,int hold){if(hold && (id==T_WIFI || id==T_
 #include "zune_dial.h"
 #include "discshelf.h"
 LV_FONT_DECLARE(font_zune_regular_12) LV_FONT_DECLARE(font_zune_regular_13)
-enum { ZQ_WIFI, ZQ_BT, ZQ_GAIN, ZQ_SHUF, ZQ_SLEEP, ZQ_MODE, ZQ_N };
-static lv_obj_t *g_zq_btn[ZQ_N], *g_zq_ic[ZQ_N], *g_zq_sub[ZQ_N], *g_zq_bright;
-int ui_sleep_state(int *secs_left);
-void npmenu_open_sleep(void);
-void ui_set_gain(int high);
-static const char *zq_mode_name(void){
-    switch(ui_get_source_mode()){ case 1: return "usb dac"; case 2: return "bt receiver"; case 3: return "usb storage";
-                                  case 4: return "bt streaming"; case 5: return "airplay"; default: return "playback"; }
-}
+enum { ZQ_N=6 };
+static lv_obj_t *g_zq_btn[ZQ_N], *g_zq_ic[ZQ_N], *g_zq_sub[ZQ_N], *g_zq_hit[ZQ_N], *g_zq_bright, *g_zq_items;
+static int zq_allowed(int id){return !discshelf_navigation_locked() || id==T_WIFI || id==T_BT || id==Q_EQ || id==Q_PLAYBACK || id==Q_GAIN || id==Q_SHUFFLE;}
 static void zqs_paint(void){
-    if(!g_zq_btn[0]) return;
-    int on[ZQ_N]; char sub[ZQ_N][40];
-    int wl = wifi_radio_live() > 0;
-    on[ZQ_WIFI] = wl; snprintf(sub[ZQ_WIFI], 40, "%s", wl ? "on" : "off");
-    int bs = bt_state();
-    on[ZQ_BT] = bs != BT_OFF; snprintf(sub[ZQ_BT], 40, "%s", bs == BT_TURNING_ON ? "\xE2\x80\xA6" : bs == BT_OFF ? "off" : "on");
-    on[ZQ_GAIN] = simple_cfg_get_int("audio_gain", 0) != 0; snprintf(sub[ZQ_GAIN], 40, "%s", on[ZQ_GAIN] ? "high" : "low");
-    on[ZQ_SHUF] = simple_cfg_get_int("work_mode", 0) == 1; snprintf(sub[ZQ_SHUF], 40, "%s", on[ZQ_SHUF] ? "on" : "off");
-    int secs = 0; on[ZQ_SLEEP] = ui_sleep_state(&secs) == 1;
-    if(on[ZQ_SLEEP]) snprintf(sub[ZQ_SLEEP], 40, "%dm", (secs + 59) / 60); else snprintf(sub[ZQ_SLEEP], 40, "off");
-    on[ZQ_MODE] = ui_get_source_mode() != 0; snprintf(sub[ZQ_MODE], 40, "%s", zq_mode_name());
-    lv_label_set_text(g_zq_ic[ZQ_MODE], mode_glyph());
-    for(int i = 0; i < ZQ_N; i++){
-        lv_obj_set_style_opa(g_zq_btn[i],discshelf_navigation_locked()&&(i==ZQ_SLEEP||i==ZQ_MODE)?LV_OPA_40:LV_OPA_COVER,0);
-        lv_obj_set_style_bg_color(g_zq_btn[i], on[i] ? ui_current_accent() : TC(SURFACE), 0);
-        lv_obj_set_style_text_color(g_zq_ic[i], on[i] ? TC(ON_ACCENT) : TC(TEXT_PRIMARY), 0);
-        if(strcmp(lv_label_get_text(g_zq_sub[i]), sub[i])) lv_label_set_text(g_zq_sub[i], sub[i]);
+    for(int i=0;i<g_nitems;i++){
+        if(!g_zq_btn[i])continue;
+        int id=g_items[i],on=quicksettings_item_active(id);const char *sub="";
+        if(id==Q_GAIN)sub=on?"high":"low";
+        if(id==Q_SHUFFLE||id==Q_SLEEP)sub=on?"on":"off";
+        if(id==T_WIFI||id==T_BT||id==Q_EQ||id==T_RESCAN)sub=id==T_BT&&bt_state()==BT_TURNING_ON?"...":on?"on":"off";
+        lv_obj_set_style_opa(g_zq_btn[i],zq_allowed(id)?LV_OPA_COVER:LV_OPA_40,0);
+        lv_obj_set_style_bg_color(g_zq_btn[i],on?ui_current_accent():TC(SURFACE),0);
+        lv_obj_set_style_text_color(g_zq_ic[i],on?theme_on_color(ui_current_accent()):TC(TEXT_PRIMARY),0);
+        set_text_if(g_zq_ic[i],quicksettings_item_glyph(id));set_text_if(g_zq_sub[i],sub);
     }
-    if(g_zq_bright && !lv_obj_has_state(g_zq_bright, LV_STATE_PRESSED)) lv_arc_set_value(g_zq_bright, ui_get_brightness());
+    if(g_zq_bright&&!lv_obj_has_state(g_zq_bright,LV_STATE_PRESSED))lv_arc_set_value(g_zq_bright,ui_get_brightness());
 }
-static void zq_tap(lv_event_t *e){
-    int i = (int)(intptr_t)lv_event_get_user_data(e);
-    if(discshelf_navigation_locked()&&(i==ZQ_SLEEP||i==ZQ_MODE))return;
-    switch(i){
-        case ZQ_WIFI: { int on = wifi_toggle(); ui_toast(on ? "Turning on Wi-Fi\xE2\x80\xA6" : "Wi-Fi off"); } break;
-        case ZQ_BT:   { int on = bt_toggle(); ui_toast(on ? "Turning on Bluetooth\xE2\x80\xA6" : "Bluetooth off"); } break;
-        case ZQ_GAIN: { int hi = !simple_cfg_get_int("audio_gain", 0); ui_set_gain(hi); simple_cfg_set_int("audio_gain", hi);
-                        ui_toast(hi ? "High gain" : "Low gain"); } break;
-        case ZQ_SHUF: ui_np_set_playmode(simple_cfg_get_int("work_mode", 0) == 1 ? 0 : 1); break;
-        case ZQ_SLEEP: npmenu_open_sleep(); return;
-        case ZQ_MODE: modes_open(); return;
-    }
-    zqs_paint();
+static void zq_tap(lv_event_t *e){int i=(int)(intptr_t)lv_event_get_user_data(e);if(i<0||i>=g_nitems||!zq_allowed(g_items[i]))return;quicksettings_null_action(g_items[i],0);zqs_paint();}
+static void zq_hold(lv_event_t *e){int i=(int)(intptr_t)lv_event_get_user_data(e);if(i<0||i>=g_nitems||!zq_allowed(g_items[i]))return;
+    int id=g_items[i];if(id==T_WIFI||id==T_BT||id==Q_EQ)quicksettings_null_action(id,1);else if(id==Q_GAIN)setlist_open("Audio");else if(id==Q_PLAYBACK||id==Q_SHUFFLE)setlist_open("Playback");else quicksettings_null_action(id,0);
 }
-static void zq_hold(lv_event_t *e){
-    int i = (int)(intptr_t)lv_event_get_user_data(e);
-    if(i == ZQ_WIFI){ onboarding_discovered(HINT_RADIO_HOLD); wifi_open(); }
-    else if(i == ZQ_BT){ onboarding_discovered(HINT_RADIO_HOLD); bt_open(); }
-}
-static void zqs_create(lv_obj_t *root){
-    lv_obj_set_style_bg_color(root, TC(CANVAS), 0); lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
-    static const char *const NAME[ZQ_N] = { "wi-fi", "bluetooth", "gain", "shuffle", "sleep", "mode" };
-    static const char *const ICON[ZQ_N] = { LV_SYMBOL_WIFI, LV_SYMBOL_BLUETOOTH, LV_SYMBOL_CHARGE, LV_SYMBOL_SHUFFLE, "\xEF\x86\x86", LV_SYMBOL_SD_CARD };
-    static const char *const ACT[ZQ_N] = { "qs.zune.wifi", "qs.zune.bt", "qs.zune.gain", "qs.zune.shuffle", "qs.zune.sleep", "qs.zune.mode" };
-    for(int i = 0; i < ZQ_N; i++){
+static void zqs_items_build(void){
+    if(!g_zq_items)return;
+    lv_obj_clean(g_zq_items);memset(g_zq_btn,0,sizeof g_zq_btn);memset(g_zq_ic,0,sizeof g_zq_ic);memset(g_zq_sub,0,sizeof g_zq_sub);memset(g_zq_hit,0,sizeof g_zq_hit);
+    g_nitems=quicksettings_items_load(g_items);lv_obj_t *root=g_zq_items;
+    for(int i = 0; i < g_nitems; i++){
+        int id=g_items[i];
         int cx = 92 + (i % 3) * 88, y = 52 + (i / 3) * 102;
         lv_obj_t *b = lv_obj_create(root); lv_obj_remove_style_all(b); kit_keep(b);
         lv_obj_set_size(b, 62, 62); lv_obj_set_pos(b, cx - 31, y);
@@ -685,15 +669,17 @@ static void zqs_create(lv_obj_t *root){
         lv_obj_t *hit = lv_obj_create(root); lv_obj_remove_style_all(hit); kit_keep(hit);
         lv_obj_set_size(hit, 24, 24); lv_obj_set_pos(hit, cx - 12, y + 19); lv_obj_set_ext_click_area(hit, 24);
         lv_obj_add_flag(hit, LV_OBJ_FLAG_CLICKABLE); lv_obj_remove_flag(hit, LV_OBJ_FLAG_SCROLLABLE);
-        ui_on(hit, zq_tap, LV_EVENT_SHORT_CLICKED, (void *)(intptr_t)i, ACT[i], UI_CORE);
+        ui_on(hit, zq_tap, LV_EVENT_SHORT_CLICKED, (void *)(intptr_t)i, "qs.zune.item", UI_CORE);
         lv_obj_add_event_cb(hit, zq_hold, LV_EVENT_LONG_PRESSED, (void *)(intptr_t)i);
-        lv_obj_t *ic = lv_label_create(b); kit_keep(ic); lv_label_set_text(ic, ICON[i]);
-        lv_obj_set_style_text_font(ic, i == ZQ_SLEEP ? TF(ICON_28) : TF(UI_20), 0);
-        if(i == ZQ_SLEEP){ lv_obj_set_style_transform_pivot_x(ic, LV_PCT(50), 0); lv_obj_set_style_transform_pivot_y(ic, LV_PCT(50), 0);
+        lv_obj_t *ic = lv_label_create(b); kit_keep(ic); lv_label_set_text(ic, quicksettings_item_glyph(id));
+        lv_obj_set_style_text_font(ic, id==Q_WEATHER||id==Q_FAVS||id==Q_SLEEP?TF(ICON_28):TF(UI_20), 0);
+        if(id==Q_WEATHER){ lv_obj_set_style_transform_pivot_x(ic, LV_PCT(50), 0); lv_obj_set_style_transform_pivot_y(ic, LV_PCT(50), 0);
                            lv_obj_set_style_transform_scale(ic, 190, 0); }
         lv_obj_center(ic);
-        g_zq_btn[i] = b; g_zq_ic[i] = ic;
-        lv_obj_t *n = lv_label_create(root); kit_keep(n); lv_label_set_text(n, NAME[i]);
+        g_zq_btn[i] = b; g_zq_ic[i] = ic;g_zq_hit[i]=hit;
+        char caption[48];snprintf(caption,sizeof caption,"%s",CATALOG[id].name);for(char*c=caption;*c;c++)if(*c>='A'&&*c<='Z')*c+=32;
+        lv_obj_t *n = lv_label_create(root); kit_keep(n); lv_label_set_text(n, caption);
+        lv_label_set_long_mode(n,LV_LABEL_LONG_DOT);
         lv_obj_set_style_text_font(n, zune_font(&font_zune_regular_13), 0); lv_obj_set_style_text_color(n, TC(TEXT_PRIMARY), 0);
         lv_obj_set_width(n, 86); lv_obj_set_style_text_align(n, LV_TEXT_ALIGN_CENTER, 0); lv_obj_set_pos(n, cx - 43, y + 66);
         lv_obj_t *sb = lv_label_create(root); kit_keep(sb); lv_label_set_text(sb, "");
@@ -703,6 +689,12 @@ static void zqs_create(lv_obj_t *root){
         lv_obj_set_style_text_align(sb, LV_TEXT_ALIGN_CENTER, 0); lv_obj_set_pos(sb, cx - 43, y + 83);
         g_zq_sub[i] = sb;
     }
+}
+static void zqs_create(lv_obj_t *root){
+    g_root=root;g_zq_bright=NULL;
+    lv_obj_set_style_bg_color(root,TC(CANVAS),0);lv_obj_set_style_bg_opa(root,LV_OPA_COVER,0);
+    g_zq_items=lv_obj_create(root);lv_obj_remove_style_all(g_zq_items);kit_keep(g_zq_items);lv_obj_set_size(g_zq_items,360,260);lv_obj_remove_flag(g_zq_items,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
+    zqs_items_build();
     /* brightness: an arc round the bottom of the glass, the level filling from the left, a white dot on it */
     lv_obj_t *br = lv_arc_create(root); kit_keep(br);
     lv_obj_set_size(br, 328, 328); lv_obj_center(br);
@@ -730,3 +722,5 @@ static void zqs_create(lv_obj_t *root){
 
     zqs_paint();
 }
+
+static lv_obj_t *zqs_test_button(int slot){return slot>=0&&slot<g_nitems?g_zq_hit[slot]:NULL;}

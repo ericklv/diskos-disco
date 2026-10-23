@@ -143,7 +143,8 @@ static void store(int id, int px, uint8_t *buf){
     g_cache[v] = (zt_entry_t){ .id = id, .px = px, .none = !buf, .buf = buf, .used = ++g_use };
 }
 void zthumb_tick(void){
-    int screen_id=screen_current();int on=th_zune()&&!ui_display_is_off()&&(screen_id==SCR_LIBRARY||screen_id==SCR_PLVIEW||screen_id==SCR_PLPICK||screen_id==SCR_NPMENU||screen_id==SCR_NPHUB);
+    if(!g_started)return;
+    int library_wall_active(void);int screen_id=screen_current();int on=(th_zune()||(screen_id==SCR_LIBRARY&&library_wall_active()))&&!ui_display_is_off()&&(screen_id==SCR_LIBRARY||screen_id==SCR_PLVIEW||screen_id==SCR_PLPICK||screen_id==SCR_NPMENU||screen_id==SCR_NPHUB);
     atomic_store(&z_visible,on);if(!on)return;
     pthread_mutex_lock(&g_mu);
     if(!g_done.ready){ if(g_nreq)pthread_cond_signal(&g_cv); pthread_mutex_unlock(&g_mu); return; }

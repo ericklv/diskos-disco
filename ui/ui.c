@@ -1333,12 +1333,12 @@ static void fsart_click_cb(lv_event_t *e){
         if(c == LV_EVENT_PRESSED) g_zi_p0 = zp;
         if(c == LV_EVENT_CLICKED){ if(abs(zp.x - g_zi_p0.x) < 16 && abs(zp.y - g_zi_p0.y) < 16 && g_zi_p0.x > 24) zi_controls(!g_zi_ctl_on); return; }
     }
-    if(!imm_control_enabled()){if(c==LV_EVENT_CLICKED)ui_np_fsart_close();return;}
+    if(!imm_control_enabled() && !th_zune()){if(c==LV_EVENT_CLICKED)ui_np_fsart_close();return;}
     if(c==LV_EVENT_CLICKED)return; /* Left-edge back gesture replaces exit-on-tap. */
     lv_indev_t *in=lv_indev_active();if(!in)return;lv_point_t p;lv_indev_get_point(in,&p);
     if(c==LV_EVENT_PRESSED){
         imm_control_reset();imm_echo_until=0;imm_press=p;imm_edge=p.x<=24;
-        if(imm_edge)return;
+        if(imm_edge || !imm_control_enabled())return;
         ipc_get_state(&imm_drag_track);imm_action=simple_cfg_get_int("imm_scrub_action",0)==1;
         if(!imm_drag_track.have_track || (!imm_action && imm_drag_track.duration_ms<=0))return;
         int x=p.x-180,y=p.y-180;if(x*x+y*y<36*36)return;

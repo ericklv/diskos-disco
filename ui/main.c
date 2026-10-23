@@ -2994,7 +2994,7 @@ void ui_art_set_pending(int pending){
  * following it; once the swipe has gone far enough to count it fills with the accent. Hidden on release. */
 static lv_obj_t *g_bh, *g_bh_lbl;
 static int g_hint_late;                                      /* the swipe has taken too long to count (700 ms) */
-static void back_hint_at(int y, int dx, int mirrored){
+static void back_hint_at(int y, int dx, int mirrored,int late){
     int thresh = g_swipe_thresh;
     if(dx <= 6){ if(g_bh) lv_obj_add_flag(g_bh, LV_OBJ_FLAG_HIDDEN); return; }
     if(!g_bh){
@@ -3007,7 +3007,7 @@ static void back_hint_at(int y, int dx, int mirrored){
         lv_obj_align(g_bh_lbl, mirrored ? LV_ALIGN_LEFT_MID : LV_ALIGN_RIGHT_MID, mirrored ? 12 : -12, 0);
     }
     lv_obj_align(g_bh_lbl, mirrored ? LV_ALIGN_LEFT_MID : LV_ALIGN_RIGHT_MID, mirrored ? 12 : -12, 0);
-    int armed = dx >= thresh && !g_hint_late;
+    int armed = dx >= thresh && !late;
     int reach = dx > thresh * 3 / 2 ? thresh * 3 / 2 : dx;              /* slides in with the finger, then stops */
     if(y < 70) y = 70;
     if(y > 290) y = 290;
@@ -3026,8 +3026,8 @@ static void back_hint_at(int y, int dx, int mirrored){
         lv_obj_set_style_transform_scale(g_bh, armed ? 272 : 256, 0);
     }
 }
-void ui_back_hint(int y,int dx){back_hint_at(y,dx,disco_mirror());}
-void ui_back_hint_left(int y,int dx){back_hint_at(y,dx,0);}
+void ui_back_hint(int y,int dx){back_hint_at(y,dx,disco_mirror(),g_hint_late);}
+void ui_back_hint_left(int y,int dx){back_hint_at(y,dx,0,0);}
 /* Shortcuts uses the Back feedback from the opposite edge, with its own glyph. */
 static lv_obj_t *g_sh, *g_sh_lbl;
 void ui_shortcuts_hint(int y, int dx){
@@ -3454,7 +3454,7 @@ int main(int argc, char **argv){
         int playing = playstate_playing(&g_ps, st.have_track, st.position_ms, lv_tick_get(), 1600, 0);
         if(playing) g_play_sent_gen = ipc_generation();   /* playback observed this generation (any start, incl. hardware keys): its one-shot is moot */
         queue_tick(&st, playing);
-        if(th_zune()){ void zthumb_tick(void);void zune_ui_tick(void); zthumb_tick();zune_ui_tick(); }
+        {void zthumb_tick(void);zthumb_tick();} if(th_zune()){void zune_ui_tick(void);zune_ui_tick();}
         discshelf_tick();
         play_defer_tick();           /* a play waiting for the codec switch */
         crashlog_tick();             /* freeze detector + memory watch (log only) */
@@ -3623,7 +3623,7 @@ int main(int argc, char **argv){
                     }
                     else {
                         rim_press(sx, sy);    /* arm rim-scroll candidate (long lists AND the cover flow) */
-                        if(rim_state==RIM_IDLE && screen_current()==SCR_ALBUMWALL && !BACK_EDGE(sx))
+                        if(rim_state==RIM_IDLE && screen_current()==SCR_ALBUMWALL && sy>=106 && !BACK_EDGE(sx))
                             albumwall_drag_begin(sx);   /* CENTRE press -> linear drag. Rim-band press is rim-only, and */
                     }                                   /* the left edge is reserved for the back-swipe (not armed as a drag) */
                     fprintf(stderr,"TAP x=%d y=%d\n",sx,sy); fflush(stderr);
@@ -3648,7 +3648,7 @@ int main(int argc, char **argv){
                 else ui_home_hint(0, 0);
                 if(screen_current()==SCR_NOWPLAYING && !ui_np_fsart_active() && !sleep_touch) ui_np_seek_move(p.x, p.y);
                 else if(rim_move(p.x, p.y)){ /* rim drag owns the gesture (list or cover flow) */ }
-                else if(screen_current()==SCR_ALBUMWALL && rim_state==RIM_IDLE) albumwall_drag(p.x);  /* linear drag only when no rim gesture is armed */
+                else if(screen_current()==SCR_ALBUMWALL && rim_state==RIM_IDLE && sy>=106) albumwall_drag(p.x);  /* linear drag only when no rim gesture is armed */
             } else if(ts==LV_INDEV_STATE_RELEASED && prev_ts==LV_INDEV_STATE_PRESSED){
                 ui_back_hint(0, 0); ui_home_hint(0, 0); ui_shortcuts_hint(0,0);
                 /* The evdev driver can fuse the final movement into the release frame, so the last PRESSED
@@ -3717,7 +3717,8 @@ int main(int argc, char **argv){
                         if(BACK_EDGE(sx) && horiz && SIDE_DX(dx)>0 && adx>=g_swipe_thresh && dt<700){
                             albumwall_drag_cancel();            /* left-edge right-swipe = back (drag wasn't armed here) */
                             screen_back();
-                        } else if(adx<18 && ady<18 && sx>=100 && sx<=260 && sy>=76 && sy<=214 && dt<900){
+                        } else if(sy<106){albumwall_drag_cancel();
+                        } else if(adx<18 && ady<18 && sx>=100 && sx<=260 && sy>=106 && sy<=253 && dt<900){
                             albumwall_drag_cancel();            /* a still touch on the centre cover = tap */
                             if(dt >= 500) albumwall_play();     /* long-press the cover = play the whole album */
                             else          albumwall_open();     /* tap the cover = open the album's track list */

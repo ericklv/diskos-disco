@@ -8,6 +8,9 @@ diskOS remains beta software; version numbers do not imply broad hardware or fea
 
 ## Unreleased
 
+- Zune branch: cancellable immersive edge Back with scrubbing enabled or disabled; six configurable themed Quick Settings slots retaining the original actions and shared radio/EQ behavior.
+- All themes: text-only List, three-column Wall and Zune-style Coverflow album views; header category swipes and adjacent-category taps. Albums shortcuts respect the chosen view.
+
 - Development preview: optional Zune theme, adapted from namastecoconut-imagined’s theme kit, retaining 2.7.0 transport, radios, multiselect and download handling. See [integration notes](docs/ZUNE.md).
 - Disc Shelf music overlay: separate scrolling title/artist, position bar, higher heading and smaller lower Close button.
 

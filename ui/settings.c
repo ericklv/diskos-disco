@@ -705,7 +705,7 @@ static const char *const OPT_NPSTYLE[] = { "Cover", "Vinyl", "Poster", "Ring" };
 static const char *const OPT_APPEARANCE[] = { "Dark", "Light" };
 static const char *const OPT_NPFONT[] = {"Original", "Inter Semibold", "Nunito Bold"};
 static const char *const OPT_FONTSIZE[] = { "Small", "Medium", "Large" };
-static const char *const OPT_ALBUMVIEW[] = { "List", "Cover Flow" };
+static const char *const OPT_ALBUMVIEW[] = { "List", "Wall", "Coverflow" };
 static const char *const OPT_SAVERSTYLE[] = { "Cover", "Analog", "Minimal", "Digital", "Vinyl", "Ring" };
 static const char *const OPT_ZLOCK[] = { "Album Art", "Clock Only" };                 /* Zune lock screen (Figma 78) */
 static const char *const OPT_ZLOCK_D[] = { "The cover, time and song while music plays.", "Always the big clock." };
@@ -884,8 +884,8 @@ static const setting_t TABLE[] = {
       "Show Home/saver weather; tap for forecasts. Off stops fetching to save battery.", NULL },
     { "Online & Extras",  "Shortcuts", ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_shortcuts, 0,
       "Choose up to five shortcuts for the panel opened by swiping left from Home.", NULL },
-    { "Online & Extras",  "Album View",  ST_CYCLER, "album_view", 0,0,0, OPT_ALBUMVIEW, 2, NULL, NULL, 0,
-      "How the Albums list looks: a text list, or a cover flow you flick through.", NULL },
+    { "Online & Extras",  "Album View",  ST_CYCLER, "album_view", 0,0,0, OPT_ALBUMVIEW, 3, NULL, NULL, 0,
+      "Text rows without artwork, a three-column cover wall, or curved Coverflow.", NULL },
     { "Disco Options", "Disco Menu", ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_disco_menu, 0,
       "Add, remove and reorder menu destinations. Music and Settings stay available.", NULL },
     { "Disco Options", "Quick Settings", ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_grp_discoqs,0,

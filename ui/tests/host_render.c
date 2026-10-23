@@ -15,6 +15,7 @@
 #include "screens.h"
 #include "onboarding.h"
 #include "quicksettings.h"
+lv_obj_t *quicksettings_test_button(int slot);
 #include <sys/stat.h>
 #include "ui.h"
 #include "theme.h"
@@ -198,7 +199,7 @@ static void assert_visible_icon_glyphs(lv_obj_t *root){
 static lv_indev_data_t nav_pointer;
 static void nav_read(lv_indev_t *in,lv_indev_data_t *data){(void)in;*data=nav_pointer;}
 void zthumb_tick(void);void zune_ui_tick(void);
-static void nav_wait(int ms){for(int i=0;i<ms;i+=10){lv_tick_inc(10);simple_refresh_budget(lv_anim_count_running()>0||nav_pointer.state==LV_INDEV_STATE_PRESSED);if(th_zune()){zthumb_tick();zune_ui_tick();}lv_timer_handler();}}
+static void nav_wait(int ms){for(int i=0;i<ms;i+=10){lv_tick_inc(10);simple_refresh_budget(lv_anim_count_running()>0||nav_pointer.state==LV_INDEV_STATE_PRESSED);zthumb_tick();if(th_zune())zune_ui_tick();lv_timer_handler();}}
 static void nav_touch(lv_point_t point,int ms){
     nav_pointer.point=point;nav_pointer.state=LV_INDEV_STATE_PRESSED;nav_wait(ms);
     nav_pointer.state=LV_INDEV_STATE_RELEASED;nav_wait(40);
@@ -1105,7 +1106,8 @@ int main(int argc, char **argv){
         }
         cfg_set_int_deferred("online_lyrics",0);cfg_set_int_deferred("online_art",0);
         cfg_set_int_deferred("eq_preset",11);cfg_set_int_deferred("eq_last",11);cfg_set_str("eq_name11","Warm analogue");
-        if(getenv("QS_ITEMS"))simple_cfg_set_str_deferred(th_null()?"null_qs_items":th_disco_family()?"disco_qs_items":"qs_items",getenv("QS_ITEMS"));
+        if(getenv("QS_ITEMS"))simple_cfg_set_str_deferred(th_zune()?"zune_qs_items":th_null()?"null_qs_items":th_disco_family()?"disco_qs_items":"qs_items",getenv("QS_ITEMS"));
+        if(getenv("ALBUM_VIEW"))cfg_set_int_deferred("album_view",atoi(getenv("ALBUM_VIEW")));
         if(getenv("DISCO_QS"))cfg_set_int_deferred("disco_qs_style",atoi(getenv("DISCO_QS")));
         if(getenv("DISCO_PROG"))cfg_set_int_deferred("disco_progress",atoi(getenv("DISCO_PROG")));
         if(getenv("DISCO_IMMSTYLE"))cfg_set_int_deferred("disco_imm",atoi(getenv("DISCO_IMMSTYLE")));
@@ -1249,7 +1251,7 @@ int main(int argc, char **argv){
             queue_clear();
             for(int k=0;k<2;k++){int n=send_count;nav_touch_object(ui_action_find(act[k]),80);nav_wait(400);assert(send_count==n+1&&!strcmp(last_sent,cmd[k]));}
 
-            screen_show(SCR_QUICK);nav_wait(100);int n=qs_wifi_taps;nav_touch_object(ui_action_find("qs.zune.wifi"),80);assert(qs_wifi_taps==n+1);
+            screen_show(SCR_QUICK);nav_wait(100);int n=qs_wifi_taps;nav_touch_object(quicksettings_test_button(0),80);assert(qs_wifi_taps==n+1);
             screen_back();assert(screen_current()==SCR_NOWPLAYING);
             zune_confirm("test?","body","cancel","yes",NULL);assert(zune_confirm_open());screen_back();assert(!zune_confirm_open()&&screen_current()==SCR_NOWPLAYING);
             zune_confirm("test?","body","cancel","yes",NULL);screen_show(SCR_WORKMODE);assert(!zune_confirm_open());assert(!find_visible_text(screen_get_root(SCR_WORKMODE),"usb-c audio"));
@@ -1297,7 +1299,7 @@ int main(int argc, char **argv){
         if(getenv("ZLIB_PIVOT")){ int library_pivot_swipe(int); nav_wait(100); library_pivot_swipe(atoi(getenv("ZLIB_PIVOT"))); nav_wait(400); }
         if(getenv("ZUNE_SCLICK")){ nav_wait(200); lv_obj_t *o=ui_action_find(getenv("ZUNE_SCLICK")); assert(o); lv_obj_send_event(o,LV_EVENT_SHORT_CLICKED,NULL); nav_wait(300); }
         if(getenv("ZLIB_SCROLL2")){ lv_obj_t *library_scroller(void); nav_wait(100); lv_obj_scroll_to_y(library_scroller(),atoi(getenv("ZLIB_SCROLL2")),LV_ANIM_OFF); nav_wait(200); }
-        if(getenv("ZLIB_WAIT")){ for(int i=0;i<atoi(getenv("ZLIB_WAIT"))/10;i++){ lv_tick_inc(10); lv_timer_handler(); if(th_zune()){zthumb_tick();zune_ui_tick();} usleep(10000); } }
+        if(getenv("ZLIB_WAIT")){ for(int i=0;i<atoi(getenv("ZLIB_WAIT"))/10;i++){ lv_tick_inc(10); lv_timer_handler(); zthumb_tick();if(th_zune())zune_ui_tick(); usleep(10000); } }
         if(!strcmp(page,"bt")){extern void bt_preview_null(void);bt_preview_null();}
         if(!strcmp(page,"wifi")){extern void wifi_preview_null(void);wifi_preview_null();}
         if(th_simple() && getenv("REVIEW_SQUASH_RADIO")){
@@ -1635,6 +1637,45 @@ int main(int argc, char **argv){
             assert(find_text(screen_get_root(SCR_SETLIST),"Progress shape"));
             puts("PASS: Disco first in theme picker; Progress shape in Music progress, absent from Appearance");return 0;
         }
+        if(getenv("REVIEW_ZUNE_BACK")){
+            lv_indev_t *in=lv_indev_create();lv_indev_set_type(in,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(in,nav_read);lv_timer_set_period(lv_indev_get_read_timer(in),10);
+            for(int scrub=0;scrub<=1;scrub++){
+                cfg_set_int_deferred("imm_scrub",scrub);screen_show(SCR_NOWPLAYING);ui_np_fsart_open();nav_wait(500);assert(ui_np_fsart_active());
+                nav_touch((lv_point_t){180,200},50);assert(ui_np_fsart_active());
+                nav_pointer=(lv_indev_data_t){.point={12,180},.state=LV_INDEV_STATE_PRESSED};nav_wait(30);
+                nav_pointer.point.x=90;nav_wait(70);assert(ui_np_fsart_active());
+                nav_pointer.point.x=18;nav_wait(40);nav_pointer.state=LV_INDEV_STATE_RELEASED;nav_wait(100);assert(ui_np_fsart_active());
+                nav_pointer=(lv_indev_data_t){.point={12,180},.state=LV_INDEV_STATE_PRESSED};nav_wait(30);
+                for(int x=12;x<=130;x+=8){nav_pointer.point.x=x;nav_wait(15);}nav_pointer.state=LV_INDEV_STATE_RELEASED;nav_wait(500);assert(!ui_np_fsart_active());
+            }
+            lv_indev_delete(in);puts("PASS Zune immersive: controls tap, cancelled edge swipe, completed edge Back with scrubbing off and on");
+        }
+        if(getenv("REVIEW_ZQS")){
+            assert(quicksettings_item_limit()==6);int ids[10],saved[10];int n=quicksettings_items_load(saved);assert(n<=6);
+            int set[]={quicksettings_equalizer_item(),quicksettings_playback_item(),0,1,5,2};assert(quicksettings_items_save(set,6)==0);quicksettings_build();assert(quicksettings_items_load(ids)==6);assert(!memcmp(ids,set,sizeof set));assert(quicksettings_items_save(set,7)<0);
+            screen_show(SCR_QUICK);nav_wait(80);lv_obj_t *eq=quicksettings_test_button(0);assert(eq);
+            cfg_set_int_deferred("eq_preset",0);cfg_set_int_deferred("eq_last",11);send_result=0;
+            lv_obj_send_event(eq,LV_EVENT_SHORT_CLICKED,NULL);assert(quicksettings_item_active(quicksettings_equalizer_item()));
+            lv_obj_send_event(eq,LV_EVENT_SHORT_CLICKED,NULL);assert(!quicksettings_item_active(quicksettings_equalizer_item()));
+            lv_obj_send_event(eq,LV_EVENT_LONG_PRESSED,NULL);assert(screen_current()==SCR_EQ);
+            qs_wifi=0;qs_bt=BT_OFF;screen_show(SCR_QUICK);quicksettings_build();int w=qs_wifi_taps,b=qs_bt_taps;
+            lv_obj_send_event(quicksettings_test_button(2),LV_EVENT_SHORT_CLICKED,NULL);assert(qs_wifi_taps==w+1);
+            lv_obj_send_event(quicksettings_test_button(3),LV_EVENT_SHORT_CLICKED,NULL);assert(qs_bt_taps==b+1);
+            lv_obj_send_event(quicksettings_test_button(2),LV_EVENT_LONG_PRESSED,NULL);assert(screen_current()==SCR_WIFI);
+            screen_show(SCR_QUICK);lv_obj_send_event(quicksettings_test_button(3),LV_EVENT_LONG_PRESSED,NULL);assert(screen_current()==SCR_BT);
+            screen_show(SCR_QUICK);lv_obj_send_event(quicksettings_test_button(4),LV_EVENT_LONG_PRESSED,NULL);assert(screen_current()==SCR_SETTINGS);
+            screen_show(SCR_QUICK);lv_obj_send_event(quicksettings_test_button(1),LV_EVENT_LONG_PRESSED,NULL);assert(screen_current()==SCR_SETLIST);
+            assert(quicksettings_items_save(saved,n)==0);screen_show(SCR_QUICK);quicksettings_build();nav_wait(50);puts("PASS Zune QS: six configurable slots, saved ordering, EQ and radio toggles, Wi-Fi/BT/EQ holds, Settings hold");
+        }
+        if(getenv("REVIEW_CATEGORIES")){
+            void library_open_pivot(int);int library_picking(void);lv_indev_t*in=lv_indev_create();lv_indev_set_type(in,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(in,nav_read);lv_timer_set_period(lv_indev_get_read_timer(in),10);
+            library_open_pivot(0);nav_wait(100);nav_pointer=(lv_indev_data_t){.point={210,85},.state=LV_INDEV_STATE_PRESSED};nav_wait(30);for(int x=210;x>=120;x-=6){nav_pointer.point.x=x;nav_wait(15);}nav_pointer.state=LV_INDEV_STATE_RELEASED;nav_wait(600);
+            assert(!library_picking());assert(screen_current()==(simple_cfg_get_int("album_view",0)==2?SCR_ALBUMWALL:SCR_LIBRARY));
+            int library_test_pivot(void);assert(library_test_pivot()==1);
+            lv_obj_t *next=ui_action_find("library.category.next");assert(next);lv_obj_send_event(next,LV_EVENT_CLICKED,NULL);nav_wait(500);assert(screen_current()==SCR_LIBRARY&&library_test_pivot()==2);
+            lv_obj_t *prev=ui_action_find("library.category.prev");assert(prev);lv_obj_send_event(prev,LV_EVENT_CLICKED,NULL);nav_wait(500);assert(library_test_pivot()==1);
+            prev=ui_action_find("library.category.prev");assert(prev);lv_obj_send_event(prev,LV_EVENT_CLICKED,NULL);nav_wait(500);assert(screen_current()==SCR_LIBRARY&&library_test_pivot()==0);lv_indev_delete(in);puts("PASS library: header swipe changes category without selection, adjacent category tap returns to library");
+        }
         if(getenv("QS_EDITOR"))disco_qs_menu_open();
         if(getenv("QS_SETTINGS")){
             setlist_open("Display");nav_wait(60);lv_obj_t *l=find_text(screen_get_root(SCR_SETLIST),"Navigation");assert(l);
@@ -1926,6 +1967,7 @@ int main(int argc, char **argv){
         if(getenv("VOLSHOW")){ if(getenv("VOL_FRAME_MS"))screen_set_anim(1);void ui_show_volume(int);ui_show_volume(atoi(getenv("VOLSHOW")));nav_wait(getenv("VOL_FRAME_MS")?atoi(getenv("VOL_FRAME_MS")):200);
             if(getenv("VOL_CLOSE_MS")){lv_obj_t *close=ui_action_find("null.volume.dismiss");assert(close);lv_obj_send_event(close,LV_EVENT_CLICKED,NULL);nav_wait(atoi(getenv("VOL_CLOSE_MS")));}
         }
+        if(getenv("PREVIEW_SETTLE")){for(int i=0;i<atoi(getenv("PREVIEW_SETTLE"))/10;i++){nav_wait(10);usleep(10000);}}
         if(getenv("TICKS")){ int ms=atoi(getenv("TICKS")); for(int i=0;i<ms/20;i++){lv_tick_inc(20);lv_timer_handler();} }
         if(!strncmp(page,"immersive",9)){
             int extra=atoi(page+9);

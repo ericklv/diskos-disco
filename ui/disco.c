@@ -162,6 +162,7 @@ static void roulette_icon(lv_obj_t *label, const char *icon, int size){
 static void open_boomshine(void){
     boomshine_landing();
 }
+static void open_albums(void){void library_open_pivot(int);library_open_pivot(1);}
 static const dsec_t SEC[] = {
     { "music",     "Music",     LV_SYMBOL_AUDIO,     SCR_HOME,      NULL,              1 },
     { "library",   "Library",   LV_SYMBOL_LIST,      SCR_LIBRARY,   NULL,              0 },
@@ -170,7 +171,7 @@ static const dsec_t SEC[] = {
     { "shortcuts", "Shortcuts", LV_SYMBOL_BARS,      SCR_APPS,      NULL,              0 },
     { "eq",        "EQ",        "EQ",                SCR_EQ,        NULL,              0 },
     { "search",    "Search",    TH_IC_SEARCH,        SCR_SEARCH,    NULL,              0 },
-    { "albums",    "Albums",    LV_SYMBOL_IMAGE,     SCR_ALBUMWALL, NULL,              0 },
+    { "albums",    "Albums",    LV_SYMBOL_IMAGE,     SCR_ALBUMWALL, open_albums,       0 },
     { "queue",     "Up Next",   LV_SYMBOL_NEXT,      SCR_UPNEXT,    NULL,              0 },
     { "folders",   "Folders",   LV_SYMBOL_DIRECTORY, SCR_FOLDER,    open_folders,      0 },
     { "books",     "Books",     LV_SYMBOL_FILE,      SCR_BOOKS,     open_books,        0 },
@@ -190,7 +191,7 @@ static const dsec_t SEC[] = {
 static int g_menu[MAXM], g_nmenu, g_cur;           /* active items (indices into SEC), the current one */
 
 static dsec_t menu_section(int id){
-    if(id>=0&&id<NSEC)return SEC[id];
+    if(id>=0&&id<NSEC){dsec_t s=SEC[id];if(!strcmp(s.id,"albums")&&simple_cfg_get_int("album_view",0)!=2)s.screen=SCR_LIBRARY;return s;}
     const menu_app_t *app=menu_apps_get(id-NSEC);
     return (dsec_t){app?app->id:"",app?app->name:"App unavailable",app&&!strcmp(app->exec,APP_BUILTIN_SHELF)?"@shelf":LV_SYMBOL_FILE,SCR_APPLAND,NULL,0};
 }
