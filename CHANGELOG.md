@@ -1037,3 +1037,9 @@ card wipes. Every diskOS user should update; updating requires the complete inst
 [1.1.1]: https://github.com/b0hemia/diskos/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/b0hemia/diskos/compare/v1.0.0-beta...v1.1.0
 [1.0.0-beta]: https://github.com/b0hemia/diskos/releases/tag/v1.0.0-beta
+
+### Zune development: typography Quick Settings
+- Replace round QS buttons with six configurable text actions in two columns; use short labels, inset the left column, and enlarge clock/battery text.
+- Restore lower-rim brightness control as a 90-degree arc.
+- Add scrolling title/artist heading with pause/resume interaction; stop its animation while hidden or the display is off.
+- Preserve existing radio/EQ actions, long presses and copy navigation restrictions.

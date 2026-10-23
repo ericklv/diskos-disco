@@ -127,6 +127,7 @@ static const char *mode_glyph(void){
 }
 const char *quicksettings_item_glyph(int id){const qs_item_t *item=quicksettings_item(id);return id==Q_PLAYBACK?playback_glyph():id==T_MODE?mode_glyph():item?item->icon:LV_SYMBOL_SETTINGS;}
 static void zqs_paint(void);
+static void zqs_track(const char*,const char*,int);
 static void paint_radios(void){
     if(th_zune()){zqs_paint();return;}
     if(th_disco_family()){dq_paint();return;}
@@ -566,6 +567,7 @@ void quicksettings_set_battery(int pct, int charging)
 void quicksettings_set_now_playing(const char *title, const char *artist, int playing)
 {
     if(th_simple()){simple_qs_track(title,artist,playing);return;}
+    if(th_zune()){zqs_track(title?title:"",artist?artist:"",playing);return;}
     (void)title; (void)artist;
     if(g_pp_glyph) lv_label_set_text(g_pp_glyph, playing ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
     if(g_prog) lv_obj_set_style_arc_color(g_prog, th_braun() ? TC(ACCENT_PRIMARY) : ui_media_accent(), LV_PART_INDICATOR);
@@ -575,7 +577,7 @@ void quicksettings_refresh(int playing)
 {
     if(th_simple()){simple_qs_refresh(playing);return;}
     if(th_null()){null_qs_refresh();return;}
-    if(th_zune()){ zqs_paint(); return; }
+    if(th_zune()){ zqs_track(NULL,NULL,playing);zqs_paint(); return; }
     if(!g_prog)return;
     if(g_pp_glyph) lv_label_set_text(g_pp_glyph, playing ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
     if(g_bright && !lv_obj_has_state(g_bright, LV_STATE_PRESSED))   /* don't fight an active drag */
@@ -631,98 +633,85 @@ void quicksettings_null_action(int id,int hold){if(hold && (id==T_WIFI || id==T_
  * Taps act as before (a radio toggles, its hold opens its page); gain and shuffle toggle; sleep and mode open theirs. */
 #include "zune_dial.h"
 #include "discshelf.h"
-LV_FONT_DECLARE(font_zune_regular_12) LV_FONT_DECLARE(font_zune_regular_13)
+LV_FONT_DECLARE(font_zune_regular_14) LV_FONT_DECLARE(font_zune_light_24)
+LV_FONT_DECLARE(font_zune_light_32)
 enum { ZQ_N=6 };
-static lv_obj_t *g_zq_btn[ZQ_N], *g_zq_ic[ZQ_N], *g_zq_sub[ZQ_N], *g_zq_hit[ZQ_N], *g_zq_bright, *g_zq_items;
+static lv_obj_t *g_zq_btn[ZQ_N], *g_zq_ic[ZQ_N], *g_zq_sub[ZQ_N], *g_zq_hit[ZQ_N], *g_zq_mark[ZQ_N], *g_zq_bright, *g_zq_items;
+static lv_obj_t *g_zq_banner,*g_zq_row,*g_zq_title,*g_zq_artist;
+static char g_zq_title_text[160],g_zq_artist_text[160];
+static int g_zq_playing=-1,g_zq_visible,g_zq_scroll;
 static int zq_allowed(int id){return !discshelf_navigation_locked() || id==T_WIFI || id==T_BT || id==Q_EQ || id==Q_PLAYBACK || id==Q_GAIN || id==Q_SHUFFLE;}
+static void zq_move(void *o,int32_t x){lv_obj_set_x(o,x);}
+static void zq_scroll_update(void){
+    if(!g_zq_row)return;
+    int width=lv_obj_get_width(g_zq_row),want=g_zq_visible&&g_zq_playing&&width>272;
+    if(want==g_zq_scroll)return;
+    g_zq_scroll=want;lv_anim_delete(g_zq_row,zq_move);lv_obj_set_x(g_zq_row,0);
+    if(want){lv_anim_t a;lv_anim_init(&a);lv_anim_set_var(&a,g_zq_row);lv_anim_set_exec_cb(&a,zq_move);lv_anim_set_values(&a,0,272-width);lv_anim_set_duration(&a,(width-272)*35);lv_anim_set_delay(&a,1400);lv_anim_set_playback_duration(&a,(width-272)*35);lv_anim_set_playback_delay(&a,1000);lv_anim_set_repeat_delay(&a,1400);lv_anim_set_repeat_count(&a,LV_ANIM_REPEAT_INFINITE);lv_anim_start(&a);}
+}
+void quicksettings_zune_visible(int on){g_zq_visible=on;zq_scroll_update();}
+static void zqs_track(const char *title,const char *artist,int playing){
+    if(!title)title=g_zq_title_text;if(!artist)artist=g_zq_artist_text;
+    int changed=strcmp(g_zq_title_text,title)||strcmp(g_zq_artist_text,artist)||g_zq_playing!=!!playing;
+    if(title!=g_zq_title_text)snprintf(g_zq_title_text,sizeof g_zq_title_text,"%s",title);if(artist!=g_zq_artist_text)snprintf(g_zq_artist_text,sizeof g_zq_artist_text,"%s",artist);g_zq_playing=!!playing;
+    if(!g_zq_title||!changed)return;
+    lv_anim_delete(g_zq_row,zq_move);g_zq_scroll=0;
+    char a[180],b[180];
+    if(!*title){snprintf(a,sizeof a,"no music");b[0]=0;}
+    else if(playing){snprintf(a,sizeof a,"%s ",title);snprintf(b,sizeof b,"%s%s",*artist?"by ":"",artist);}
+    else{snprintf(a,sizeof a,"paused / ");snprintf(b,sizeof b,"resume");}
+    lv_label_set_text(g_zq_title,a);lv_label_set_text(g_zq_artist,b);
+    lv_obj_set_style_text_color(g_zq_title,playing?TC(TEXT_PRIMARY):TC(TEXT_MUTED),0);lv_obj_set_style_text_color(g_zq_artist,playing?TC(TEXT_MUTED):TC(TEXT_PRIMARY),0);
+    lv_obj_update_layout(g_zq_title);int w=lv_obj_get_width(g_zq_title);lv_obj_set_pos(g_zq_artist,w,0);lv_obj_update_layout(g_zq_artist);lv_obj_set_width(g_zq_row,w+lv_obj_get_width(g_zq_artist));zq_scroll_update();
+}
+static void zq_banner_tap(lv_event_t *e){
+    (void)e;track_state_t st;ipc_get_state(&st);if(!st.have_track){ui_toast("No track playing");return;}
+    int next=!ui_is_playing();if(ui_transport_command("0201000C0000")==0)zqs_track(st.title,st.artist,next);
+}
 static void zqs_paint(void){
     for(int i=0;i<g_nitems;i++){
-        if(!g_zq_btn[i])continue;
-        int id=g_items[i],on=quicksettings_item_active(id);const char *sub="";
+        if(!g_zq_btn[i])continue;int id=g_items[i],on=quicksettings_item_active(id);const char *sub="";
         if(id==Q_GAIN)sub=on?"high":"low";
         if(id==Q_SHUFFLE||id==Q_SLEEP)sub=on?"on":"off";
-        if(id==T_WIFI||id==T_BT||id==Q_EQ||id==T_RESCAN)sub=id==T_BT&&bt_state()==BT_TURNING_ON?"...":on?"on":"off";
+        if(id==T_WIFI||id==T_BT||id==Q_EQ||id==T_RESCAN)sub=id==T_BT&&bt_state()==BT_TURNING_ON?"starting":on?"on":"off";
+        if(id==Q_EQ&&on)sub=ui_eq_name(simple_cfg_get_int("eq_preset",0));
+        if(id==T_MODE&&ui_get_source_mode()==0)sub="player";
         lv_opa_t opacity=zq_allowed(id)?LV_OPA_COVER:LV_OPA_40;
         if(lv_obj_get_style_opa(g_zq_btn[i],0)!=opacity)lv_obj_set_style_opa(g_zq_btn[i],opacity,0);
-        lv_color_t bg=on?ui_current_accent():TC(SURFACE),ink=on?theme_on_color(ui_current_accent()):TC(TEXT_PRIMARY);
-        if(!lv_color_eq(lv_obj_get_style_bg_color(g_zq_btn[i],0),bg))lv_obj_set_style_bg_color(g_zq_btn[i],bg,0);
+        lv_color_t ink=on?ui_current_accent():TC(TEXT_PRIMARY),mark=on?ui_current_accent():TC(CONTROL_TRACK);
         if(!lv_color_eq(lv_obj_get_style_text_color(g_zq_ic[i],0),ink))lv_obj_set_style_text_color(g_zq_ic[i],ink,0);
-        set_text_if(g_zq_ic[i],quicksettings_item_glyph(id));set_text_if(g_zq_sub[i],sub);
+        if(!lv_color_eq(lv_obj_get_style_bg_color(g_zq_mark[i],0),mark))lv_obj_set_style_bg_color(g_zq_mark[i],mark,0);
+        set_text_if(g_zq_sub[i],sub);
     }
-    if(g_zq_bright&&!lv_obj_has_state(g_zq_bright,LV_STATE_PRESSED))lv_arc_set_value(g_zq_bright,ui_get_brightness());
+    if(g_zq_bright&&!lv_obj_has_state(g_zq_bright,LV_STATE_PRESSED)&&lv_arc_get_value(g_zq_bright)!=ui_get_brightness())lv_arc_set_value(g_zq_bright,ui_get_brightness());
 }
 static void zq_tap(lv_event_t *e){int i=(int)(intptr_t)lv_event_get_user_data(e);if(i<0||i>=g_nitems||!zq_allowed(g_items[i]))return;quicksettings_null_action(g_items[i],0);zqs_paint();}
 static void zq_hold(lv_event_t *e){int i=(int)(intptr_t)lv_event_get_user_data(e);if(i<0||i>=g_nitems||!zq_allowed(g_items[i]))return;
-    int id=g_items[i];if(id==T_WIFI||id==T_BT||id==Q_EQ)quicksettings_null_action(id,1);else if(id==Q_GAIN)setlist_open("Audio");else if(id==Q_PLAYBACK||id==Q_SHUFFLE)setlist_open("Playback");else quicksettings_null_action(id,0);
+ int id=g_items[i];if(id==T_WIFI||id==T_BT||id==Q_EQ)quicksettings_null_action(id,1);else if(id==Q_GAIN)setlist_open("Audio");else if(id==Q_PLAYBACK||id==Q_SHUFFLE)setlist_open("Playback");else quicksettings_null_action(id,0);
 }
+static lv_obj_t *zq_plain(lv_obj_t*p,int x,int y,int w,int h){lv_obj_t*o=lv_obj_create(p);lv_obj_remove_style_all(o);kit_keep(o);lv_obj_set_pos(o,x,y);lv_obj_set_size(o,w,h);lv_obj_remove_flag(o,LV_OBJ_FLAG_SCROLLABLE|LV_OBJ_FLAG_CLICKABLE);return o;}
+static lv_obj_t *zq_label(lv_obj_t*p,const char*t,int x,int y,int w,const lv_font_t*f,lv_color_t color){lv_obj_t*l=lv_label_create(p);kit_keep(l);lv_label_set_text(l,t);lv_obj_set_style_text_font(l,zune_font(f),0);lv_obj_set_style_text_color(l,color,0);lv_obj_set_pos(l,x,y);if(w)lv_obj_set_width(l,w);lv_obj_set_height(l,lv_font_get_line_height(zune_font(f)));lv_label_set_long_mode(l,LV_LABEL_LONG_DOT);return l;}
 static void zqs_items_build(void){
-    if(!g_zq_items)return;
-    lv_obj_clean(g_zq_items);memset(g_zq_btn,0,sizeof g_zq_btn);memset(g_zq_ic,0,sizeof g_zq_ic);memset(g_zq_sub,0,sizeof g_zq_sub);memset(g_zq_hit,0,sizeof g_zq_hit);
-    g_nitems=quicksettings_items_load(g_items);lv_obj_t *root=g_zq_items;
-    for(int i = 0; i < g_nitems; i++){
-        int id=g_items[i];
-        int cx = 92 + (i % 3) * 88, y = 52 + (i / 3) * 102;
-        lv_obj_t *b = lv_obj_create(root); lv_obj_remove_style_all(b); kit_keep(b);
-        lv_obj_set_size(b, 62, 62); lv_obj_set_pos(b, cx - 31, y);
-        lv_obj_set_style_radius(b, LV_RADIUS_CIRCLE, 0); lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
-        lv_obj_remove_flag(b, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
-        /* the tap lands on a small invisible target with a wide hit area (the theme's pass would restyle a clickable
-         * 62 px circle as one of its own ring buttons) */
-        lv_obj_t *hit = lv_obj_create(root); lv_obj_remove_style_all(hit); kit_keep(hit);
-        lv_obj_set_size(hit, 24, 24); lv_obj_set_pos(hit, cx - 12, y + 19); lv_obj_set_ext_click_area(hit, 24);
-        lv_obj_add_flag(hit, LV_OBJ_FLAG_CLICKABLE); lv_obj_remove_flag(hit, LV_OBJ_FLAG_SCROLLABLE);
-        ui_on(hit, zq_tap, LV_EVENT_SHORT_CLICKED, (void *)(intptr_t)i, "qs.zune.item", UI_CORE);
-        lv_obj_add_event_cb(hit, zq_hold, LV_EVENT_LONG_PRESSED, (void *)(intptr_t)i);
-        lv_obj_t *ic = lv_label_create(b); kit_keep(ic); lv_label_set_text(ic, quicksettings_item_glyph(id));
-        lv_obj_set_style_text_font(ic, id==Q_SEARCH?&font_theme_24:id==Q_WEATHER||id==Q_FAVS||id==Q_SLEEP?TF(ICON_28):TF(UI_20), 0);
-        if(id==Q_WEATHER){ lv_obj_set_style_transform_pivot_x(ic, LV_PCT(50), 0); lv_obj_set_style_transform_pivot_y(ic, LV_PCT(50), 0);
-                           lv_obj_set_style_transform_scale(ic, 190, 0); }
-        lv_obj_center(ic);
-        g_zq_btn[i] = b; g_zq_ic[i] = ic;g_zq_hit[i]=hit;
-        char caption[48];snprintf(caption,sizeof caption,"%s",CATALOG[id].name);for(char*c=caption;*c;c++)if(*c>='A'&&*c<='Z')*c+=32;
-        lv_obj_t *n = lv_label_create(root); kit_keep(n); lv_label_set_text(n, caption);
-        lv_label_set_long_mode(n,LV_LABEL_LONG_DOT);
-        lv_obj_set_style_text_font(n, zune_font(&font_zune_regular_13), 0); lv_obj_set_style_text_color(n, TC(TEXT_PRIMARY), 0);
-        lv_obj_set_width(n, 86); lv_obj_set_style_text_align(n, LV_TEXT_ALIGN_CENTER, 0); lv_obj_set_pos(n, cx - 43, y + 66);
-        lv_obj_t *sb = lv_label_create(root); kit_keep(sb); lv_label_set_text(sb, "");
-        lv_label_set_long_mode(sb, LV_LABEL_LONG_DOT);
-        lv_obj_set_style_text_font(sb, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(sb, TC(TEXT_MUTED), 0);
-        lv_obj_set_size(sb, 86, lv_font_get_line_height(zune_font(&font_zune_regular_12)));
-        lv_obj_set_style_text_align(sb, LV_TEXT_ALIGN_CENTER, 0); lv_obj_set_pos(sb, cx - 43, y + 83);
-        g_zq_sub[i] = sb;
-    }
+ if(!g_zq_items)return;lv_obj_clean(g_zq_items);memset(g_zq_btn,0,sizeof g_zq_btn);memset(g_zq_hit,0,sizeof g_zq_hit);
+ static const char*names[]={"wi-fi","bluetooth","library","scan","modes","settings","equalizer","search","queue","up next","shortcuts","weather","lyrics","info","immersive","folders","favourites","play mode","gain","shuffle","sleep"};
+ g_nitems=quicksettings_items_load(g_items);
+ lv_obj_t*divider=zq_plain(g_zq_items,179,116,1,166);lv_obj_set_style_bg_opa(divider,LV_OPA_COVER,0);lv_obj_set_style_bg_color(divider,TC(CONTROL_TRACK),0);
+ for(int i=0;i<g_nitems;i++){int x=i%2?190:38,y=113+i/2*60,id=g_items[i];lv_obj_t*b=zq_plain(g_zq_items,x,y,144,56);g_zq_btn[i]=g_zq_hit[i]=b;lv_obj_add_flag(b,LV_OBJ_FLAG_CLICKABLE);
+ ui_on(b,zq_tap,LV_EVENT_SHORT_CLICKED,(void*)(intptr_t)i,"qs.zune.item",UI_CORE);lv_obj_add_event_cb(b,zq_hold,LV_EVENT_LONG_PRESSED,(void*)(intptr_t)i);
+ g_zq_mark[i]=zq_plain(b,0,7,3,42);lv_obj_set_style_bg_opa(g_zq_mark[i],LV_OPA_COVER,0);
+ g_zq_ic[i]=zq_label(b,names[id],11,0,130,&font_zune_light_24,TC(TEXT_PRIMARY));g_zq_sub[i]=zq_label(b,"",12,31,128,&font_zune_regular_14,TC(TEXT_MUTED));
+ }
 }
 static void zqs_create(lv_obj_t *root){
-    g_root=root;g_zq_bright=NULL;
-    lv_obj_set_style_bg_color(root,TC(CANVAS),0);lv_obj_set_style_bg_opa(root,LV_OPA_COVER,0);
-    g_zq_items=lv_obj_create(root);lv_obj_remove_style_all(g_zq_items);kit_keep(g_zq_items);lv_obj_set_size(g_zq_items,360,260);lv_obj_remove_flag(g_zq_items,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
-    zqs_items_build();
-    /* brightness: an arc round the bottom of the glass, the level filling from the left, a white dot on it */
-    lv_obj_t *br = lv_arc_create(root); kit_keep(br);
-    lv_obj_set_size(br, 328, 328); lv_obj_center(br);
-    lv_obj_add_flag(br, LV_OBJ_FLAG_ADV_HITTEST);
-    lv_arc_set_rotation(br, 0); lv_arc_set_bg_angles(br, 35, 145); lv_arc_set_mode(br, LV_ARC_MODE_REVERSE);
-    lv_arc_set_range(br, 4, 40); lv_arc_set_value(br, ui_get_brightness());
-    lv_obj_set_style_arc_width(br, 4, LV_PART_MAIN); lv_obj_set_style_arc_color(br, TC(CONTROL_TRACK), LV_PART_MAIN);
-    lv_obj_set_style_arc_width(br, 6, LV_PART_INDICATOR); lv_obj_set_style_arc_color(br, TC(TEXT_PRIMARY), LV_PART_INDICATOR);
-    lv_obj_set_style_arc_rounded(br, true, LV_PART_INDICATOR);
-    lv_obj_set_style_bg_color(br, TC(TEXT_PRIMARY), LV_PART_KNOB); lv_obj_set_style_bg_opa(br, LV_OPA_COVER, LV_PART_KNOB);
-    lv_obj_set_style_pad_all(br, 5, LV_PART_KNOB);
-    lv_obj_add_event_cb(br, bright_change_cb, LV_EVENT_VALUE_CHANGED, NULL);
-    lv_obj_add_event_cb(br, bright_release_cb, LV_EVENT_RELEASED, NULL);
-    lv_obj_add_event_cb(br, bright_release_cb, LV_EVENT_PRESS_LOST, NULL);
-    g_zq_bright = br;
-    lv_obj_t *sun = lv_label_create(root); kit_keep(sun); lv_label_set_text(sun, WI_SUN);
-    lv_obj_set_style_text_font(sun, TF(ICON_28), 0); lv_obj_set_style_text_color(sun, TC(TEXT_MUTED), 0);
-    lv_obj_set_style_transform_pivot_x(sun, LV_PCT(50), 0); lv_obj_set_style_transform_pivot_y(sun, LV_PCT(50), 0);
-    lv_obj_set_style_transform_scale(sun, 150, 0);
-    lv_obj_align(sun, LV_ALIGN_TOP_MID, 0, 262);
-    lv_obj_t *bl = lv_label_create(root); kit_keep(bl); lv_label_set_text(bl, "brightness");
-    lv_obj_set_style_text_font(bl, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(bl, TC(TEXT_MUTED), 0);
-    lv_obj_align(bl, LV_ALIGN_TOP_MID, 0, 288);
-    zune_status(root, SCR_QUICK);
-
-    zqs_paint();
+ g_root=root;lv_obj_set_style_bg_color(root,TC(CANVAS),0);lv_obj_set_style_bg_opa(root,LV_OPA_COVER,0);
+ /* Add the arc first: its large transparent object must not intercept rows/banner. */
+ lv_obj_t*br=lv_arc_create(root);kit_keep(br);lv_obj_set_size(br,340,340);lv_obj_center(br);lv_obj_add_flag(br,LV_OBJ_FLAG_ADV_HITTEST);lv_arc_set_bg_angles(br,45,135);lv_arc_set_mode(br,LV_ARC_MODE_REVERSE);lv_arc_set_range(br,4,40);lv_arc_set_value(br,ui_get_brightness());
+ lv_obj_set_style_arc_width(br,4,LV_PART_MAIN);lv_obj_set_style_arc_color(br,TC(CONTROL_TRACK),LV_PART_MAIN);lv_obj_set_style_arc_width(br,5,LV_PART_INDICATOR);lv_obj_set_style_arc_color(br,TC(TEXT_PRIMARY),LV_PART_INDICATOR);lv_obj_set_style_arc_rounded(br,true,LV_PART_INDICATOR);lv_obj_set_style_bg_color(br,TC(TEXT_PRIMARY),LV_PART_KNOB);lv_obj_set_style_bg_opa(br,LV_OPA_COVER,LV_PART_KNOB);lv_obj_set_style_pad_all(br,5,LV_PART_KNOB);lv_obj_set_style_radius(br,LV_RADIUS_CIRCLE,LV_PART_KNOB);
+ lv_obj_add_event_cb(br,bright_change_cb,LV_EVENT_VALUE_CHANGED,NULL);lv_obj_add_event_cb(br,bright_release_cb,LV_EVENT_RELEASED,NULL);lv_obj_add_event_cb(br,bright_release_cb,LV_EVENT_PRESS_LOST,NULL);g_zq_bright=br;
+ g_zq_items=zq_plain(root,0,0,360,292);zqs_items_build();
+ g_zq_banner=zq_plain(root,44,53,272,52);lv_obj_add_flag(g_zq_banner,LV_OBJ_FLAG_CLICKABLE);ui_on(g_zq_banner,zq_banner_tap,LV_EVENT_CLICKED,NULL,"qs.zune.track",UI_CORE);
+ g_zq_row=zq_plain(g_zq_banner,0,0,600,52);g_zq_title=zq_label(g_zq_row,"",0,0,0,&font_zune_light_32,TC(TEXT_PRIMARY));g_zq_artist=zq_label(g_zq_row,"",0,0,0,&font_zune_light_32,TC(TEXT_MUTED));
+ lv_obj_t*l=zq_label(root,"brightness",110,306,140,&font_zune_regular_14,TC(TEXT_MUTED));lv_obj_set_style_text_align(l,LV_TEXT_ALIGN_CENTER,0);
+ zune_status(root,SCR_QUICK);track_state_t st;ipc_get_state(&st);g_zq_playing=-1;zqs_track(st.have_track?st.title:"",st.artist,ui_is_playing());zqs_paint();
 }
-
 static lv_obj_t *zqs_test_button(int slot){return slot>=0&&slot<g_nitems?g_zq_hit[slot]:NULL;}

@@ -270,9 +270,10 @@ static void show_if(lv_obj_t *o, int on){ if(!o || lv_obj_has_flag(o, LV_OBJ_FLA
 static void zst_paint(int k){
     if(!g_zst[k].row) return;
     char t[24]; int pct = -1, chg = 0; zhome_status_parts(t, sizeof t, &pct, &chg);
+    if(g_zst[k].scr==SCR_QUICK&&pct>=0){char clock[24];snprintf(clock,sizeof clock,"%s",t);snprintf(t,sizeof t,"%.12s   %d%%",clock,pct>100?100:pct);}
     if(strcmp(lv_label_get_text(g_zst[k].l), t)) lv_label_set_text(g_zst[k].l, t);
     int on_power = chg || usage_plugged_in() == 1;
-    show_if(g_zst[k].batt, pct >= 0); show_if(g_zst[k].bolt, pct >= 0 && on_power);
+    show_if(g_zst[k].batt, pct >= 0&&g_zst[k].scr!=SCR_QUICK); show_if(g_zst[k].bolt, pct >= 0 && on_power);
     if(pct >= 0){
         int p = pct > 100 ? 100 : pct, w = (14 * p + 50) / 100, low = !on_power && p <= 15; if(w < 3 && p > 0) w = 3;
         if(lv_obj_get_style_width(g_zst[k].fill,0)!=w)lv_obj_set_width(g_zst[k].fill,w);                         /* (a no-op when unchanged) */
@@ -312,7 +313,7 @@ lv_obj_t *zune_status(lv_obj_t *root, int scr){
     lv_obj_set_style_text_font(sl, TF(UI_12), 0); lv_obj_set_style_text_color(sl, TC(ACCENT_PRIMARY), 0);
     lv_obj_set_style_margin_right(sl, 3, 0);
     lv_obj_t *l = lv_label_create(row); kit_keep(l); lv_label_set_text(l, "");
-    lv_obj_set_style_text_font(l,scr==SCR_HOME?zune_font(&font_zune_bold_14):TF(UI_12),0);lv_obj_set_style_text_color(l,TC(TEXT_PRIMARY),0);
+    lv_obj_set_style_text_font(l,scr==SCR_QUICK?TF(UI_16):scr==SCR_HOME?zune_font(&font_zune_bold_14):TF(UI_12),0);lv_obj_set_style_text_color(l,TC(TEXT_PRIMARY),0);
     lv_obj_t *bolt = lv_label_create(row); kit_keep(bolt); lv_label_set_text(bolt, LV_SYMBOL_CHARGE);
     lv_obj_set_style_text_font(bolt, TF(UI_10), 0); lv_obj_set_style_text_color(bolt, TC(ACCENT_PRIMARY), 0);
     lv_obj_set_style_margin_left(bolt, 3, 0); lv_obj_set_style_margin_right(bolt, -3, 0);

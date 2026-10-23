@@ -14,4 +14,5 @@ int quicksettings_items_load(int *items);
 int quicksettings_items_save(const int *items, int count);
 void disco_qs_menu_open(void);
 void quicksettings_null_action(int,int);
+void quicksettings_zune_visible(int on);
 #endif

@@ -78,3 +78,9 @@ Small menu captions and its clock use a 15px bold cut; outer labels have stronge
 Unchanged metadata, QS styles, menu captions and standby clock/artwork avoid redundant writes. Hidden/off loading arcs and hidden standby/Immersive metadata stop animating; Clock Only keeps its concealed song labels stopped. Wrapped Null names no longer continually reset the controls timeout. The expanded Zune Music hit area ignores rim-origin taps and drags.
 
 44 real-LVGL host cases passed. Device battery/frame-rate validation remains pending.
+
+## Typography Quick Settings
+
+Six configurable actions now fill a two-column layout with short labels and explicit state text. The left column stays within the round bezel. Clock and battery percentage use larger text. A 90-degree lower-rim arc controls brightness, with its label inside.
+
+The heading is a scrolling song-title / artist banner: title in white, artist muted. Tap to pause; “paused / resume” replaces the metadata, and tapping resumes. It uses the existing transport path, including its playback restrictions. Empty playback shows “no music”. Scrolling stops when leaving QS or turning the panel off. Existing Wi-Fi/Bluetooth/EQ taps and holds, configurable ordering and Disc Shelf copy restrictions remain.

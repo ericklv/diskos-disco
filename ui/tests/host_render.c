@@ -140,7 +140,7 @@ int __real_ui_local_playback_allowed(void);
 int __wrap_ui_local_playback_allowed(void){return (getenv("REVIEW_ZUNE")||getenv("REVIEW_ZUNE_BACK"))?1:__real_ui_local_playback_allowed();}
 static int null_transport_calls;static char null_last_command[24];
 int __real_ui_transport_command(const char*);
-int __wrap_ui_transport_command(const char*cmd){if(getenv("REVIEW_ZUNE")||getenv("REVIEW_ZUNE_BACK")||getenv("REVIEW_SHELF_PLAYER")||getenv("REVIEW_NULL")||getenv("REVIEW_NULL_GESTURES")||getenv("REVIEW_SQUASH_HOLD")||getenv("REVIEW_SIMPLE_PERF")||getenv("REVIEW_SIMPLE")){null_transport_calls++;snprintf(null_last_command,sizeof null_last_command,"%s",cmd);return 0;}return __real_ui_transport_command(cmd);}
+int __wrap_ui_transport_command(const char*cmd){if(getenv("REVIEW_ZQS_BANNER")||getenv("REVIEW_ZUNE")||getenv("REVIEW_ZUNE_BACK")||getenv("REVIEW_SHELF_PLAYER")||getenv("REVIEW_NULL")||getenv("REVIEW_NULL_GESTURES")||getenv("REVIEW_SQUASH_HOLD")||getenv("REVIEW_SIMPLE_PERF")||getenv("REVIEW_SIMPLE")){null_transport_calls++;snprintf(null_last_command,sizeof null_last_command,"%s",cmd);return 0;}return __real_ui_transport_command(cmd);}
 int __real_ipc_send_cmd(const char *frame);
 int __wrap_ipc_send_cmd(const char *frame){send_count++;snprintf(last_sent,sizeof last_sent,"%s",frame);return fixture?send_result:__real_ipc_send_cmd(frame);}
 int __real_fw_custom_peq_writable(void);
@@ -1245,6 +1245,7 @@ int main(int argc, char **argv){
         }
         if(th_null()&&!strcmp(page,"scr43"))appshelf_open();
         screen_show(scr);
+        if(th_zune())zune_status_refresh();
         if(getenv("REVIEW_ZUNE")){
             assert(th_zune()&&THEME_PRESET_ZUNE==13&&THEME_PRESET_DISCO==10);qs_wifi=qs_bt=0;
             lv_indev_t *in=lv_indev_create();lv_indev_set_type(in,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(in,nav_read);lv_timer_set_period(lv_indev_get_read_timer(in),10);
@@ -1749,6 +1750,19 @@ int main(int argc, char **argv){
                 for(int x=12;x<=130;x+=8){nav_pointer.point.x=x;nav_wait(15);}nav_pointer.state=LV_INDEV_STATE_RELEASED;nav_wait(500);assert(!ui_np_fsart_active());
             }
             lv_indev_delete(in);puts("PASS shared immersive: controls tap, cancelled edge swipe, completed edge Back with scrubbing off and on");
+        }
+        if(getenv("REVIEW_ZQS_BANNER")){
+            screen_show(SCR_QUICK);nav_wait(100);send_result=0;
+            setenv("NP_PLAYING","1",1);quicksettings_set_now_playing("A very long title to exercise the scrolling banner","The Midnight",1);
+            lv_obj_t *banner=ui_action_find("qs.zune.track");assert(banner);
+            int calls=null_transport_calls;lv_obj_send_event(banner,LV_EVENT_CLICKED,NULL);assert(null_transport_calls==calls+1);assert(find_visible_text(banner,"paused / "));assert(find_visible_text(banner,"resume"));
+            setenv("NP_PLAYING","0",1);lv_obj_send_event(banner,LV_EVENT_CLICKED,NULL);assert(null_transport_calls==calls+2);assert(!find_visible_text(banner,"resume"));
+            quicksettings_zune_visible(0);nav_wait(50);lv_obj_t *row=lv_obj_get_child(banner,0);int x=lv_obj_get_x(row);nav_wait(2500);assert(lv_obj_get_x(row)==x);
+            quicksettings_zune_visible(1);nav_wait(2200);assert(lv_obj_get_x(row)<0);quicksettings_zune_visible(0);
+            for(int id=0;id<quicksettings_item_count();id++){int one[]={id};assert(quicksettings_items_save(one,1)==0);quicksettings_build();lv_obj_t *b=quicksettings_test_button(0);assert(b);lv_obj_t *name=lv_obj_get_child(b,1);lv_obj_update_layout(name);lv_point_t size;lv_text_get_size(&size,lv_label_get_text(name),lv_obj_get_style_text_font(name,0),0,0,1000,LV_TEXT_FLAG_NONE);assert(size.x<=130);lv_area_t a;lv_obj_get_coords(b,&a);assert(a.x1>=38&&a.x2<=181);}
+            int six[]={0,1,6,19,20,4};assert(quicksettings_items_save(six,6)==0);quicksettings_build();setenv("NP_PLAYING","1",1);quicksettings_set_now_playing(st.title,st.artist,1);quicksettings_zune_visible(1);
+            quicksettings_set_now_playing(NULL,NULL,0);assert(find_visible_text(banner,"no music"));quicksettings_set_now_playing(st.title,st.artist,1);
+            puts("PASS Zune QS redesign: banner pause/resume, hidden marquee stopped, visible scrolling, all 21 short labels fit");
         }
         if(getenv("REVIEW_ZQS")){
             assert(quicksettings_item_limit()==6);int ids[10],saved[10];int n=quicksettings_items_load(saved);assert(n<=6);
