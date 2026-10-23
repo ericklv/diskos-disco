@@ -8,6 +8,9 @@ diskOS remains beta software; version numbers do not imply broad hardware or fea
 
 ## Unreleased
 
+- Zune folders: stop vertical title animation, fit a full text line to each curved row, and scroll only the focused long name horizontally. Covered folder pages stop scrolling.
+- Zune Music: move artwork 36 px farther left, widen the metadata column, and show format/bitrate/sample rate below duration using the shared Immersive cache.
+
 - Zune polish: keep paused QS text centered; loop title/artist continuously at about 56 px/s, including short metadata. Repeated playback updates preserve scroll progress; hidden/panel-off headers stop animating.
 - Zune typography: Music title 24 → 22 px and artist 16 → 17 px; larger settings values, battery details, folder/book metadata and technical information. Bound secondary headings to the round screen and reflow Debug Access, Last.fm, How To and Up Next.
 - Zune library: Small/Medium/Large now select distinct list fonts, with the existing layout retained at Medium and more row height at Large.

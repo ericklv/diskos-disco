@@ -70,7 +70,10 @@ static int library_row_marked(lv_obj_t *row){
 }
 static void list_focus_update(lv_timer_t *t){
     lv_obj_t *list=lv_timer_get_user_data(t);
-    if(!lv_obj_is_visible(list)){                     /* hidden: no row scrolls (it kept animating, and any running */
+    /* Pushed pages leave their previous root visible underneath. A covered
+     * folder list must still stop its title animation. */
+    int covered_folder=th_zune()&&lv_obj_get_parent(list)==screen_get_root(SCR_FOLDER)&&screen_current()!=SCR_FOLDER;
+    if(!lv_obj_is_visible(list)||covered_folder){                     /* hidden: no row scrolls (it kept animating, and any running */
         for(uint32_t i=0;i<lv_obj_get_child_count(list);i++){   /* animation keeps the main loop in its busy pace) */
             lv_obj_t *r=lv_obj_get_child(list,i);
             if(library_row_marked(r))list_text_mode(r,0);

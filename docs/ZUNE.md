@@ -103,3 +103,12 @@ Music uses Semibold 22 for title and Regular 17 for artist (previously 24 and 16
 Library Small/Medium/Large use 18/21/24-pixel primary text and 12/13/15-pixel detail text, preserving the existing Medium. Playing rows use 17/19/24; compact album tracks use 17/18/21. Large rows grow to fit both lines. The setting also reaches Artists, Genres and Playlists rather than only generic shared lists.
 
 Validation: native host build, theme gates, real LVGL secondary-screen fixtures, QS pause/resume and continuous/hidden scrolling checks, unchanged refreshes, short metadata, six configurable QS actions, keyboard/mode targets, Music metadata layout, and visible library text at all three sizes. Device testing remains pending. No packaged firmware or release change.
+
+
+## Folder scrolling and wider Music metadata
+
+Folder titles have an explicit full-font line height and follow their row's curved width. They reuse the Library focus watcher: only the visible row nearest screen center (or explicitly focused row) can scroll; other names show ellipses. This prevents LVGL from choosing vertical animation when a label box is shorter than its font. Pushed pages stop the covered Folder list's animations too.
+
+Music artwork moves left from -46 to -82 while retaining its 192-pixel size. The metadata column starts at 122 instead of 158 and has a nominal 224-pixel width (previously 184), narrowed at the round bezel. Two-line title and artist fitting remain. The line under duration uses Immersive's per-track cached format, bitrate and sample rate, including its marked file-size estimate when needed. No new metadata polling or worker is introduced.
+
+Validation includes folder focus changes at three scroll positions, one horizontal title at a time with no vertical offset, full line height, curved width and covered-page stop; Music long names, metadata hit/seek boundaries, technical-line placement and unchanged-update DB-query counts. Before/after renders use identical fixtures. Physical testing remains pending.

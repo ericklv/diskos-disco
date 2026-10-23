@@ -1988,8 +1988,8 @@ void kit_fork_np_braun(void){
  * (SemiBold title, artist, album, times), the progress as a thin ring hugging the whole rim from 12 o'clock with a
  * magenta knob (drag along the rim to seek), and Previous / play-pause (a ring button) / Next low in the centre.
  * Favourite and play mode sit small in the column under the times. Runs after Ring's layout, like Braun's. */
-#define ZNP_COL_X  158
-#define ZNP_COL_W  184
+#define ZNP_COL_X  122
+#define ZNP_COL_W  224
 #define ZNP_ART    192
 #define ZNP_ROW_Y  296                                    /* the transport row's centre line */
 #define ZNP_TOP    14                                     /* everything above the transport sits this much lower than Figma 10 */
@@ -1999,7 +1999,7 @@ static int g_zcol_hooked;
 static char g_ztitle_input[160],g_zartist_input[160],g_zalbum_input[240];
 static int g_zidle;                                       /* nothing-playing state (below) */
 static lv_obj_t *g_zshuf, *g_zbrowse;
-static lv_obj_t *g_zfmt;                                 /* "FLAC · 96 kHz" */
+static lv_obj_t *g_zfmt;                                 /* format / bitrate / sample rate */
 static lv_obj_t *g_zstat;                                /* time + battery */
 void zhome_status_text(char *b, size_t n);               /* zune_home.c */
 void ui_np_status_changed(void);
@@ -2007,19 +2007,10 @@ lv_obj_t *zune_status(lv_obj_t *root, int scr); void zune_status_refresh(void);
 void ui_np_status_changed(void){ zune_status_refresh(); }   /* zune_home.c: the clock or battery changed */
 static void zune_fmt_update(const track_state_t *st){
     if(!g_zfmt) return;
-    char b[48] = "";
-    if(st && st->have_track){
-        const char *dot = strrchr(st->path, '.'); char ext[8] = ""; int n = 0;
-        if(dot && !strchr(dot, '/')) for(const char *c = dot + 1; *c && n < 6; c++) ext[n++] = (char)toupper((unsigned char)*c);
-        ext[n] = 0;
-        if(st->is_dsd) snprintf(b, sizeof b, "%s%sDSD", ext, ext[0] ? " \xC2\xB7 " : "");
-        else if(st->sample_rate > 0){
-            int k = st->sample_rate / 100;           /* tenths of kHz */
-            if(k % 10) snprintf(b, sizeof b, "%s%s%d.%d kHz", ext, ext[0] ? " \xC2\xB7 " : "", k / 10, k % 10);
-            else       snprintf(b, sizeof b, "%s%s%d kHz", ext, ext[0] ? " \xC2\xB7 " : "", k / 10);
-        } else snprintf(b, sizeof b, "%s", ext);
-    }
-    if(strcmp(lv_label_get_text(g_zfmt), b)) lv_label_set_text(g_zfmt, b);
+    char b[96]="";
+    /* Same per-track cache and estimate rules as Immersive; no repeated DB I/O. */
+    imm_tech_text(st,b,sizeof b);
+    if(strcmp(lv_label_get_text(g_zfmt),b))lv_label_set_text(g_zfmt,b);
 }
 static int zune_col_width(int y,int h){
     int dy=abs(y-180);if(abs(y+h-180)>dy)dy=abs(y+h-180);
@@ -2062,7 +2053,7 @@ static void zune_col_chain(void){
     if(t_elapsed)lv_obj_align(t_elapsed,LV_ALIGN_TOP_LEFT,ZNP_COL_X,ty);
     if(t_sep&&t_elapsed)lv_obj_align_to(t_sep,t_elapsed,LV_ALIGN_OUT_RIGHT_MID,5,0);
     if(t_remain&&t_sep)lv_obj_align_to(t_remain,t_sep,LV_ALIGN_OUT_RIGHT_MID,5,0);
-    if(g_zfmt)lv_obj_align(g_zfmt,LV_ALIGN_TOP_LEFT,ZNP_COL_X,bottom-fh);
+    if(g_zfmt){lv_obj_set_width(g_zfmt,zune_col_width(bottom-fh,fh));lv_obj_align(g_zfmt,LV_ALIGN_TOP_LEFT,ZNP_COL_X,bottom-fh);}
     if(np_mid_btn){int y=lv_obj_get_y(title);lv_obj_set_pos(np_mid_btn,ZNP_COL_X,y);lv_obj_set_size(np_mid_btn,ZNP_COL_W,ty-y);}
     g_zcol_busy=0;
 }
@@ -2120,7 +2111,7 @@ void kit_fork_np_zune(void){
     if(cover){
         lv_obj_set_size(cover, ZNP_ART, ZNP_ART);
         lv_obj_set_style_radius(cover, 0, LV_PART_MAIN);
-        lv_obj_align(cover, LV_ALIGN_TOP_LEFT, -46, 48 + ZNP_TOP);
+        lv_obj_align(cover, LV_ALIGN_TOP_LEFT, -82, 48 + ZNP_TOP);
     }
     if(cover_img){
         lv_obj_set_size(cover_img, ZNP_ART, ZNP_ART);
@@ -2184,7 +2175,9 @@ void kit_fork_np_zune(void){
     if(!g_zfmt){
         g_zfmt = lv_label_create(g_np_scr); lv_label_set_text(g_zfmt, "");
         lv_obj_set_style_text_font(g_zfmt, TF(UI_10), 0);
-        lv_obj_set_style_text_letter_space(g_zfmt, 1, 0);
+        lv_obj_set_style_text_letter_space(g_zfmt, 0, 0);
+        lv_obj_set_size(g_zfmt,ZNP_COL_W,lv_font_get_line_height(TF(UI_10)));
+        lv_label_set_long_mode(g_zfmt,LV_LABEL_LONG_DOT);
         lv_obj_set_style_text_color(g_zfmt, acc, 0);
         lv_obj_remove_flag(g_zfmt, LV_OBJ_FLAG_CLICKABLE);
     }

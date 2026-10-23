@@ -249,6 +249,13 @@ static void fb_pick_az(int show){ azjump_show(&g_faz, show && g_nent > 12); }
 int folderbrowser_pick_back(void){ if(!mp_active(&g_fmp)) return 0; mp_exit(&g_fmp); return 1; }
 void folderbrowser_pick_demo(const char *csv){ mp_demo(&g_fmp, csv); }
 
+/* A single text line must be tall enough for the face: a shorter box makes
+ * LVGL's circular mode choose vertical scrolling. Width follows the bezel. */
+static void fb_ztitle_size(lv_event_t *e){
+    lv_obj_t *row=lv_event_get_target(e),*title=lv_event_get_user_data(e);
+    int width=lv_obj_get_width(row)-50;if(width<40)width=40;
+    if(lv_obj_get_width(title)!=width)lv_obj_set_width(title,width);
+}
 static void fb_add_row(int i){
         fb_entry_t *en = &g_ent[i];
         lv_obj_t *r = lv_button_create(g_list);
@@ -299,6 +306,9 @@ static void fb_add_row(int i){
             lv_obj_set_style_bg_opa(r, LV_OPA_TRANSP, LV_STATE_PRESSED); lv_obj_set_style_opa(r, LV_OPA_60, LV_STATE_PRESSED); kit_keep(r);
             lv_obj_set_style_text_color(ic, TC(TEXT_MUTED), 0); lv_obj_set_pos(ic, 12, 10); kit_keep(ic);
             lv_obj_set_style_text_font(nm, zune_font(&font_zune_regular_19), 0); lv_obj_set_pos(nm, 40, 2); lv_obj_set_width(nm, FB_ROW_W - 50); kit_keep(nm);
+            lv_obj_set_height(nm,lv_font_get_line_height(zune_font(&font_zune_regular_19)));
+            lv_label_set_long_mode(nm,LV_LABEL_LONG_DOT);
+            lv_obj_add_event_cb(r,fb_ztitle_size,LV_EVENT_SIZE_CHANGED,nm);
             for(uint32_t k = 0; k < lv_obj_get_child_count(r); k++){
                 lv_obj_t *o = lv_obj_get_child(r, (int32_t)k);
                 if(o == ic || o == nm || !lv_obj_check_type(o, &lv_label_class)) continue;
@@ -310,6 +320,7 @@ static void fb_add_row(int i){
             if(en->is_dir){ lv_obj_t *d = lv_label_create(r); kit_keep(d); lv_label_set_text(d, "folder");
                             lv_obj_set_style_text_font(d, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(d, TC(TEXT_MUTED), 0);
                             lv_obj_set_pos(d, 42, 28); }
+            ui_library_row(r);
         }
 }
 /* Zune: the path under the header ("sd card › music › aurora") and "play folder" beside it */
@@ -508,6 +519,7 @@ void folderbrowser_create(lv_obj_t *root){
     lv_obj_add_flag(g_list, LV_OBJ_FLAG_SCROLL_MOMENTUM);
     lv_obj_add_event_cb(g_list, fb_scroll_cb, LV_EVENT_SCROLL, NULL);   /* the window first, then the curve */
     curvelist_attach(&g_fcl, g_list, root, FB_ROW_W);
+    if(th_zune())ui_library_list_watch(g_list);
     azjump_create(&g_faz, root, fb_jump, "folders");
     g_fmp = (mp_host_t){ .root = root, .list = g_list, .title = g_title, .count = fb_pick_count, .pickable = fb_pickable,
                          .collect = fb_pick_collect, .az = fb_pick_az };

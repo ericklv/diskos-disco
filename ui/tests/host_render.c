@@ -26,6 +26,7 @@ lv_obj_t *quicksettings_test_button(int slot);
 #include "system.h"
 #include "sdio.h"
 #include "musicdb.h"
+#include "folderbrowser.h"
 #include "battery.h"
 #include "sqlite3.h"
 #include <assert.h>
@@ -1248,6 +1249,7 @@ int main(int argc, char **argv){
         if(th_null()&&!strcmp(page,"scr43"))appshelf_open();
         screen_show(scr);
         if(th_zune())zune_status_refresh();
+        if(getenv("FB_FIXTURE")){folderbrowser_open();nav_wait(500);if(getenv("FB_SCROLL")){lv_obj_t *list=NULL;lv_obj_t*r=screen_get_root(SCR_FOLDER);for(uint32_t i=0;i<lv_obj_get_child_count(r);i++){lv_obj_t*c=lv_obj_get_child(r,i);if(lv_obj_get_scroll_dir(c)==LV_DIR_VER&&lv_obj_get_y(c)==124){list=c;break;}}assert(list);lv_obj_scroll_to_y(list,atoi(getenv("FB_SCROLL")),LV_ANIM_OFF);nav_wait(500);}}
         if(getenv("REVIEW_ZUNE")){
             assert(th_zune()&&THEME_PRESET_ZUNE==13&&THEME_PRESET_DISCO==10);qs_wifi=qs_bt=0;
             lv_indev_t *in=lv_indev_create();lv_indev_set_type(in,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(in,nav_read);lv_timer_set_period(lv_indev_get_read_timer(in),10);
@@ -1673,7 +1675,7 @@ int main(int argc, char **argv){
             lv_area_t prev={0};for(int i=0;i<3;i++){
                 lv_obj_t *o=ui_test_zune_np_part(i);assert(o&&lv_label_get_long_mode(o)==LV_LABEL_LONG_DOT);
                 int h=lv_obj_get_height(o),lh=lv_font_get_line_height(lv_obj_get_style_text_font(o,0));assert(h==0||h==lh||h==2*lh);
-                lv_area_t a;lv_obj_get_coords(o,&a);assert(a.x1==158&&lv_obj_get_width(o)>=140);if(i&&h)assert(a.y1>prev.y2);prev=a;
+                lv_area_t a;lv_obj_get_coords(o,&a);assert(a.x1==122&&lv_obj_get_width(o)>=170);if(i&&h)assert(a.y1>prev.y2);prev=a;
                 int far=abs(a.y1-180)>abs(a.y2-180)?abs(a.y1-180):abs(a.y2-180);assert((a.x2-180)*(a.x2-180)+far*far<180*180);
             }
             lv_obj_t *fmt=ui_test_zune_np_part(5);lv_area_t f;lv_obj_get_coords(fmt,&f);assert(f.y2==253);
@@ -1857,6 +1859,34 @@ int main(int argc, char **argv){
             int size=theme_font_size();assert(size==atoi(getenv("FONTSZ")));
             if(size==0){assert(nh<29&&sh<19);}else if(size==1){assert(nh>=29&&nh<32&&sh>=18&&sh<20);}else{assert(nh>=32&&sh>=20);}
             printf("PASS Zune library size %d: title %dpx line, detail %dpx line\n",size,nh,sh);
+        }
+        if(getenv("REVIEW_ZUNE_FOLDERS")){
+            assert(th_zune()&&getenv("FB_FIXTURE"));lv_obj_t*root=screen_get_root(SCR_FOLDER),*list=NULL;
+            for(uint32_t i=0;i<lv_obj_get_child_count(root);i++){lv_obj_t*c=lv_obj_get_child(root,i);if(lv_obj_get_scroll_dir(c)==LV_DIR_VER&&lv_obj_get_y(c)==124){list=c;break;}}assert(list);
+            for(int pos=0;pos<3;pos++){
+                lv_obj_scroll_to_y(list,pos*56,LV_ANIM_OFF);nav_wait(500);int active=0;lv_obj_t*focused=NULL;
+                for(uint32_t i=0;i<lv_obj_get_child_count(list);i++){
+                    lv_obj_t*row=lv_obj_get_child(list,i);if(!lv_obj_has_flag(row,LV_OBJ_FLAG_USER_1))continue;
+                    lv_obj_t*name=lv_obj_get_child(row,1);assert(lv_obj_check_type(name,&lv_label_class));
+                    assert(lv_obj_get_height(name)>=lv_font_get_line_height(lv_obj_get_style_text_font(name,0)));
+                    assert(lv_obj_get_width(name)<=lv_obj_get_width(row)-50);
+                    if(lv_label_get_long_mode(name)==LV_LABEL_LONG_SCROLL_CIRCULAR){active++;focused=name;}
+                    else {assert(lv_label_get_long_mode(name)==LV_LABEL_LONG_DOT);assert(((lv_label_t*)name)->offset.x==0);}
+                    assert(((lv_label_t*)name)->offset.y==0);
+                }
+                assert(active==1&&focused);int moved=0,prev=((lv_label_t*)focused)->offset.x;
+                for(int i=0;i<20;i++){nav_wait(100);assert(((lv_label_t*)focused)->offset.y==0);if(((lv_label_t*)focused)->offset.x!=prev)moved=1;prev=((lv_label_t*)focused)->offset.x;}assert(moved);
+            }
+            screen_show(SCR_SETTINGS);nav_wait(300);
+            for(uint32_t i=0;i<lv_obj_get_child_count(list);i++){lv_obj_t*row=lv_obj_get_child(list,i);if(lv_obj_has_flag(row,LV_OBJ_FLAG_USER_1))assert(lv_label_get_long_mode(lv_obj_get_child(row,1))==LV_LABEL_LONG_DOT);}
+            screen_show(SCR_FOLDER);nav_wait(300);puts("PASS Zune folders: one focused horizontal title, full line height, bezel width, no vertical animation, hidden rows stop");
+        }
+        if(getenv("REVIEW_ZUNE_MUSIC_TECH")){
+            assert(getenv("PREVIEW_TECH"));lv_obj_t*fmt=ui_test_zune_np_part(5),*cover=ui_test_zune_np_part(6),*time=ui_test_zune_np_part(3);
+            assert(!strcmp(lv_label_get_text(fmt),"FLAC / 1088 kbps / 96 kHz"));assert(lv_obj_get_x(cover)==-82);
+            lv_area_t f,t;lv_obj_get_coords(fmt,&f);lv_obj_get_coords(time,&t);assert(f.y1>t.y2&&f.x1==122);
+            int queries=test_rate_queries;for(int i=0;i<10;i++){ui_update(&st);nav_wait(100);}assert(test_rate_queries==queries);
+            puts("PASS Zune Music: inset artwork, wider metadata, bitrate below duration, shared cache avoids repeated DB lookups");
         }
         if(getenv("REVIEW_ZUNE_PICK")){
             lv_indev_t *in=lv_indev_create();lv_indev_set_type(in,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(in,nav_read);lv_timer_set_period(lv_indev_get_read_timer(in),10);
