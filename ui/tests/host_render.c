@@ -1779,9 +1779,23 @@ int main(int argc, char **argv){
             setenv("NP_PLAYING","1",1);quicksettings_set_now_playing("A very long title to exercise the scrolling banner","The Midnight",1);
             lv_obj_t *banner=ui_action_find("qs.zune.track");assert(banner);
             int calls=null_transport_calls;lv_obj_send_event(banner,LV_EVENT_CLICKED,NULL);assert(null_transport_calls==calls+1);assert(find_visible_text(banner,"paused / "));assert(find_visible_text(banner,"resume"));
+            lv_obj_t *paused_row=lv_obj_get_child(banner,0);lv_obj_update_layout(banner);
+            assert(abs(2*lv_obj_get_x(paused_row)+lv_obj_get_width(paused_row)-272)<=1);
+            lv_area_t pa,ba;lv_obj_get_coords(paused_row,&pa);lv_obj_get_coords(banner,&ba);assert(pa.x1>=ba.x1&&pa.x2<=ba.x2);
+            nav_wait(1600);assert(abs(2*lv_obj_get_x(paused_row)+lv_obj_get_width(paused_row)-272)<=1);
             setenv("NP_PLAYING","0",1);lv_obj_send_event(banner,LV_EVENT_CLICKED,NULL);assert(null_transport_calls==calls+2);assert(!find_visible_text(banner,"resume"));
             quicksettings_zune_visible(0);nav_wait(50);lv_obj_t *row=lv_obj_get_child(banner,0);int x=lv_obj_get_x(row);nav_wait(2500);assert(lv_obj_get_x(row)==x);
-            quicksettings_zune_visible(1);nav_wait(2200);assert(lv_obj_get_x(row)<0);quicksettings_zune_visible(0);
+            quicksettings_zune_visible(1);nav_wait(2200);assert(lv_obj_get_x(row)<0);
+            /* Unchanged playback refreshes must not restart the animation. */
+            quicksettings_set_now_playing("A very long title to exercise the scrolling banner","The Midnight",1);nav_wait(300);
+            int before=lv_obj_get_x(row);for(int tick=0;tick<6;tick++){quicksettings_set_now_playing("A very long title to exercise the scrolling banner","The Midnight",1);nav_wait(100);}
+            assert(lv_obj_get_x(row)<before-20);
+            /* Pausing far into a long marquee always restores the complete centered message. */
+            nav_wait(4000);quicksettings_set_now_playing("A very long title to exercise the scrolling banner","The Midnight",0);lv_obj_update_layout(row);
+            assert(abs(2*lv_obj_get_x(row)+lv_obj_get_width(row)-272)<=1);
+            /* Short metadata scrolls too, without dwell or reverse playback. */
+            quicksettings_set_now_playing("Hi","",1);nav_wait(100);before=lv_obj_get_x(row);nav_wait(200);assert(lv_obj_get_x(row)<before);
+            nav_wait(5300);before=lv_obj_get_x(row);nav_wait(200);assert(lv_obj_get_x(row)<before);quicksettings_zune_visible(0);
             for(int id=0;id<quicksettings_item_count();id++){int one[]={id};assert(quicksettings_items_save(one,1)==0);quicksettings_build();lv_obj_t *b=quicksettings_test_button(0);assert(b);lv_obj_t *name=lv_obj_get_child(b,1);lv_obj_update_layout(name);lv_point_t size;lv_text_get_size(&size,lv_label_get_text(name),lv_obj_get_style_text_font(name,0),0,0,1000,LV_TEXT_FLAG_NONE);assert(size.x<=130);lv_area_t a;lv_obj_get_coords(b,&a);assert(a.x1>=38&&a.x2<=181);}
             int six[]={0,1,6,19,20,4};assert(quicksettings_items_save(six,6)==0);quicksettings_build();setenv("NP_PLAYING","1",1);quicksettings_set_now_playing(st.title,st.artist,1);quicksettings_zune_visible(1);
             quicksettings_set_now_playing(NULL,NULL,0);assert(find_visible_text(banner,"no music"));quicksettings_set_now_playing(st.title,st.artist,1);
@@ -1837,6 +1851,13 @@ int main(int argc, char **argv){
         }
         if(!strcmp(page,"albums") && th_zune()){void library_open_pivot(int);library_open_pivot(1);nav_wait(600);}
         if(getenv("ZUNE_CATALOG")){void library_open_pivot(int);library_open_pivot(atoi(getenv("ZUNE_CATALOG")));nav_wait(700);}
+        if(getenv("REVIEW_ZUNE_LIST_SIZE")){
+            lv_obj_t *r=screen_get_root(SCR_LIBRARY),*name=find_visible_text(r,"After Hours"),*sub=find_visible_text(r,"The Midnight");assert(name&&sub);
+            int nh=lv_font_get_line_height(lv_obj_get_style_text_font(name,0)),sh=lv_font_get_line_height(lv_obj_get_style_text_font(sub,0));
+            int size=theme_font_size();assert(size==atoi(getenv("FONTSZ")));
+            if(size==0){assert(nh<29&&sh<19);}else if(size==1){assert(nh>=29&&nh<32&&sh>=18&&sh<20);}else{assert(nh>=32&&sh>=20);}
+            printf("PASS Zune library size %d: title %dpx line, detail %dpx line\n",size,nh,sh);
+        }
         if(getenv("REVIEW_ZUNE_PICK")){
             lv_indev_t *in=lv_indev_create();lv_indev_set_type(in,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(in,nav_read);lv_timer_set_period(lv_indev_get_read_timer(in),10);
             lv_obj_t *t=find_visible_text(screen_get_root(SCR_LIBRARY),"After Hours");assert(t);lv_area_t a;lv_obj_get_coords(t,&a);int y=(a.y1+a.y2)/2;
@@ -2557,6 +2578,7 @@ render:
     lv_refr_now(d);
     if(th_simple()&&getenv("SQUASH_VOLUME")){ui_show_volume(atoi(getenv("SQUASH_VOLUME")));nav_wait(180);lv_refr_now(d);}
     if(getenv("VOLUME_CONCEPT")){volume_concept(atoi(getenv("VOLUME_CONCEPT")));lv_refr_now(d);}
+    if(getenv("QS_PAUSED")){quicksettings_set_now_playing("A long title to exercise a scrolled pause position","The Midnight",1);nav_wait(3500);quicksettings_set_now_playing("A long title to exercise a scrolled pause position","The Midnight",0);lv_refr_now(d);}
     if(getenv("TOAST")){ui_toast(getenv("TOAST"));nav_wait(400);lv_refr_now(d);}   /* a pop-up on any screen, for checking its fit */
     if(getenv("BACK_HINT")){void ui_back_hint(int,int);ui_back_hint(180,atoi(getenv("BACK_HINT")));nav_wait(200);lv_refr_now(d);}   /* the back arrow, for checking it shows */
     if(th_zune()){zune_status_refresh();nav_wait(40);lv_refr_now(d);}

@@ -210,7 +210,7 @@ static void books_rebuild(void){
         lv_obj_set_style_text_font(lf, TF(UI_12), 0);
         lv_obj_set_style_text_color(lf, b->completed ? TC(STATUS_SUCCESS) : (b->position_ms > 0 ? ui_current_accent() : TC(TEXT_DISABLED)), 0);
         if(th_zune()){                                          /* Figma 29: the title in Regular 19 (accent while under way), one quiet line */
-            LV_FONT_DECLARE(font_zune_regular_19) LV_FONT_DECLARE(font_zune_regular_12)
+            LV_FONT_DECLARE(font_zune_regular_19) LV_FONT_DECLARE(font_zune_regular_16)
             lv_obj_set_style_bg_opa(r, LV_OPA_TRANSP, 0); lv_obj_set_style_bg_opa(r, LV_OPA_TRANSP, LV_STATE_PRESSED);
             lv_obj_set_style_opa(r, LV_OPA_60, LV_STATE_PRESSED); kit_keep(r);
             int going = !b->completed && b->position_ms > 0;
@@ -220,7 +220,7 @@ static void books_rebuild(void){
             for(char *c = left; *c; c++) if(*c >= 'A' && *c <= 'Z') *c += 32;
             for(char *c = au_l; *c; c++) if(*c >= 'A' && *c <= 'Z') *c += 32;
             snprintf(line, sizeof line, "%s%s%s", au_l, au_l[0] && left[0] ? " \xC2\xB7 " : "", left);
-            lv_label_set_text(au, line); lv_obj_set_style_text_font(au, zune_font(&font_zune_regular_12), 0);
+            lv_label_set_text(au, line); lv_obj_set_style_text_font(au, zune_font(&font_zune_regular_16), 0);
             lv_obj_set_style_text_color(au, TC(TEXT_MUTED), 0); lv_obj_set_pos(au, 72, 38); kit_keep(au);
             lv_obj_add_flag(lf, LV_OBJ_FLAG_HIDDEN);
         }

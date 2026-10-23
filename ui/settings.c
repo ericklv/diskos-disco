@@ -1309,7 +1309,7 @@ static void nav_apply_cb(lv_event_t *e){
 /* ==== Zune settings (Figma 49-59, 76): the root as a dial of sections, each section a pivot page of rows (name over
  * its value in the accent, on/off rows as a switch), choices as a dial, sliders as an arc on the rim ==== */
 #include "zune_dial.h"
-LV_FONT_DECLARE(font_zune_regular_19) LV_FONT_DECLARE(font_zune_regular_12) LV_FONT_DECLARE(font_zune_semibold_11)
+LV_FONT_DECLARE(font_zune_regular_16) LV_FONT_DECLARE(font_zune_regular_19) LV_FONT_DECLARE(font_zune_regular_12) LV_FONT_DECLARE(font_zune_semibold_11)
 LV_FONT_DECLARE(font_zune_light_96) LV_FONT_DECLARE(font_zune_regular_14)
 static void row_cb(lv_event_t *e);
 static void list_back_cb(lv_event_t *e);
@@ -1393,7 +1393,7 @@ static void zsetlist(lv_obj_t *root){
     char t[64]; zlower(t, sizeof t, g_active_group);
     lv_obj_t *list = make_list(root);
     lv_obj_set_pos(list, 0, 100); lv_obj_set_size(list, 360, 260);
-    lv_obj_set_style_pad_row(list, 4, 0); lv_obj_set_style_pad_top(list, 6, 0); lv_obj_set_style_pad_bottom(list, 110, 0);
+    lv_obj_set_style_pad_row(list, 5, 0); lv_obj_set_style_pad_top(list, 6, 0); lv_obj_set_style_pad_bottom(list, 110, 0);
     lv_obj_set_style_pad_left(list, 0, 0); lv_obj_set_style_pad_right(list, 0, 0);
     lv_obj_set_flex_align(list, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_add_event_cb(list, zcurve_cb, LV_EVENT_SCROLL, NULL);
@@ -1415,7 +1415,7 @@ static void zsetlist(lv_obj_t *root){
     for(int ri = 0; ri < count; ri++){
         int i = indices[ri]; const setting_t *s = &TABLE[i];
         lv_obj_t *row = lv_obj_create(list); lv_obj_remove_style_all(row); kit_keep(row);
-        lv_obj_set_size(row, 300, 54); lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE); lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_size(row, 300, 62); lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE); lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
         int onoff = zis_onoff(s);
         if(onoff) ui_on(row, zrow_toggle_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)i, "settings.zrow", UI_CORE);
         else ui_on(row, row_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)i, "settings.row", UI_CORE);
@@ -1430,16 +1430,16 @@ static void zsetlist(lv_obj_t *root){
             if(!strcmp(v, nm)) v[0] = 0;                    /* "restart" under "restart" says nothing */
         }
         lv_obj_t *vl = lv_label_create(row); kit_keep(vl); lv_label_set_text(vl, v);
-        lv_obj_set_style_text_font(vl, zune_font(&font_zune_regular_12), 0);
+        lv_obj_set_style_text_font(vl, zune_font(&font_zune_regular_16), 0);
         lv_obj_set_style_text_color(vl, (s->type == ST_READONLY || s->type == ST_ACTION || setting_unavailable(s)) ? TC(TEXT_MUTED) : TC(ACCENT_PRIMARY), 0);
         lv_label_set_long_mode(vl, LV_LABEL_LONG_SCROLL_CIRCULAR); lv_obj_set_width(vl, lv_pct(92));
-        if(v[0]){ lv_obj_set_pos(l, 0, 4); lv_obj_set_pos(vl, 2, 30); }
+        if(v[0]){ lv_obj_set_pos(l, 0, 4); lv_obj_set_pos(vl, 2, 33); }
         else { lv_obj_align(l, LV_ALIGN_LEFT_MID, 0, 0); lv_obj_add_flag(vl, LV_OBJ_FLAG_HIDDEN); }
         g_list_rows[i] = vl;
         if(s->apply == apply_rescan){
             rescan_row_t *rr = malloc(sizeof *rr);
             if(rr){ rr->lbl = l; rr->vl = vl; lv_obj_remove_flag(vl, LV_OBJ_FLAG_HIDDEN);
-                    lv_obj_set_pos(l, 0, 4); lv_obj_set_pos(vl, 2, 30);
+                    lv_obj_set_pos(l, 0, 4); lv_obj_set_pos(vl, 2, 33);
                     rr->tm = lv_timer_create(rescan_row_tick, 400, rr);
                     lv_obj_add_event_cb(row, rescan_row_del_cb, LV_EVENT_DELETE, rr); rescan_row_tick(rr->tm); }
         }
@@ -1535,11 +1535,11 @@ static int zdetail(lv_obj_t *root){
         lv_obj_set_style_text_font(g_zsl_num, zune_font(&font_zune_light_96), 0); lv_obj_set_style_text_color(g_zsl_num, TC(TEXT_PRIMARY), 0);
         lv_obj_align(g_zsl_num, LV_ALIGN_TOP_MID, 0, 118);
         g_zsl_unit = lv_label_create(root); kit_keep(g_zsl_unit);
-        lv_obj_set_style_text_font(g_zsl_unit, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(g_zsl_unit, TC(TEXT_MUTED), 0);
+        lv_obj_set_style_text_font(g_zsl_unit, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(g_zsl_unit, TC(TEXT_MUTED), 0);
         lv_obj_align(g_zsl_unit, LV_ALIGN_TOP_MID, 0, 250);
         zslider_show(s, v);
         lv_obj_t *h = lv_label_create(root); kit_keep(h); lv_label_set_text(h, "drag around the rim");
-        lv_obj_set_style_text_font(h, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(h, TC(TEXT_MUTED), 0);
+        lv_obj_set_style_text_font(h, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(h, TC(TEXT_MUTED), 0);
         lv_obj_align(h, LV_ALIGN_TOP_MID, 0, 272);
         return 1;
     }
@@ -1888,9 +1888,10 @@ void setlist_create(lv_obj_t *root){ g_setlist_root = root; }
 void settings_open_howto(void){if(th_disco_family() || th_null() || th_zune()){g_active_group="How to";screen_show(SCR_SETLIST);}}
 static void howto_next(lv_event_t *e){
     lv_obj_t *list=lv_event_get_user_data(e);
-    int page=(lv_obj_get_scroll_y(list)+120)/240;
+    int pitch=th_zune()?208:240;
+    int page=(lv_obj_get_scroll_y(list)+pitch/2)/pitch;
     int count=(int)lv_obj_get_child_count(list);
-    lv_obj_scroll_to_y(list,((page+1)%count)*240,LV_ANIM_ON);
+    lv_obj_scroll_to_y(list,((page+1)%count)*pitch,LV_ANIM_ON);
 }
 static void howto_body(lv_obj_t *root){
     static const char *titles[]={"Navigate","Navigation menu","Music","Seek / artwork","Quick Settings","Library","Queue / picking","Clock / volume","More shortcuts","Start-up / battery","Disc Shelf","Shuffle!"};
@@ -1915,19 +1916,19 @@ static void howto_body(lv_obj_t *root){
         bodies[1]=nav;bodies[2]="Tap track text for actions / Mood. Double-tap: play/pause. Swipe right: next; left: previous. Hold uses your Title hold setting.";bodies[4]=quick;
     }
     lv_obj_t *list=lv_obj_create(root);lv_obj_remove_style_all(list);
-    lv_obj_set_pos(list,42,72);lv_obj_set_size(list,276,240);
+    lv_obj_set_pos(list,42,th_zune()?104:72);lv_obj_set_size(list,276,th_zune()?208:240);
     lv_obj_set_flex_flow(list,LV_FLEX_FLOW_COLUMN);lv_obj_set_scroll_dir(list,LV_DIR_VER);
     lv_obj_set_scroll_snap_y(list,LV_SCROLL_SNAP_START);lv_obj_set_scrollbar_mode(list,LV_SCROLLBAR_MODE_OFF);
     lv_obj_add_flag(list,LV_OBJ_FLAG_SCROLL_ONE|LV_OBJ_FLAG_SCROLL_MOMENTUM);
     for(unsigned i=0;i<sizeof titles/sizeof *titles;i++){
-        lv_obj_t *card=lv_obj_create(list);lv_obj_remove_style_all(card);lv_obj_set_size(card,276,240);
+        lv_obj_t *card=lv_obj_create(list);lv_obj_remove_style_all(card);lv_obj_set_size(card,276,th_zune()?208:240);
         lv_obj_add_flag(card,LV_OBJ_FLAG_SNAPPABLE);lv_obj_clear_flag(card,LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_t *head=lv_label_create(card);char upper[80];theme_upper(upper,sizeof upper,titles[i]);
         lv_label_set_text(head,th_null()?upper:titles[i]);lv_obj_set_size(head,276,38);
         lv_label_set_long_mode(head,LV_LABEL_LONG_SCROLL_CIRCULAR);
         lv_obj_set_style_text_align(head,LV_TEXT_ALIGN_CENTER,0);
         lv_obj_set_style_text_font(head,TF(UI_24),0);lv_obj_set_style_text_color(head,TC(TEXT_PRIMARY),0);
-        lv_obj_t *area=lv_obj_create(card);lv_obj_remove_style_all(area);lv_obj_set_pos(area,0,46);lv_obj_set_size(area,276,182);
+        lv_obj_t *area=lv_obj_create(card);lv_obj_remove_style_all(area);lv_obj_set_pos(area,0,46);lv_obj_set_size(area,276,th_zune()?156:182);
         lv_obj_set_scroll_dir(area,LV_DIR_VER);lv_obj_set_scrollbar_mode(area,LV_SCROLLBAR_MODE_AUTO);
         lv_obj_t *body=lv_label_create(area);lv_label_set_text(body,bodies[i]);lv_obj_set_width(body,276);
         lv_label_set_long_mode(body,LV_LABEL_LONG_WRAP);lv_obj_set_style_text_font(body,TF(UI_20),0);lv_obj_set_style_text_color(body,TC(TEXT_SECONDARY),0);

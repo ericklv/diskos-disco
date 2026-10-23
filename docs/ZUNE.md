@@ -92,3 +92,14 @@ Working Modes uses five 144x56 text targets in the QS two-column layout. Existin
 Search uses larger letters and radial hit regions split into non-overlapping angular sectors. The search caption, Cancel, and result text are larger. EQ Edit/Rename and the on/off caption are larger and grouped more tightly. Shared status rows use the QS-sized clock type and larger battery icons; QS keeps its percentage.
 
 Weather follows the same typography and column spacing: location, current temperature and condition/icon above four forecast cells. Location editing, automatic location and existing fetch scheduling remain unchanged. Forecast labels are reused; missing cells are hidden and long locations truncate within the header.
+
+
+## Secondary-screen polish and continuous QS header
+
+QS metadata now uses two copies on a linear loop at approximately 56 pixels/second (18 ms/pixel), with no endpoint dwell or reverse animation. Short title/artist strings loop too. The animation stops when QS is hidden or the panel is off. Unchanged playback refreshes do not restart it. Paused and empty states explicitly reset their position and center their complete text, independent of the previous scrolling offset. The existing playback command and track-availability guard remain.
+
+Music uses Semibold 22 for title and Regular 17 for artist (previously 24 and 16). Secondary pivot headings choose a 40/32/28/24 face to fit a bounded 224-pixel area; the Library retains its large category pivot. Settings values and supporting text use Regular 16 with taller rows. Battery descriptions, totals and charge-limit copy are larger and shorter. Debug Access, Last.fm, How To and Up Next reserve body space below the heading. Folder/book metadata, song information, EQ labels, Queue artists and About values are more readable.
+
+Library Small/Medium/Large use 18/21/24-pixel primary text and 12/13/15-pixel detail text, preserving the existing Medium. Playing rows use 17/19/24; compact album tracks use 17/18/21. Large rows grow to fit both lines. The setting also reaches Artists, Genres and Playlists rather than only generic shared lists.
+
+Validation: native host build, theme gates, real LVGL secondary-screen fixtures, QS pause/resume and continuous/hidden scrolling checks, unchanged refreshes, short metadata, six configurable QS actions, keyboard/mode targets, Music metadata layout, and visible library text at all three sizes. Device testing remains pending. No packaged firmware or release change.

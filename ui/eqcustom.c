@@ -29,7 +29,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <stdatomic.h>
-LV_FONT_DECLARE(font_zune_light_32) LV_FONT_DECLARE(font_zune_regular_12) LV_FONT_DECLARE(font_zune_regular_19)
+LV_FONT_DECLARE(font_zune_light_32) LV_FONT_DECLARE(font_zune_regular_14) LV_FONT_DECLARE(font_zune_regular_19)
 LV_FONT_DECLARE(font_zune_regular_14)
 const lv_font_t *zune_font(const lv_font_t *base);
 
@@ -395,7 +395,7 @@ static void refresh_labels(void){
         if(th_zune()){                                              /* the active value big at the top, the other small under it */
             lv_obj_t *big = g_mode_freq ? g_flbl : g_glbl, *small = g_mode_freq ? g_glbl : g_flbl;
             lv_obj_set_style_text_font(big, zune_font(&font_zune_light_32), 0); lv_obj_set_style_text_color(big, TC(TEXT_PRIMARY), 0);
-            lv_obj_set_style_text_font(small, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(small, TC(TEXT_MUTED), 0);
+            lv_obj_set_style_text_font(small, zune_font(&font_zune_regular_14), 0); lv_obj_set_style_text_color(small, TC(TEXT_MUTED), 0);
             lv_obj_align(big, LV_ALIGN_TOP_MID, 0, 30); lv_obj_align(small, LV_ALIGN_TOP_MID, 0, 72);
             lv_obj_set_ext_click_area(g_flbl, 10); lv_obj_set_ext_click_area(g_glbl, 10);
         }
@@ -670,7 +670,7 @@ static void zune_editor_style(lv_obj_t *root, lv_obj_t *pill, lv_obj_t *chev){
     }
     lv_obj_set_style_bg_opa(pill, LV_OPA_TRANSP, 0); lv_obj_set_style_border_width(pill, 0, 0);
     lv_obj_set_size(pill, 200, 22); lv_obj_align(pill, LV_ALIGN_TOP_MID, 0, 12);
-    lv_obj_set_style_text_font(g_pill_lbl, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(g_pill_lbl, TC(TEXT_MUTED), 0);
+    lv_obj_set_style_text_font(g_pill_lbl, zune_font(&font_zune_regular_14), 0); lv_obj_set_style_text_color(g_pill_lbl, TC(TEXT_MUTED), 0);
     lv_obj_set_width(g_pill_lbl, 180); lv_obj_center(g_pill_lbl);
     lv_obj_add_flag(chev, LV_OBJ_FLAG_HIDDEN);
     lv_obj_t *pm[2] = { g_minus, g_plus };
@@ -681,9 +681,9 @@ static void zune_editor_style(lv_obj_t *root, lv_obj_t *pill, lv_obj_t *chev){
         if(l){ lv_obj_set_style_text_font(l, TF(UI_20), 0); lv_obj_set_style_text_color(l, TC(TEXT_PRIMARY), 0); kit_keep(l); }
         kit_keep(pm[k]);
     }
-    for(int i = 0; i < NB; i++){ lv_obj_set_style_text_font(g_rim[i], zune_font(&font_zune_regular_12), 0); kit_keep(g_rim[i]); }
+    for(int i = 0; i < NB; i++){ lv_obj_set_style_text_font(g_rim[i], zune_font(&font_zune_regular_14), 0); kit_keep(g_rim[i]); }
     lv_obj_add_flag(g_modecap, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_set_style_text_font(g_note, zune_font(&font_zune_regular_14), 0); lv_obj_set_style_text_color(g_note, TC(TEXT_MUTED), 0);
+    lv_obj_set_style_text_font(g_note, zune_font(&font_zune_regular_19), 0); lv_obj_set_style_text_color(g_note, TC(TEXT_MUTED), 0);
     lv_obj_align(g_note, LV_ALIGN_TOP_MID, 0, 46);
     kit_keep(g_flbl); kit_keep(g_glbl); kit_keep(g_note); kit_keep(g_pill_lbl); kit_keep(pill);
 }

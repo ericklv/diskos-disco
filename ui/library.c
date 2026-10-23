@@ -121,8 +121,8 @@ int library_wall_active(void){return g_view==VIEW_ALBUMS && simple_cfg_get_int("
 static int lib_row_h(void){
     if(library_wall_active())return 98;
     if(!th_zune()) return th_null()?60:52;
-    if(lib_zalbum()) return 30;                             /* compact track rows under the album header */
-    return 54;
+    if(lib_zalbum()) return theme_font_size()==2?36:30;                             /* compact track rows under the album header */
+    return theme_font_size()==2?64:54;
 }
 static void zrow_two(lv_obj_t *r, const char *top, const char *sub, const char *right, int now);
 static void zcurve_rows(void);
@@ -1256,8 +1256,17 @@ static lv_obj_t *zlabel(lv_obj_t *p, const char *t, const lv_font_t *f, lv_color
     return l;
 }
 /* title (Light 21; the playing song Regular 19 in the accent), a grey line under it, an optional grey value at the right */
+/* Preserve Medium's original list sizes. Small and Large change both lines. */
+LV_FONT_DECLARE(font_zune_regular_12) LV_FONT_DECLARE(font_zune_regular_17) LV_FONT_DECLARE(font_zune_regular_16)
+static const lv_font_t *zlist_font(int kind){
+    int sz=theme_font_size();
+    if(kind==1)return zune_font(sz==0?&font_zune_regular_12:sz==2?&font_zune_regular_15:&font_zune_regular_13);
+    if(kind==2)return zune_font(sz==0?&font_zune_regular_17:sz==2?&font_zune_light_21:&font_zune_light_18);
+    if(kind==3)return zune_font(sz==0?&font_zune_regular_17:sz==2?&font_zune_light_24:&font_zune_regular_19);
+    return zune_font(sz==0?&font_zune_light_18:sz==2?&font_zune_light_24:&font_zune_light_21);
+}
 static void zrow_two(lv_obj_t *r, const char *top, const char *sub, const char *right, int now){
-    const lv_font_t *ft = zune_font(now ? &font_zune_regular_19 : &font_zune_light_21), *fs = zune_font(&font_zune_regular_13);
+    const lv_font_t *ft = zlist_font(now?3:0), *fs = zlist_font(1);
     int two = sub && sub[0], h1 = lv_font_get_line_height(ft), rw = 0;
     if(right && right[0]){ lv_point_t sz; lv_text_get_size(&sz, right, fs, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE); rw = sz.x + 12; }
     int y1 = two ? 3 : (ROW_H - h1) / 2;
@@ -1401,7 +1410,7 @@ static void zalbum_header(const char *album, int n){
 }
 static void ztrack_row(lv_obj_t *r, int i){
     const mdb_song_t *so = g_buf[i]; int now = so->id == g_znow_id;
-    const lv_font_t *ft = zune_font(&font_zune_light_18), *fs = zune_font(&font_zune_regular_13);
+    const lv_font_t *ft = zlist_font(2), *fs = zlist_font(1);
     char num[8], dur[12]; snprintf(num, sizeof num, "%d", so->track > 0 ? so->track : i + 1); fmt_dur(dur, sizeof dur, so->dur_ms);
     zlabel(r, so->title[0] ? so->title : "Untitled", ft, now ? TC(ACCENT_PRIMARY) : TC(TEXT_PRIMARY), 24, (ROW_H - lv_font_get_line_height(ft)) / 2, 50);
     lv_obj_t *nl = lv_label_create(r); lv_label_set_text(nl, num);
@@ -1436,10 +1445,10 @@ static void zartist_row(lv_obj_t *r, int i){                   /* artists (Figma
         if(a > 0) snprintf(sub, sizeof sub, "%d album%s \xC2\xB7 %d song%s", a, a == 1 ? "" : "s", n, n == 1 ? "" : "s");
         else snprintf(sub, sizeof sub, "%d song%s", n, n == 1 ? "" : "s");
     }
-    const lv_font_t *ft = zune_font(&font_zune_light_21);
+    const lv_font_t *ft = zlist_font(0);
     int h1 = lv_font_get_line_height(ft);
     zlabel(r, g_gnames[i], ft, TC(TEXT_PRIMARY), 52, sub[0] ? 3 : (ROW_H - h1) / 2, 0);
-    if(sub[0]) zlabel(r, sub, zune_font(&font_zune_regular_13), TC(TEXT_MUTED), 53, 3 + h1 - 4, 0);
+    if(sub[0]) zlabel(r, sub, zlist_font(1), TC(TEXT_MUTED), 53, 3 + h1 - 4, 0);
     static const uint32_t CIRC[] = { 0x2F8F80, 0x6B5A86, 0x2B3B47, 0x7A2F3B, 0x8A6A2C, 0x355C8A };   /* quiet tile colours */
     unsigned hsh = 5381; for(const char *p = g_gnames[i]; *p; p++) hsh = hsh * 33 + (unsigned char)*p;
     lv_obj_t *c = lv_obj_create(r); lv_obj_remove_style_all(c); kit_keep(c);
@@ -1578,7 +1587,7 @@ static void zplaylist_new_row(lv_obj_t *r){
     lv_obj_t *p = lv_label_create(ring); lv_label_set_text(p, "+");
     lv_obj_set_style_text_font(p, zune_font(&font_zune_light_24), 0); lv_obj_set_style_text_color(p, TC(ACCENT_PRIMARY), 0);
     lv_obj_align(p, LV_ALIGN_CENTER, 0, -2);
-    const lv_font_t *ft = zune_font(&font_zune_light_21);
+    const lv_font_t *ft = zlist_font(0);
     zlabel(r, "new playlist", ft, TC(ACCENT_PRIMARY), 52, (ROW_H - lv_font_get_line_height(ft)) / 2, 0);
 }
 static void zplaylist_row(lv_obj_t *r, int i){
@@ -1586,10 +1595,10 @@ static void zplaylist_row(lv_obj_t *r, int i){
     int n = zthumb_playlist(g_plids[i], ids, &ni, &ms);
     char sub[64], len[24]; zlen(len, sizeof len, ms);
     if(n > 0) snprintf(sub, sizeof sub, "%d song%s \xC2\xB7 %s", n, n == 1 ? "" : "s", len); else snprintf(sub, sizeof sub, "empty");
-    const lv_font_t *ft = zune_font(&font_zune_light_21);
+    const lv_font_t *ft = zlist_font(0);
     int h1 = lv_font_get_line_height(ft);
     zlabel(r, g_plnames[i], ft, TC(TEXT_PRIMARY), 52, 3, 0);
-    zlabel(r, sub, zune_font(&font_zune_regular_13), TC(TEXT_MUTED), 53, 3 + h1 - 4, 0);
+    zlabel(r, sub, zlist_font(1), TC(TEXT_MUTED), 53, 3 + h1 - 4, 0);
     zthumb_mosaic(r, 0, (ROW_H - 40) / 2, 40, ids, ni);
     ui_library_row(r);
 }
@@ -1784,6 +1793,7 @@ static void zlib_chrome(lv_obj_t *root){
     g_zpiv = lv_obj_create(root); lv_obj_remove_style_all(g_zpiv); kit_keep(g_zpiv);
     lv_obj_set_size(g_zpiv, 360, 100); lv_obj_remove_flag(g_zpiv, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
     g_title = zune_pivot(g_zpiv, "", back_cb);
+    lv_obj_set_style_text_font(g_title,zune_font(&font_zune_light_50),0);lv_obj_set_style_text_letter_space(g_title,-2,0);lv_obj_set_width(g_title,LV_SIZE_CONTENT);lv_obj_set_y(g_title,32);
     g_zmusic = lv_label_create(root); kit_keep(g_zmusic);
     lv_label_set_text(g_zmusic, "MUSIC");
     lv_obj_set_style_text_font(g_zmusic, &font_zune_semibold_11, 0); lv_obj_set_style_text_letter_space(g_zmusic, 2, 0);

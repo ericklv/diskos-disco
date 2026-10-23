@@ -3,6 +3,10 @@
 #include "screens.h"
 #include "theme_kit.h"
 #include "theme.h"
+#include "zune_dial.h"
+LV_FONT_DECLARE(font_zune_regular_16)
+LV_FONT_DECLARE(font_zune_regular_19)
+LV_FONT_DECLARE(font_zune_semibold_22)
 #include "config.h"
 #include "command_spawn.h"
 #include <pthread.h>
@@ -124,7 +128,7 @@ static void refresh(void){
          * ttyGS0, so don't advertise a serial shell that can't be reached. */
         if(access("/dev/ttyGS0", F_OK) == 0) lv_label_set_text(g_serial, "Serial: USB-C (/dev/ttyACM0)");
         else                                 lv_label_set_text(g_serial, "Serial: not available (SSH only)");
-        lv_label_set_text(g_warn, "This gives ROOT access to the device. Turn it OFF when finished.");
+        lv_label_set_text(g_warn, th_zune()?"Root access enabled. Turn off when done.":"This gives ROOT access to the device. Turn it OFF when finished.");
         lv_label_set_text(g_btnlbl, "Disable Debug");
         lv_obj_remove_flag(g_pw, LV_OBJ_FLAG_HIDDEN);
         lv_obj_remove_flag(g_serial, LV_OBJ_FLAG_HIDDEN);
@@ -132,7 +136,7 @@ static void refresh(void){
         lv_label_set_text(g_ssh, "Debug access is OFF");
         lv_obj_add_flag(g_pw, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(g_serial, LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text(g_warn, "Enables SSH over Wi-Fi with a fresh random password.");
+        lv_label_set_text(g_warn, th_zune()?"SSH over Wi-Fi. A new password is created each time.":"Enables SSH over Wi-Fi with a fresh random password.");
         lv_label_set_text(g_btnlbl, "Enable Debug");
     }
 }
@@ -212,7 +216,8 @@ void debug_open(void){
 }
 
 void debug_create(lv_obj_t *root){
-    ui_header(root, "Debug Mode");   /* shared header: gives Debug Mode the standard back chevron so it
+    if(th_zune()){zune_pivot(root,"debug access",NULL);zune_status(root,SCR_DEBUG);}
+    else ui_header(root, "Debug Mode");   /* shared header: gives Debug Mode the standard back chevron so it
                                       * isn't a dead-end for users who don't know the edge-swipe gesture */
 
     /* The ssh command + password are what you read off the screen and type, so they get the HIGHEST
@@ -252,6 +257,17 @@ void debug_create(lv_obj_t *root){
     g_btnlbl = lv_label_create(btn); lv_obj_center(g_btnlbl);
     lv_obj_set_style_text_color(g_btnlbl, theme_on_color(acc), 0);   /* the live accent can be any album colour */
 
+    if(th_zune()){
+        lv_obj_t *labels[]={g_ssh,g_pw,g_serial,g_warn,g_btnlbl};
+        const int widths[]={280,290,280,266,180},ys[]={108,140,178,213,0};
+        for(int i=0;i<5;i++){
+            kit_keep(labels[i]);lv_obj_set_width(labels[i],widths[i]);
+            lv_obj_set_style_text_font(labels[i],zune_font(i==1?&font_zune_semibold_22:i==4?&font_zune_regular_19:&font_zune_regular_16),0);
+            lv_label_set_long_mode(labels[i],i==0||i==1||i==2?LV_LABEL_LONG_SCROLL_CIRCULAR:LV_LABEL_LONG_WRAP);
+            if(i<4)lv_obj_align(labels[i],LV_ALIGN_TOP_MID,0,ys[i]);else lv_obj_center(labels[i]);
+        }
+        lv_obj_set_size(btn,190,46);lv_obj_align(btn,LV_ALIGN_TOP_MID,0,278);
+    }
     refresh();
     if(!g_debug_timer){g_debug_timer=lv_timer_create(debug_poll,100,NULL);if(g_debug_timer)lv_timer_pause(g_debug_timer);else lv_obj_add_state(g_btn,LV_STATE_DISABLED);}
 }

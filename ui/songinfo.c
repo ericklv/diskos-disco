@@ -438,7 +438,7 @@ static void zsi_build(lv_obj_t *root, lv_obj_t *list){
         lv_obj_set_width(g_cell[i], 320); lv_obj_set_flex_flow(g_cell[i], LV_FLEX_FLOW_COLUMN);
         lv_obj_set_style_pad_row(g_cell[i], 2, 0);
         lv_obj_set_width(g_key[i], LV_SIZE_CONTENT); lv_obj_set_style_text_align(g_key[i], LV_TEXT_ALIGN_LEFT, 0);
-        lv_obj_set_style_text_font(g_key[i], &font_zune_regular_13, 0); lv_obj_set_style_text_color(g_key[i], TC(TEXT_MUTED), 0);
+        lv_obj_set_style_text_font(g_key[i], zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(g_key[i], TC(TEXT_MUTED), 0);
         lv_obj_set_style_text_font(g_val[i], zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(g_val[i], TC(TEXT_PRIMARY), 0);
         lv_label_set_long_mode(g_val[i], LV_LABEL_LONG_DOT);
         lv_obj_set_height(g_val[i], lv_font_get_line_height(&font_zune_regular_16));

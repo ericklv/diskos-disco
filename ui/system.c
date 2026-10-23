@@ -266,7 +266,7 @@ static void cb_close(lv_event_t *e){ if(lv_event_get_code(e) == LV_EVENT_CLICKED
 
 /* Zune: these dialogs take the whole glass (black, the title in Light, lower case) and their buttons become the
  * split cap along the bottom, as in the confirm screen (Figma 07): left grey, right (or a lone one) in the accent */
-LV_FONT_DECLARE(font_zune_light_32) LV_FONT_DECLARE(font_zune_regular_14) LV_FONT_DECLARE(font_zune_regular_17)
+LV_FONT_DECLARE(font_zune_light_32) LV_FONT_DECLARE(font_zune_regular_16) LV_FONT_DECLARE(font_zune_regular_17)
 const lv_font_t *zune_font(const lv_font_t *base);
 static void zlow(char *o, size_t n, const char *s){ size_t i = 0; for(; s[i] && i + 1 < n; i++) o[i] = (s[i] >= 'A' && s[i] <= 'Z') ? s[i] + 32 : s[i]; o[i] = 0; }
 static lv_obj_t *modal_card(const char *title, int h){
@@ -312,7 +312,7 @@ static lv_obj_t *modal_text(lv_obj_t *card, const char *txt, int y, theme_color_
         lv_obj_t *s = lv_label_create(card); kit_keep(s); lv_label_set_text(s, txt);
         lv_label_set_long_mode(s, LV_LABEL_LONG_WRAP); lv_obj_set_width(s, 260);
         lv_obj_set_style_text_align(s, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_style_text_font(s, zune_font(&font_zune_regular_14), 0);
+        lv_obj_set_style_text_font(s, zune_font(&font_zune_regular_16), 0);
         lv_obj_set_style_text_color(s, col == THEME_CLR_TEXT_MUTED ? TC(TEXT_MUTED) : theme_color(col), 0);
         lv_obj_align(s, LV_ALIGN_TOP_MID, 0, y + 70);
         return s;
@@ -395,7 +395,7 @@ void system_about_open(int v){
             lv_obj_set_style_text_font(v, zune_font(&font_zune_regular_17), 0); lv_obj_set_style_text_color(v, TC(TEXT_PRIMARY), 0);
             char lb[48]; zlow(lb, sizeof lb, rows[i].label);
             lv_obj_t *l = lv_label_create(list); kit_keep(l); lv_label_set_text(l, lb);
-            lv_obj_set_style_text_font(l, zune_font(&font_zune_regular_14), 0); lv_obj_set_style_text_color(l, TC(TEXT_MUTED), 0);
+            lv_obj_set_style_text_font(l, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(l, TC(TEXT_MUTED), 0);
             lv_obj_set_style_pad_bottom(l, 8, 0);
             continue;
         }

@@ -4182,7 +4182,7 @@ static void dvol_paint(int v){
 }
 /* Zune (Figma 05): the whole glass - a hairline track round the rim (open at the bottom), the accent level with a dot,
  * the level in Light 96, "volume" under it, the gain in small caps and the max-volume cap as a tick on the track */
-LV_FONT_DECLARE(font_zune_light_96) LV_FONT_DECLARE(font_zune_regular_14) LV_FONT_DECLARE(font_zune_regular_12) LV_FONT_DECLARE(font_zune_semibold_11)
+LV_FONT_DECLARE(font_zune_light_96) LV_FONT_DECLARE(font_zune_regular_14) LV_FONT_DECLARE(font_zune_regular_16) LV_FONT_DECLARE(font_zune_semibold_11)
 static lv_obj_t *g_zvol_cap, *g_zvol_max, *g_zvol_out;
 static lv_point_precise_t g_zvol_cp[2];
 static void zvol_build(void){
@@ -4211,7 +4211,7 @@ static void zvol_build(void){
     lv_obj_set_style_line_width(g_zvol_cap, 3, 0); lv_obj_set_style_line_rounded(g_zvol_cap, true, 0);
     lv_obj_set_style_line_color(g_zvol_cap, TC(TEXT_PRIMARY), 0); lv_obj_clear_flag(g_zvol_cap, LV_OBJ_FLAG_CLICKABLE);
     g_zvol_max = lv_label_create(g_vol_panel);
-    lv_obj_set_style_text_font(g_zvol_max, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(g_zvol_max, TC(TEXT_MUTED), 0);
+    lv_obj_set_style_text_font(g_zvol_max, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(g_zvol_max, TC(TEXT_MUTED), 0);
     lv_obj_clear_flag(g_zvol_max, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_move_foreground(g_vol_arc);
 }

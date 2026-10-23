@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+LV_FONT_DECLARE(font_zune_regular_16)
 LV_FONT_DECLARE(font_zune_light_50)
 LV_FONT_DECLARE(font_zune_regular_13)
 #define ZD_PITCH 60
@@ -51,7 +52,7 @@ static void layout(void){
         for(int k = 0; k < 3; k++) zg_hide(part[k], off);
         if(off) continue;
         int s = d < ZD_PITCH / 2 ? 0 : d < ZD_PITCH * 3 / 2 ? 1 : 2;
-        if(s != Z.size[i]){ Z.size[i] = s; lv_obj_set_style_text_font(Z.lbl[i], step_font(s), 0); }
+        if(s != Z.size[i]){ Z.size[i] = s; lv_obj_set_style_text_font(Z.lbl[i], step_font(Z.sub[i]&&s==0?1:s), 0); }
         float o = 1.0f - (float)d / ZD_PITCH * 0.4f; if(o < 0.3f) o = 0.3f;
         zg_opa(Z.lbl[i], (lv_opa_t)(o * 255));
         int x = edge_x(yc);
@@ -64,7 +65,7 @@ static void layout(void){
             if(Z.badge[i]){ zg_opa(Z.badge[i], (lv_opa_t)(o * 255)); zg_align(Z.badge[i], x + px[s] / 2 - 3, 0); }
             x += px[s] + (s == 0 ? 12 : 10);
         }
-        int lift = (Z.sub[i] && s == 0) ? -8 : 0;
+        int lift = (Z.sub[i] && s == 0) ? -12 : 0;
         zg_align(Z.lbl[i], x, lift);
         if(Z.sub[i] && s == 0) zg_align(Z.sub[i], x + 3, 23);
     }
@@ -169,7 +170,7 @@ void zdial_set_sub(int i, const char *t){
 }
 static void zdial_set_sub1(int i, const char *t){
     if(!Z.sub[i]){ Z.sub[i] = lv_label_create(Z.row[i]); kit_keep(Z.sub[i]);
-                   lv_obj_set_style_text_font(Z.sub[i], zune_font(&font_zune_regular_13), 0); lv_obj_set_style_text_color(Z.sub[i], TC(TEXT_MUTED), 0);
+                   lv_obj_set_style_text_font(Z.sub[i], zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(Z.sub[i], TC(TEXT_MUTED), 0);
                    lv_obj_remove_flag(Z.sub[i], LV_OBJ_FLAG_CLICKABLE); lv_obj_add_flag(Z.sub[i], LV_OBJ_FLAG_IGNORE_LAYOUT); }
     lv_label_set_text(Z.sub[i], t);
     Z.size[i] = -1; layout();
@@ -228,14 +229,18 @@ lv_obj_t *zune_rim(lv_obj_t *parent, int scr, int knob){
 #define ZP_X 100   /* the pivot title's left edge: its back ring (x 52..88) then sits inside the round glass at that height */
 static void pivot_back_cb(lv_event_t *e){ (void)e; screen_back(); }
 lv_obj_t *zune_pivot(lv_obj_t *root, const char *title, lv_event_cb_t back_cb){
-    const lv_font_t *f = zune_font(&font_zune_light_50);
+    /* Secondary headings stay inside the glass; library pivots set their own face. */
+    LV_FONT_DECLARE(font_zune_light_40) LV_FONT_DECLARE(font_zune_light_32) LV_FONT_DECLARE(font_zune_light_28) LV_FONT_DECLARE(font_zune_light_24)
+    const lv_font_t *faces[]={&font_zune_light_40,&font_zune_light_32,&font_zune_light_28,&font_zune_light_24};
+    const lv_font_t *f=zune_font(faces[3]);
+    for(int i=0;i<4;i++){lv_point_t sz;lv_text_get_size(&sz,title,zune_font(faces[i]),-1,0,LV_COORD_MAX,LV_TEXT_FLAG_NONE);if(sz.x<=224){f=zune_font(faces[i]);break;}}
     lv_obj_t *t = lv_label_create(root); kit_keep(t);
     lv_label_set_text(t, title);
     lv_label_set_long_mode(t, LV_LABEL_LONG_CLIP);
     lv_obj_set_style_text_font(t, f, 0);
     lv_obj_set_style_text_color(t, TC(TEXT_PRIMARY), 0);
-    lv_obj_set_style_text_letter_space(t, -2, 0);                  /* -3% tracking at 50 px */
-    lv_obj_set_pos(t, ZP_X, 32);                                       /* glyph box: the cap line lands at y ~40 */
+    lv_obj_set_style_text_letter_space(t, -1, 0);                  /* -3% tracking at 50 px */
+    lv_obj_set_width(t,224);lv_obj_set_pos(t, ZP_X, 40);                                       /* glyph box: the cap line lands at y ~40 */
     lv_obj_remove_flag(t, LV_OBJ_FLAG_CLICKABLE);
     /* the ring is drawn by a plain, non-clickable object; the tap lands on a small invisible target with a wide hit
      * area (the theme's styling pass would restyle a clickable 36 px circle as one of its own buttons) */
@@ -434,7 +439,7 @@ void zune_radio_row(lv_obj_t *r, lv_obj_t *name, const char *line, int on){
     lv_obj_set_pos(name, 12, 4); kit_keep(name);
     if(line){
         lv_obj_t *s = lv_label_create(r); kit_keep(s); lv_label_set_text(s, line);
-        lv_obj_set_style_text_font(s, zune_font(&font_zune_regular_12), 0);
+        lv_obj_set_style_text_font(s, zune_font(&font_zune_regular_16), 0);
         lv_obj_set_style_text_color(s, on ? TC(ACCENT_PRIMARY) : TC(TEXT_MUTED), 0); lv_obj_set_pos(s, 14, 30);
     }
 }
@@ -462,14 +467,14 @@ lv_obj_t *zune_info_page(lv_obj_t *root, const char *title, lv_event_cb_t back_c
 static void zlow_buf(char *o, size_t n, const char *s){ size_t i = 0; for(; s && s[i] && i + 1 < n; i++) o[i] = (s[i] >= 'A' && s[i] <= 'Z') ? s[i] + 32 : s[i]; o[i] = 0; }
 void zune_info_row(lv_obj_t *list, const char *key, const char *val){
     lv_obj_t *r = lv_obj_create(list); lv_obj_remove_style_all(r); kit_keep(r);
-    lv_obj_set_size(r, 270, 46); lv_obj_remove_flag(r, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(r, 270, 56); lv_obj_remove_flag(r, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
     char k[48]; zlow_buf(k, sizeof k, key);
     lv_obj_t *kl = lv_label_create(r); kit_keep(kl); lv_label_set_text(kl, k);
     lv_obj_set_style_text_font(kl, zune_font(&font_zune_regular_19), 0); lv_obj_set_style_text_color(kl, TC(TEXT_PRIMARY), 0);
     lv_obj_t *vl = lv_label_create(r); kit_keep(vl); lv_label_set_text(vl, val && val[0] ? val : "-");
     lv_label_set_long_mode(vl, LV_LABEL_LONG_SCROLL_CIRCULAR); lv_obj_set_width(vl, 260);
-    lv_obj_set_style_text_font(vl, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(vl, TC(TEXT_MUTED), 0);
-    lv_obj_set_pos(vl, 2, 26);
+    lv_obj_set_style_text_font(vl, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(vl, TC(TEXT_MUTED), 0);
+    lv_obj_set_pos(vl, 2, 29);
 }
 lv_obj_t *zune_info_action(lv_obj_t *list, const char *label, lv_event_cb_t cb, const char *action){
     lv_obj_t *r = lv_obj_create(list); lv_obj_remove_style_all(r); kit_keep(r);
@@ -527,7 +532,7 @@ void zune_empty(lv_obj_t *parent, const char *msg, const char *help){
     if(help){
         lv_obj_t *h = lv_label_create(box); kit_keep(h); lv_label_set_text(h, help);
         lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP); lv_obj_set_width(h, 220); lv_obj_set_style_text_align(h, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_style_text_font(h, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(h, TC(TEXT_MUTED), 0);
+        lv_obj_set_style_text_font(h, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(h, TC(TEXT_MUTED), 0);
     }
 }
 
@@ -581,13 +586,13 @@ void zune_scan_show(void){
     lv_obj_set_style_arc_width(a, 4, LV_PART_INDICATOR); lv_obj_set_style_arc_color(a, TC(ACCENT_PRIMARY), LV_PART_INDICATOR);
     lv_obj_set_style_bg_opa(a, LV_OPA_TRANSP, LV_PART_KNOB); lv_obj_set_style_pad_all(a, 0, LV_PART_KNOB);
     ZS.title = lv_label_create(ov); kit_keep(ZS.title); lv_label_set_text(ZS.title, "SCANNING LIBRARY");
-    lv_obj_set_style_text_font(ZS.title, zune_font(&font_zune_regular_13), 0); lv_obj_set_style_text_color(ZS.title, TC(TEXT_MUTED), 0);
+    lv_obj_set_style_text_font(ZS.title, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(ZS.title, TC(TEXT_MUTED), 0);
     lv_obj_align(ZS.title, LV_ALIGN_CENTER, 0, -58);
     ZS.num = lv_label_create(ov); kit_keep(ZS.num); lv_label_set_text(ZS.num, "0");
     lv_obj_set_style_text_font(ZS.num, zune_font(&font_zune_light_50), 0); lv_obj_set_style_text_color(ZS.num, TC(TEXT_PRIMARY), 0);
     lv_obj_align(ZS.num, LV_ALIGN_CENTER, 0, -10);
     ZS.sub = lv_label_create(ov); kit_keep(ZS.sub); lv_label_set_text(ZS.sub, "files");
-    lv_obj_set_style_text_font(ZS.sub, zune_font(&font_zune_regular_13), 0); lv_obj_set_style_text_color(ZS.sub, TC(TEXT_MUTED), 0);
+    lv_obj_set_style_text_font(ZS.sub, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(ZS.sub, TC(TEXT_MUTED), 0);
     lv_obj_align(ZS.sub, LV_ALIGN_CENTER, 0, 30);
     ZS.link = lv_label_create(ov); kit_keep(ZS.link); lv_label_set_text(ZS.link, "cancel");
     lv_obj_set_style_text_font(ZS.link, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(ZS.link, TC(ACCENT_PRIMARY), 0);
@@ -662,8 +667,8 @@ void zune_takeover(const ztake_t *s){
     ZT.title = ztake_label(ov, s->title, zune_font(&font_zune_light_32), TC(TEXT_PRIMARY), ty, 300);
     int y = ty + 42;
     if(s->big){ ZT.big = ztake_label(ov, s->big, zune_font(&font_zune_light_50), TC(TEXT_PRIMARY), y, 0); y += 74; }
-    if(s->sub){ ZT.sub = ztake_label(ov, s->sub, zune_font(&font_zune_regular_13), TC(TEXT_SECONDARY), y, s->note ? 0 : 230); y += s->note ? 34 : 50; }
-    if(s->note){ ztake_label(ov, s->note, zune_font(&font_zune_regular_12), TC(TEXT_MUTED), y, 220); y += 34; }
+    if(s->sub){ ZT.sub = ztake_label(ov, s->sub, zune_font(&font_zune_regular_16), TC(TEXT_SECONDARY), y, s->note ? 0 : 230); y += s->note ? 34 : 50; }
+    if(s->note){ ztake_label(ov, s->note, zune_font(&font_zune_regular_16), TC(TEXT_MUTED), y, 220); y += 34; }
     int ly = y < 270 ? 272 : y + 8; if(ly > 300) ly = 300;
     const char *ln[2] = { s->l1, s->l2 };
     int two = s->l1 && s->l2;
@@ -732,7 +737,7 @@ void zune_toast_action(const char *icon, const char *title, const char *sub, con
     { lv_point_t sz; lv_text_get_size(&sz, title, zune_font(&font_zune_regular_14), 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
       lv_label_set_long_mode(t, LV_LABEL_LONG_DOT); lv_obj_set_width(t, sz.x + 2 < 130 ? sz.x + 2 : 130); } lv_obj_set_style_text_color(t, TC(TEXT_PRIMARY), 0);
     if(sub){ lv_obj_t *s = lv_label_create(col); kit_keep(s); lv_label_set_text(s, sub);
-        lv_obj_set_style_text_font(s, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(s, TC(TEXT_MUTED), 0); }
+        lv_obj_set_style_text_font(s, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(s, TC(TEXT_MUTED), 0); }
     if(action){
         lv_obj_t *b = lv_obj_create(p); lv_obj_remove_style_all(b); kit_keep(b);
         lv_obj_set_size(b, LV_SIZE_CONTENT, 26); lv_obj_set_style_pad_hor(b, 12, 0);

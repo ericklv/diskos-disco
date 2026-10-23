@@ -313,7 +313,7 @@ static void cap_hold_cb(lv_event_t *e){
     draw();
 }
 static void us_tick_cb(lv_timer_t *t){ (void)t; if(screen_current() == SCR_USAGE) draw(); }
-LV_FONT_DECLARE(font_zune_light_96) LV_FONT_DECLARE(font_zune_regular_14) LV_FONT_DECLARE(font_zune_regular_12)
+LV_FONT_DECLARE(font_zune_regular_17) LV_FONT_DECLARE(font_zune_regular_16) LV_FONT_DECLARE(font_zune_light_96) LV_FONT_DECLARE(font_zune_regular_14) LV_FONT_DECLARE(font_zune_regular_12)
 LV_FONT_DECLARE(font_zune_regular_13) LV_FONT_DECLARE(font_zune_semibold_11)
 static lv_obj_t *g_zu_cap, *g_zu_l1, *g_zu_l2, *g_zu_l3, *g_zu_lim, *g_zu_tick, *g_zu_tlab;
 static void zdur(char *b, size_t n, int m){
@@ -347,7 +347,7 @@ static void zu_draw(void){
         int target = lim ? 80 : 100, m = full_minutes(target);
         if(plugged) snprintf(b, sizeof b, lim && pct >= 0 && pct >= 75 ? "plugged in · held at 80%%" : pct >= 96 ? "plugged in · full" : "plugged in · not charging");
         else if(pct >= 0 && pct >= target - (lim ? 1 : 4)) snprintf(b, sizeof b, lim ? "charged · held at 80%%" : "charged · topping up");
-        else if(m < 0) snprintf(b, sizeof b, "charging · estimating time to full");
+        else if(m < 0) snprintf(b, sizeof b, "charging · estimating");
         else { zdur(d, sizeof d, m < 1 ? 1 : m); snprintf(b, sizeof b, "charging · %s in %s", lim ? "80%" : "full", d); }
         lv_label_set_text(g_zu_l1, b); lv_obj_align(g_zu_l1, LV_ALIGN_TOP_MID, 0, 204);
         return;
@@ -360,8 +360,8 @@ static void zu_draw(void){
     int m = left_minutes();
     if(m == -1) snprintf(b, sizeof b, "estimating time left...");
     else if(m == -2) snprintf(b, sizeof b, "barely draining lately");
-    else if(m >= 48 * 60) snprintf(b, sizeof b, "about %d days of playback left", (m / 60 + 12) / 24);
-    else { zdur(d, sizeof d, m >= 120 ? (m + 30) / 60 * 60 : m); snprintf(b, sizeof b, "about %s of playback left", d); }
+    else if(m >= 48 * 60) snprintf(b, sizeof b, "about %d days left", (m / 60 + 12) / 24);
+    else { zdur(d, sizeof d, m >= 120 ? (m + 30) / 60 * 60 : m); snprintf(b, sizeof b, "about %s playback left", d); }
     lv_label_set_text(g_zu_l1, b); lv_obj_align(g_zu_l1, LV_ALIGN_TOP_MID, 0, 184);
     time_t nowt = time(NULL); int play = -1, scr = -1;
     if(nowt < 1600000000){ lv_label_set_text(g_zu_l2, "set the clock to see totals"); lv_label_set_text(g_zu_l3, ""); return; }
@@ -374,7 +374,7 @@ static void zu_draw(void){
         for(int i = 0; i < g_n; i++){ const usmp_t *s = at(i); if(s->t < from || s->t > to) continue; if(s->fl & FL_SCR) scr++; if(s->fl & FL_PLAY) play++; }
     }
     char p[24], s2[24]; zdur(p, sizeof p, play); zdur(s2, sizeof s2, scr);
-    snprintf(b, sizeof b, "%s playing · %s screen on", p, s2); lv_label_set_text(g_zu_l3, b);
+    snprintf(b, sizeof b, "play %s · screen %s", p, s2); lv_label_set_text(g_zu_l3, b);
 }
 static void zu_cap_hold_cb(lv_event_t *e);
 static void zusage_create(lv_obj_t *root){
@@ -395,21 +395,21 @@ static void zusage_create(lv_obj_t *root){
     lv_obj_set_pos(g_zu_tick, 180 + (int)lroundf(cosf(a) * 170.5f) - 4, 180 + (int)lroundf(sinf(a) * 170.5f) - 4);
     lv_obj_clear_flag(g_zu_tick, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
     g_zu_tlab = lv_label_create(root); lv_label_set_text(g_zu_tlab, "limit 80%");
-    lv_obj_set_style_text_font(g_zu_tlab, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(g_zu_tlab, TC(TEXT_MUTED), 0);
+    lv_obj_set_style_text_font(g_zu_tlab, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(g_zu_tlab, TC(TEXT_MUTED), 0);
     lv_obj_set_pos(g_zu_tlab, 180 + (int)lroundf(cosf(a) * 152), 180 + (int)lroundf(sinf(a) * 152) - 26);
-    g_zu_cap = zu_lab(root, &font_zune_semibold_11, TC(TEXT_MUTED), 70); lv_label_set_text(g_zu_cap, "BATTERY");
+    g_zu_cap = zu_lab(root, &font_zune_regular_16, TC(TEXT_MUTED), 70); lv_label_set_text(g_zu_cap, "BATTERY");
     lv_obj_set_style_text_letter_space(g_zu_cap, 2, 0);
     g_chg_ic = lv_label_create(root); lv_label_set_text(g_chg_ic, LV_SYMBOL_CHARGE);
     lv_obj_set_style_text_font(g_chg_ic, TF(UI_20), 0); lv_obj_set_style_text_color(g_chg_ic, TC(ACCENT_PRIMARY), 0);
     lv_obj_align(g_chg_ic, LV_ALIGN_TOP_MID, 0, 64);
     g_pct = lv_label_create(root); lv_obj_set_style_text_font(g_pct, zune_font(&font_zune_light_96), 0);
     lv_obj_set_style_text_color(g_pct, TC(TEXT_PRIMARY), 0);
-    g_zu_l1 = zu_lab(root, &font_zune_regular_14, TC(TEXT_SECONDARY), 184);
-    g_zu_l2 = zu_lab(root, &font_zune_regular_12, TC(TEXT_MUTED), 218);
+    g_zu_l1 = zu_lab(root, &font_zune_regular_17, TC(TEXT_SECONDARY), 184);
+    g_zu_l2 = zu_lab(root, &font_zune_regular_16, TC(TEXT_MUTED), 218);
     lv_obj_add_flag(g_zu_l2, LV_OBJ_FLAG_CLICKABLE); lv_obj_set_ext_click_area(g_zu_l2, 12);   /* hold: restart the totals */
     lv_obj_add_event_cb(g_zu_l2, zu_cap_hold_cb, LV_EVENT_LONG_PRESSED, NULL);
-    g_zu_l3 = zu_lab(root, &font_zune_regular_13, TC(TEXT_PRIMARY), 236);
-    g_zu_lim = zu_lab(root, &font_zune_regular_12, TC(TEXT_MUTED), 276); lv_label_set_text(g_zu_lim, "charge limit 80%");
+    g_zu_l3 = zu_lab(root, &font_zune_regular_16, TC(TEXT_PRIMARY), 244);
+    g_zu_lim = zu_lab(root, &font_zune_regular_16, TC(TEXT_MUTED), 276); lv_label_set_text(g_zu_lim, "charge limit 80%");
     /* keep the stock statics non-NULL so shared code paths stay safe */
     g_sub = g_sub2 = g_zu_l1; g_cap = g_zu_l2; g_play_v = g_scr_v = g_zu_l3;
     if(!g_tmr) g_tmr = lv_timer_create(us_tick_cb, 30000, NULL);

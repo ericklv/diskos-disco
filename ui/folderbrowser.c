@@ -295,7 +295,7 @@ static void fb_add_row(int i){
         }
         theme_list_row(r);
         if(th_zune()){                                              /* Figma 28: icon, name in Regular 19, a quiet line */
-            LV_FONT_DECLARE(font_zune_regular_19) LV_FONT_DECLARE(font_zune_regular_12)
+            LV_FONT_DECLARE(font_zune_regular_19) LV_FONT_DECLARE(font_zune_regular_16)
             lv_obj_set_style_bg_opa(r, LV_OPA_TRANSP, LV_STATE_PRESSED); lv_obj_set_style_opa(r, LV_OPA_60, LV_STATE_PRESSED); kit_keep(r);
             lv_obj_set_style_text_color(ic, TC(TEXT_MUTED), 0); lv_obj_set_pos(ic, 12, 10); kit_keep(ic);
             lv_obj_set_style_text_font(nm, zune_font(&font_zune_regular_19), 0); lv_obj_set_pos(nm, 40, 2); lv_obj_set_width(nm, FB_ROW_W - 50); kit_keep(nm);
@@ -304,11 +304,11 @@ static void fb_add_row(int i){
                 if(o == ic || o == nm || !lv_obj_check_type(o, &lv_label_class)) continue;
                 if(en->is_dir){ lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN); continue; }
                 char lo[16]; snprintf(lo, sizeof lo, "%s", lv_label_get_text(o)); for(char *c = lo; *c; c++) if(*c >= 'A' && *c <= 'Z') *c += 32;
-                lv_label_set_text(o, lo); lv_obj_set_style_text_font(o, zune_font(&font_zune_regular_12), 0);
+                lv_label_set_text(o, lo); lv_obj_set_style_text_font(o, zune_font(&font_zune_regular_16), 0);
                 lv_obj_set_style_text_color(o, TC(TEXT_MUTED), 0); lv_obj_set_pos(o, 42, 28); kit_keep(o);
             }
             if(en->is_dir){ lv_obj_t *d = lv_label_create(r); kit_keep(d); lv_label_set_text(d, "folder");
-                            lv_obj_set_style_text_font(d, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(d, TC(TEXT_MUTED), 0);
+                            lv_obj_set_style_text_font(d, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(d, TC(TEXT_MUTED), 0);
                             lv_obj_set_pos(d, 42, 28); }
         }
 }
@@ -480,12 +480,12 @@ void folderbrowser_create(lv_obj_t *root){
     lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
 
     if(th_zune()){
-        LV_FONT_DECLARE(font_zune_regular_12) LV_FONT_DECLARE(font_zune_regular_13)
+        LV_FONT_DECLARE(font_zune_regular_16) LV_FONT_DECLARE(font_zune_regular_13)
         g_title = zune_pivot(root, "folders", fb_header_back_cb);
         zune_status(root, SCR_FOLDER);
         g_zcrumb = lv_label_create(root); kit_keep(g_zcrumb); lv_label_set_text(g_zcrumb, "sd card");
         lv_label_set_long_mode(g_zcrumb, LV_LABEL_LONG_DOT); lv_obj_set_width(g_zcrumb, 150);
-        lv_obj_set_style_text_font(g_zcrumb, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(g_zcrumb, TC(TEXT_MUTED), 0);
+        lv_obj_set_style_text_font(g_zcrumb, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(g_zcrumb, TC(TEXT_MUTED), 0);
         lv_obj_set_pos(g_zcrumb, 52, 100);
         lv_obj_t *pf = lv_label_create(root); kit_keep(pf); lv_label_set_text(pf, "play folder");
         lv_obj_set_style_text_font(pf, zune_font(&font_zune_regular_13), 0); lv_obj_set_style_text_color(pf, TC(ACCENT_PRIMARY), 0);

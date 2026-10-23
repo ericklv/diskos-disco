@@ -84,7 +84,7 @@ static void hub_cb(lv_event_t *e){ (void)e; close_ov(); }
 /* Zune (Figma 32): the item small at the top (its cover beside it), the actions as a dial; tap off the dial = close */
 #include "zune_dial.h"
 #include "theme_kit.h"
-LV_FONT_DECLARE(font_zune_regular_12)
+LV_FONT_DECLARE(font_zune_regular_16)
 static void zpick_async(void *u){ pick((int)(intptr_t)u); }
 static void zpick(int i){ lv_async_call(zpick_async, (void *)(intptr_t)i); }   /* the dial goes with the overlay: not from its own click */
 static void zune_menu(const char *title, const int *acts, int n){
@@ -111,7 +111,7 @@ static void zune_menu(const char *title, const int *acts, int n){
     char b[300]; snprintf(b, sizeof b, "%s%s%s", title, g_have_song && g_song.artist[0] ? " \xC2\xB7 " : "", g_have_song ? g_song.artist : "");
     lv_label_set_text(t, b); lv_label_set_long_mode(t, LV_LABEL_LONG_SCROLL_CIRCULAR); lv_obj_set_width(t, 200);
     lv_obj_set_style_text_align(t, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_font(t, zune_font(&font_zune_regular_12), 0); lv_obj_set_style_text_color(t, TC(TEXT_MUTED), 0);
+    lv_obj_set_style_text_font(t, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(t, TC(TEXT_MUTED), 0);
     lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 26);
     if(screen_current()==SCR_LIBRARY)onboarding_discovered(HINT_LIBRARY);
 }

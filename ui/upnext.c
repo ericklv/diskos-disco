@@ -178,11 +178,11 @@ static void un_watch_cb(lv_timer_t *t){
 void upnext_create(lv_obj_t *root){
     lv_obj_set_style_bg_color(root, TC(CANVAS), 0);
     lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
-    ui_header(root, "Up Next");
+    ui_header(root, th_zune()?"up next":"Up Next");
 
     g_un_list = lv_obj_create(root);
     lv_obj_remove_style_all(g_un_list);
-    lv_obj_set_pos(g_un_list, 30, 72); lv_obj_set_size(g_un_list, 300, 272);
+    lv_obj_set_pos(g_un_list, 30, th_zune()?108:72); lv_obj_set_size(g_un_list, 300, th_zune()?236:272);
     lv_obj_set_style_pad_bottom(g_un_list, 44, 0);                 /* last row scrolls clear of the round bezel */
     lv_obj_set_style_bg_opa(g_un_list, LV_OPA_TRANSP, 0);
     lv_obj_set_flex_flow(g_un_list, LV_FLEX_FLOW_COLUMN);

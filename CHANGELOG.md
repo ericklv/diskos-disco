@@ -8,6 +8,10 @@ diskOS remains beta software; version numbers do not imply broad hardware or fea
 
 ## Unreleased
 
+- Zune polish: keep paused QS text centered; loop title/artist continuously at about 56 px/s, including short metadata. Repeated playback updates preserve scroll progress; hidden/panel-off headers stop animating.
+- Zune typography: Music title 24 → 22 px and artist 16 → 17 px; larger settings values, battery details, folder/book metadata and technical information. Bound secondary headings to the round screen and reflow Debug Access, Last.fm, How To and Up Next.
+- Zune library: Small/Medium/Large now select distinct list fonts, with the existing layout retained at Medium and more row height at Large.
+
 - Zune debug pass: avoid repeated metadata/QS/standby writes; stop hidden loading arcs and metadata marquees; preserve seek-rim gestures beside the wider text area.
 - Immersive: cached file type, bitrate and sample rate in every theme; correct long-name auto-hide in Null.
 

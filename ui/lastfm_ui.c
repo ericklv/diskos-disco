@@ -58,7 +58,7 @@ static lv_obj_t *body_button(const char *txt, lv_event_cb_t cb){
     lv_obj_set_height(b, 44); lv_obj_set_width(b, 190);
     lv_obj_set_style_radius(b, 22, 0);
     lv_obj_set_style_shadow_width(b, 0, 0);     /* no LVGL default-theme drop shadow: every other button is flat */
-    lv_obj_set_style_bg_color(b, th_disco_family() ? ui_current_accent() : TC(FIXED_LASTFM), 0);   /* Disco: the accent, not Last.fm red */
+    lv_obj_set_style_bg_color(b, (th_disco_family()||th_zune()) ? ui_current_accent() : TC(FIXED_LASTFM), 0);   /* Disco: the accent, not Last.fm red */
     lv_obj_set_ext_click_area(b, 6);
     ui_on(b, cb, LV_EVENT_CLICKED, NULL, "lastfm_ui.cb", UI_CORE);
     lv_obj_t *l = lv_label_create(b);
@@ -137,7 +137,7 @@ static void rebuild(void){
     else {
         body_label("Scrobble the songs you play\nto your Last.fm profile", TF(UI_18), THEME_CLR_TEXT_PRIMARY);
         body_button("Set up", on_setup);
-        body_label("Beta: connect flow not fully\ntested yet. Key setup uses your\nlocal Wi-Fi (plain HTTP).",
+        body_label(th_zune()?"Beta setup uses local Wi-Fi (plain HTTP). Connection flow is not fully tested.":"Beta: connect flow not fully\ntested yet. Key setup uses your\nlocal Wi-Fi (plain HTTP).",
                    TF(UI_14), THEME_CLR_TEXT_MUTED);
     }
 }
@@ -155,13 +155,13 @@ static void refresh_cb(lv_timer_t *t){
 }
 
 void lastfm_create(lv_obj_t *root){
-    ui_header_cb(root, "Last.fm (beta)", go_back);   /* shared header; go_back stops setup then pops */
+    ui_header_cb(root, th_zune()?"last.fm":"Last.fm (beta)", go_back);   /* shared header; go_back stops setup then pops */
     /* body: a centered vertical flex column in the clear middle band */
     g_body = lv_obj_create(root);
     lv_obj_remove_style_all(g_body);
-    lv_obj_set_size(g_body, 300, 250);
+    lv_obj_set_size(g_body, 300, th_zune()?230:250);
     lv_obj_set_style_pad_bottom(g_body, 44, 0);   /* last row scrolls clear of the round bezel */
-    lv_obj_align(g_body, LV_ALIGN_TOP_MID, 0, 74);
+    lv_obj_align(g_body, LV_ALIGN_TOP_MID, 0, th_zune()?108:74);
     lv_obj_set_flex_flow(g_body, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(g_body, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_row(g_body, 12, 0);

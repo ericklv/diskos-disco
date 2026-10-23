@@ -24,7 +24,7 @@
 #include "zune_dial.h"
 LV_FONT_DECLARE(font_zune_light_21)
 LV_FONT_DECLARE(font_zune_regular_19)
-LV_FONT_DECLARE(font_zune_regular_13)
+LV_FONT_DECLARE(font_zune_regular_16)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -463,7 +463,7 @@ static lv_obj_t *qrow(const char *t, const char *a, int now, int idx){
     }
     lv_obj_add_event_cb(r, row_size_cb, LV_EVENT_SIZE_CHANGED, (void *)(intptr_t)now);
     if(th_zune()){
-        lv_obj_set_height(r, 56);
+        lv_obj_set_height(r, 62);
         lv_obj_set_style_bg_opa(r, LV_OPA_TRANSP, 0); lv_obj_set_style_border_width(r, 0, 0); lv_obj_set_style_radius(r, 8, 0);
         lv_obj_set_style_bg_color(r, TC(SURFACE), LV_STATE_PRESSED); lv_obj_set_style_bg_opa(r, LV_OPA_COVER, LV_STATE_PRESSED);
         uint32_t n = lv_obj_get_child_count(r);
@@ -475,8 +475,8 @@ static lv_obj_t *qrow(const char *t, const char *a, int now, int idx){
         if(tl){ lv_obj_set_pos(tl, 22, 6); lv_obj_set_height(tl, 28); lv_label_set_long_mode(tl, LV_LABEL_LONG_DOT);
                 lv_obj_set_style_text_font(tl, now ? zune_font(&font_zune_regular_19) : zune_font(&font_zune_light_21), 0);
                 lv_obj_set_style_text_color(tl, now ? TC(ACCENT_PRIMARY) : TC(TEXT_PRIMARY), 0); }
-        if(al){ lv_obj_set_pos(al, 22, 33); lv_obj_set_height(al, 18); lv_label_set_long_mode(al, LV_LABEL_LONG_DOT);
-                lv_obj_set_style_text_font(al, zune_font(&font_zune_regular_13), 0); lv_obj_set_style_text_color(al, TC(TEXT_MUTED), 0); }
+        if(al){ lv_obj_set_pos(al, 22, 33); lv_obj_set_height(al, 24); lv_label_set_long_mode(al, LV_LABEL_LONG_DOT);
+                lv_obj_set_style_text_font(al, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(al, TC(TEXT_MUTED), 0); }
         if(now) zrow_bars(r);
         else { lv_obj_t *h = lv_obj_get_child(r, -1); if(h){ lv_obj_set_size(h, 26, 56); lv_obj_align(h, LV_ALIGN_RIGHT_MID, -14, 0);
                lv_obj_set_ext_click_area(h, 14);                   /* narrow: the kit leaves it as a plain glyph */
