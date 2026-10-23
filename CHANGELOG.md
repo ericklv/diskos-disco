@@ -8,6 +8,8 @@ diskOS remains beta software; version numbers do not imply broad hardware or fea
 
 ## Unreleased
 
+- Fix vertical text marquees in Listening Stats, SongSphere headings/moods/tag details, and Tune values: single-line labels now size themselves to the final theme font. Horizontal overflow scrolling remains available.
+
 - Zune: separate confirmation headings, readable messages and buttons; fix SD update and reset dialog overlap.
 - Zune: center the edge shortcut vertically and configure its tap, double-tap and hold in Display > Music screen > Zune; hide the unused Now Playing style option.
 - Volume: prevent Music seek/navigation underneath the overlay; Zune consumes taps outside the dial. Keep the overlay open while dragging.

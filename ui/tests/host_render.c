@@ -209,12 +209,41 @@ static void assert_visible_icon_glyphs(lv_obj_t *root){
 static lv_indev_data_t nav_pointer;
 static void nav_read(lv_indev_t *in,lv_indev_data_t *data){(void)in;*data=nav_pointer;}
 void zthumb_tick(void);void zune_ui_tick(void);
+/* Host-only volume proposals: production keeps the current modal dial. */
+static lv_obj_t *volume_proposal_label(lv_obj_t *p,const char *txt,int x,int y,int w,const lv_font_t *f,lv_color_t color){
+    lv_obj_t*l=lv_label_create(p);kit_keep(l);lv_label_set_text(l,txt);lv_obj_set_pos(l,x,y);lv_obj_set_width(l,w);lv_obj_set_style_text_font(l,f,0);lv_obj_set_style_text_color(l,color,0);lv_obj_set_style_text_align(l,LV_TEXT_ALIGN_CENTER,0);return l;
+}
+static lv_obj_t *volume_proposal_box(lv_obj_t*p,int x,int y,int w,int h,int radius,lv_color_t color){
+    lv_obj_t*b=lv_obj_create(p);lv_obj_remove_style_all(b);kit_keep(b);lv_obj_set_pos(b,x,y);lv_obj_set_size(b,w,h);lv_obj_set_style_radius(b,radius,0);lv_obj_set_style_bg_color(b,color,0);lv_obj_set_style_bg_opa(b,255,0);return b;
+}
+static void volume_proposal(int choice){
+    LV_FONT_DECLARE(font_zune_light_96) LV_FONT_DECLARE(font_zune_light_72) LV_FONT_DECLARE(font_zune_regular_16) LV_FONT_DECLARE(font_zune_regular_17)
+    const lv_font_t*zune_font(const lv_font_t*);
+    lv_obj_t*p=volume_proposal_box(lv_layer_top(),0,0,360,360,0,TC(CANVAS));
+    volume_proposal_label(p,"volume",60,52,240,zune_font(&font_zune_regular_17),TC(TEXT_MUTED));
+    if(choice==1){
+        lv_obj_t*a=lv_arc_create(p);kit_keep(a);lv_obj_set_size(a,328,328);lv_obj_center(a);lv_arc_set_bg_angles(a,135,45);lv_arc_set_angles(a,135,297);lv_obj_remove_style(a,NULL,LV_PART_KNOB);lv_obj_set_style_arc_width(a,4,LV_PART_MAIN);lv_obj_set_style_arc_width(a,8,LV_PART_INDICATOR);lv_obj_set_style_arc_color(a,TC(CONTROL_TRACK),LV_PART_MAIN);lv_obj_set_style_arc_color(a,TC(ACCENT_PRIMARY),LV_PART_INDICATOR);
+        volume_proposal_label(p,"72",50,108,260,zune_font(&font_zune_light_96),TC(TEXT_PRIMARY));
+        volume_proposal_label(p,"low gain",80,244,200,zune_font(&font_zune_regular_16),TC(TEXT_MUTED));
+        volume_proposal_box(p,162,289,36,4,0,TC(ACCENT_PRIMARY));
+    }else if(choice==2){
+        volume_proposal_label(p,"72",32,114,184,zune_font(&font_zune_light_96),TC(TEXT_PRIMARY));
+        for(int i=0;i<10;i++)volume_proposal_box(p,236,98+i*17,38,10,0,i>=4?TC(ACCENT_PRIMARY):TC(CONTROL_TRACK));
+        volume_proposal_label(p,"low gain",44,252,180,zune_font(&font_zune_regular_16),TC(TEXT_MUTED));
+    }else{
+        volume_proposal_label(p,"72",50,96,260,zune_font(&font_zune_light_96),TC(TEXT_PRIMARY));
+        volume_proposal_box(p,66,230,228,14,0,TC(CONTROL_TRACK));volume_proposal_box(p,66,230,137,14,0,TC(ACCENT_PRIMARY));volume_proposal_box(p,190,224,26,26,13,TC(TEXT_PRIMARY));
+        volume_proposal_label(p,"low gain",80,276,200,zune_font(&font_zune_regular_16),TC(TEXT_MUTED));
+    }
+}
 static void audit_vertical(lv_obj_t *o){
     if(!lv_obj_is_visible(o))return;
     if(lv_obj_check_type(o,&lv_label_class)){
         lv_label_long_mode_t m=lv_label_get_long_mode(o);
-        if((m==LV_LABEL_LONG_SCROLL || m==LV_LABEL_LONG_SCROLL_CIRCULAR) && (((lv_label_t*)o)->offset.y || lv_obj_get_content_height(o)<lv_font_get_line_height(lv_obj_get_style_text_font(o,0))))
+        if((m==LV_LABEL_LONG_SCROLL || m==LV_LABEL_LONG_SCROLL_CIRCULAR) && (((lv_label_t*)o)->offset.y || lv_obj_get_content_height(o)<lv_font_get_line_height(lv_obj_get_style_text_font(o,0)))){
+            assert(!getenv("ASSERT_NO_VERTICAL"));
             printf("VERTICAL text=[%s] offset=%d box=%dx%d font=%d\n",lv_label_get_text(o),(int)((lv_label_t*)o)->offset.y,(int)lv_obj_get_width(o),(int)lv_obj_get_height(o),(int)lv_font_get_line_height(lv_obj_get_style_text_font(o,0)));
+        }
     }
     for(uint32_t i=0;i<lv_obj_get_child_count(o);i++)audit_vertical(lv_obj_get_child(o,i));
 }
@@ -2312,6 +2341,7 @@ int main(int argc, char **argv){
         puts("PASS: real bounded decoder feeds 364px immersive image and async timed lyrics; close/reopen works");
     }
 render:
+    if(getenv("ZVOL_CONCEPT"))volume_proposal(atoi(getenv("ZVOL_CONCEPT")));
     if(getenv("AUDIT_VERTICAL")){for(int i=0;i<12;i++){nav_wait(137);audit_vertical(lv_screen_active());audit_vertical(lv_layer_top());}}
     if(getenv("REVIEW_ZUNE_VOLUME")){
         screen_show(SCR_NOWPLAYING);nav_wait(250);ui_show_volume(60);nav_wait(50);assert(ui_volume_overlay_visible());
