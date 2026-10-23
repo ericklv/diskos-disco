@@ -65,8 +65,16 @@ The overlay uses the existing Immersive timer, updates metadata only while visib
 ## Null and Zune polish
 
 - Zune Search uses the same magnifier as Squash in Quick Settings; the shared font fallback also covers other Zune screens.
-- Zune Music keeps its artwork and transport layout, with separate one-line scrolling title and artist. Metadata animation stops when hidden, dimmed or covered by Immersive. Returning from the idle state restores playback text and sizing, including the same track.
+- Zune Music keeps its artwork and transport layout, with a wider, curved-safe metadata column and up to two lines each for title, artist and album. Its footer aligns with the artwork bottom; transport controls have subtle accent shading. Returning from idle restores playback text and sizing, including the same track.
 - Null Immersive starts its own existing renderer regardless of the main Now Playing layout. Cover, Vinyl and CD use sharp artwork independently of Null's pixelated Music background. Its controls have a higher heading and smaller, bounded two-line metadata, with alternate-font clearance.
 - Immersive clears stale progress when the next track has no known duration.
 
 31 host cases passed, including live rotation, pause/resume, time updates, unknown-duration reset, all Null font choices, modern-theme Back/transport, and Zune search/metadata behavior. No additional worker or periodic timer was added. Device testing remains pending. PRs #19 and #20 are not included; standby and power-button behavior remain unchanged.
+
+## Layout and debug preview
+
+Small menu captions and its clock use a 15px bold cut; outer labels have stronger contrast. All Immersive themes include cached file type, bitrate and sample-rate information. Estimated bitrate is marked with ~; unknown values use --. No periodic timer or worker was added.
+
+Unchanged metadata, QS styles, menu captions and standby clock/artwork avoid redundant writes. Hidden/off loading arcs and hidden standby/Immersive metadata stop animating; Clock Only keeps its concealed song labels stopped. Wrapped Null names no longer continually reset the controls timeout. The expanded Zune Music hit area ignores rim-origin taps and drags.
+
+44 real-LVGL host cases passed. Device battery/frame-rate validation remains pending.

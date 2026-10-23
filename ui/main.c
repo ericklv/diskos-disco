@@ -3951,6 +3951,7 @@ int main(int argc, char **argv){
         int was_screen_off=g_screen_off;
         g_screen_off = (bl_state == 2);
         if(was_screen_off && !g_screen_off)ui_clock_refresh();
+        if(th_zune()&&was_screen_off!=g_screen_off){void zsaver_set_visible(int);zsaver_set_visible(!g_screen_off&&screen_current()==SCR_SAVER);}
         /* A's day/night appearance switches at an idle boundary, preserving the user's manual variant. */
         if(bl_state==2 && theme_auto_supported() && simple_cfg_get_int("theme_auto",0) && !theme_outdoor()){
             static uint32_t checked; uint32_t tick=lv_tick_get();
@@ -3960,7 +3961,6 @@ int main(int argc, char **argv){
             }
         }
         g_bl_idle = (bl_state >= 1);   /* prewarm worker reads this: only work while dimmed/off */
-        ui_np_text_motion(bl_state==0 && screen_current()==SCR_NOWPLAYING && !ui_np_fsart_active());
         int busy = lv_anim_count_running() > 0 || prev_ts == LV_INDEV_STATE_PRESSED;
         if(bl_state == 2){
             /* deep idle (panel off): sleep ~5x/s REGARDLESS of any running animation. Nothing is

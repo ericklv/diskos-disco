@@ -8,7 +8,10 @@ diskOS remains beta software; version numbers do not imply broad hardware or fea
 
 ## Unreleased
 
-- Zune branch: reuse Squash's search magnifier; independent title/artist marquees on Music, paused while hidden or dimmed; correct idle-to-playback metadata restoration.
+- Zune debug pass: avoid repeated metadata/QS/standby writes; stop hidden loading arcs and metadata marquees; preserve seek-rim gestures beside the wider text area.
+- Immersive: cached file type, bitrate and sample rate in every theme; correct long-name auto-hide in Null.
+
+- Zune branch: reuse Squash's search magnifier; wider two-line Music metadata, accent transport and bolder small menu text; correct idle-to-playback metadata restoration.
 - Null Immersive: start the renderer independently of Music layout, retain sharp Cover/Vinyl/CD artwork, and use smaller two-line control metadata without scrolling.
 - Immersive: clear previous-track progress when duration becomes unknown.
 

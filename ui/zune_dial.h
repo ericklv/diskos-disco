@@ -64,4 +64,7 @@ void zune_takeover_big(const char *txt);
 void zune_takeover_ring(int pct);
 void zune_rim_spin(lv_obj_t *scr, int on);   /* a turning accent arc on the rim while scanning */
 void zune_toast_action(const char *icon, const char *title, const char *sub, const char *action, void (*cb)(void), int ms);   /* Figma 82 */
+
+/* Standby metadata scrolls only while its screen is visible. */
+void zsaver_set_visible(int on);
 #endif

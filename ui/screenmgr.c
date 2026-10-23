@@ -114,8 +114,8 @@ void crash_crumb(int screen);
 int disco_editor_back(void);
 static void transition(int from, int to, int dir)
 {
-    if(th_zune()&&from!=to)zune_overlays_close();
-    if(from==SCR_NOWPLAYING && to!=SCR_NOWPLAYING){ui_imm_control_cancel();ui_np_text_motion(0);}
+    if(th_zune()&&from!=to){zune_overlays_close();zsaver_set_visible(to==SCR_SAVER);}
+    if(from==SCR_NOWPLAYING && to!=SCR_NOWPLAYING)ui_imm_control_cancel();
     azjump_close_active();
     albumwall_visible(to==SCR_ALBUMWALL);
     crash_crumb(to);

@@ -29,28 +29,31 @@ static struct {
     lv_obj_t *ptrack, *pfill, *ptime;                         /* with music: how far into the song */
     lv_obj_t *it, *ic, *im, *imer, *iday, *idate;             /* idle: hours, colon, minutes as three labels (tint) */
     int have;
-    char t[32];
+    char t[32];int clock_ready,day_key,tint_key,source_key,prog_ready;uint32_t accent_key,prog_at;unsigned art_revision;
+
 } Z;
 
 static lv_obj_t *lbl(const lv_font_t *f, lv_color_t c){
-    lv_obj_t *l = lv_label_create(Z.root); kit_keep(l);
+    lv_obj_t *l=lv_label_create(Z.root);kit_keep(l);lv_label_set_text(l,"");
     lv_obj_set_style_text_font(l, f, 0); lv_obj_set_style_text_color(l, c, 0);
     lv_obj_remove_flag(l, LV_OBJ_FLAG_CLICKABLE);
     return l;
 }
-static void show(lv_obj_t *o, int on){ if(!o) return; if(on) lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN); }
+static void show(lv_obj_t *o, int on){ if(!o||lv_obj_has_flag(o,LV_OBJ_FLAG_HIDDEN)==!on)return; if(on) lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN); }
 
 static void fmt_ms(char *b, size_t n, long ms){ long s = ms / 1000; if(s < 0) s = 0;
     if(s >= 3600) snprintf(b, n, "%ld:%02ld:%02ld", s / 3600, s / 60 % 60, s % 60); else snprintf(b, n, "%ld:%02ld", s / 60, s % 60); }
 static void zprog_tick(lv_timer_t *t){
     (void)t;
-    if(!Z.root || !Z.ptrack || Z.have <= 0 || (t && screen_current() != SCR_SAVER)) return;
+    if(!Z.root||!Z.ptrack||Z.have<=0||screen_current()!=SCR_SAVER||ui_display_is_off())return;
+    if(Z.prog_ready&&lv_tick_elaps(Z.prog_at)<500)return;Z.prog_ready=1;Z.prog_at=lv_tick_get();
     track_state_t st; ipc_get_state(&st);
     long dur = st.duration_ms, pos = st.position_ms; if(pos > dur && dur > 0) pos = dur;
     char a[16], b[16], l[40]; fmt_ms(a, sizeof a, pos); fmt_ms(b, sizeof b, dur);
     if(dur > 0) snprintf(l, sizeof l, "%s / %s", a, b); else snprintf(l, sizeof l, "%s", a);
-    lv_label_set_text(Z.ptime, st.have_track ? l : "");
-    lv_obj_set_width(Z.pfill, dur > 0 ? (int)(132L * pos / dur) : 0);
+    if(strcmp(lv_label_get_text(Z.ptime),st.have_track?l:""))lv_label_set_text(Z.ptime,st.have_track?l:"");
+    int width=dur>0?(int)(132LL*pos/dur):0;if(width<0)width=0;if(width>132)width=132;
+    if(lv_obj_get_style_width(Z.pfill,0)!=width)lv_obj_set_width(Z.pfill,width);
 }
 void zsaver_create(lv_obj_t *root){
     memset(&Z, 0, sizeof Z);
@@ -96,10 +99,18 @@ static void layout(void){
     show(Z.art, m); show(Z.mt, m); show(Z.mdate, m); show(Z.mtitle, m); show(Z.martist, m); show(Z.hint, m); show(Z.ptrack, m); show(Z.ptime, m);
     show(Z.it, !m); show(Z.ic, !m); show(Z.im, !m); show(Z.iday, !m); show(Z.idate, !m);
     show(Z.mmer, m && lv_label_get_text(Z.mmer)[0]); show(Z.imer, !m && lv_label_get_text(Z.imer)[0]);
+    zsaver_set_visible(screen_current()==SCR_SAVER&&!ui_display_is_off());
 }
 void zsaver_set_clock(const char *t){
     if(!Z.root) return;
-    char d[32]; snprintf(d, sizeof d, "%s", t ? t : "--:--");
+    const char *input=t?t:"--:--";time_t now=time(NULL);struct tm tm;localtime_r(&now,&tm);
+    int day=tm.tm_year*366+tm.tm_yday,tint_now=zlock_tint(),source=simple_cfg_get_int("zlock_src",0);
+    uint32_t ac_now=lv_color_to_u32(TC(ACCENT_PRIMARY));
+    char battery[16]="";int bp=zhome_battery_pct();if(bp>=0)snprintf(battery,sizeof battery,"%d%%",bp);
+    if(strcmp(lv_label_get_text(Z.batt),battery))lv_label_set_text(Z.batt,battery);
+    if(Z.clock_ready&&!strcmp(Z.t,input)&&Z.day_key==day&&Z.tint_key==tint_now&&Z.source_key==source&&Z.accent_key==ac_now)return;
+    snprintf(Z.t,sizeof Z.t,"%s",input);Z.clock_ready=1;Z.day_key=day;Z.tint_key=tint_now;Z.source_key=source;Z.accent_key=ac_now;
+    char d[32];snprintf(d,sizeof d,"%s",input);
     char *sp = strchr(d, ' '), mer[8] = "";                        /* "7:29 PM": the digits big, "pm" small beside */
     if(sp){ snprintf(mer, sizeof mer, "%s", sp + 1); *sp = 0; for(char *c = mer; *c; c++) if(*c >= 'A' && *c <= 'Z') *c += 32; }
     lv_label_set_text(Z.mt, d);
@@ -141,7 +152,6 @@ void zsaver_set_clock(const char *t){
     lv_obj_set_style_transform_scale(Z.mt, tsc, 0);
     lv_obj_set_pos(Z.mt, 162, 46 + (256 - tsc) * 30 / 256);
     lv_obj_set_pos(Z.mmer, 162 + ts.x * tsc / 256 + 4, 104);
-    time_t now = time(NULL); struct tm tm; localtime_r(&now, &tm);
     static const char *WD[] = { "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday" };
     static const char *MO[] = { "january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december" };
     char b[48];
@@ -153,16 +163,26 @@ void zsaver_set_clock(const char *t){
     layout();
     zprog_tick(NULL);
 }
-void zsaver_set_track(const char *title, const char *artist){
-    if(!Z.root) return;
-    Z.have = title != NULL;
-    lv_label_set_text(Z.mtitle, title ? title : "");
-    lv_label_set_text(Z.martist, artist ? artist : "");
-    const lv_image_dsc_t *dsc = ui_current_cover_dsc();
-    lv_image_set_src(Z.art_img, NULL);
-    if(dsc && dsc->header.w > 0){ lv_image_set_src(Z.art_img, dsc); lv_image_set_scale(Z.art_img, (uint32_t)(256 * 192 / dsc->header.w)); }
-    layout();
-    zprog_tick(NULL);
+unsigned ui_art_revision(void);
+void zsaver_set_visible(int on){
+    lv_label_long_mode_t mode=on&&Z.have>0&&simple_cfg_get_int("zlock_src",0)==0?LV_LABEL_LONG_SCROLL_CIRCULAR:LV_LABEL_LONG_CLIP;
+    int resumed=0;lv_obj_t *rows[]={Z.mtitle,Z.martist};
+    for(int i=0;i<2;i++)if(rows[i]&&lv_label_get_long_mode(rows[i])!=mode){lv_label_set_long_mode(rows[i],mode);if(mode==LV_LABEL_LONG_SCROLL_CIRCULAR)resumed=1;}
+    if(resumed){Z.prog_ready=0;zprog_tick(NULL);}
+}
+void zsaver_set_track(const char *title,const char *artist){
+    if(!Z.root)return;
+    int have=title!=NULL,changed=Z.have!=have;Z.have=have;
+    zsaver_set_visible(screen_current()==SCR_SAVER&&!ui_display_is_off());
+    if(strcmp(lv_label_get_text(Z.mtitle),title?title:""))lv_label_set_text(Z.mtitle,title?title:"");
+    if(strcmp(lv_label_get_text(Z.martist),artist?artist:""))lv_label_set_text(Z.martist,artist?artist:"");
+    unsigned revision=ui_art_revision();
+    if(changed||Z.art_revision!=revision){
+        Z.art_revision=revision;const lv_image_dsc_t *dsc=ui_current_cover_dsc();
+        lv_image_set_src(Z.art_img,NULL);
+        if(dsc&&dsc->header.w>0){lv_image_set_src(Z.art_img,dsc);lv_image_set_scale(Z.art_img,(uint32_t)(256*192/dsc->header.w));}
+    }
+    if(changed)layout();zprog_tick(NULL);
 }
 
 void zsaver_progress_tick(void){if(screen_current()==SCR_SAVER&&!ui_display_is_off())zprog_tick(NULL);}

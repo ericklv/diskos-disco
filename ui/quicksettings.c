@@ -642,9 +642,11 @@ static void zqs_paint(void){
         if(id==Q_GAIN)sub=on?"high":"low";
         if(id==Q_SHUFFLE||id==Q_SLEEP)sub=on?"on":"off";
         if(id==T_WIFI||id==T_BT||id==Q_EQ||id==T_RESCAN)sub=id==T_BT&&bt_state()==BT_TURNING_ON?"...":on?"on":"off";
-        lv_obj_set_style_opa(g_zq_btn[i],zq_allowed(id)?LV_OPA_COVER:LV_OPA_40,0);
-        lv_obj_set_style_bg_color(g_zq_btn[i],on?ui_current_accent():TC(SURFACE),0);
-        lv_obj_set_style_text_color(g_zq_ic[i],on?theme_on_color(ui_current_accent()):TC(TEXT_PRIMARY),0);
+        lv_opa_t opacity=zq_allowed(id)?LV_OPA_COVER:LV_OPA_40;
+        if(lv_obj_get_style_opa(g_zq_btn[i],0)!=opacity)lv_obj_set_style_opa(g_zq_btn[i],opacity,0);
+        lv_color_t bg=on?ui_current_accent():TC(SURFACE),ink=on?theme_on_color(ui_current_accent()):TC(TEXT_PRIMARY);
+        if(!lv_color_eq(lv_obj_get_style_bg_color(g_zq_btn[i],0),bg))lv_obj_set_style_bg_color(g_zq_btn[i],bg,0);
+        if(!lv_color_eq(lv_obj_get_style_text_color(g_zq_ic[i],0),ink))lv_obj_set_style_text_color(g_zq_ic[i],ink,0);
         set_text_if(g_zq_ic[i],quicksettings_item_glyph(id));set_text_if(g_zq_sub[i],sub);
     }
     if(g_zq_bright&&!lv_obj_has_state(g_zq_bright,LV_STATE_PRESSED))lv_arc_set_value(g_zq_bright,ui_get_brightness());

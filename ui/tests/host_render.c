@@ -128,6 +128,13 @@ static int find_sharp_image(lv_obj_t *root){
     return 0;
 }
 /* Fixture seams exist only in the host executable; device firmware gates remain intact. */
+static int test_rate_queries;
+int __real_mdb_song_rates(const char*,int*,int*);
+int __wrap_mdb_song_rates(const char *path,int *br,int *sr){test_rate_queries++;if(getenv("PREVIEW_TECH")){if(br)*br=1088000;if(sr)*sr=96000;return 1;}return __real_mdb_song_rates(path,br,sr);}
+lv_obj_t *ui_test_zune_np_part(int i);
+static int test_style_events;
+static void count_style_event(lv_event_t *e){(void)e;test_style_events++;}
+static void watch_styles(lv_obj_t *o){lv_obj_add_event_cb(o,count_style_event,LV_EVENT_STYLE_CHANGED,NULL);for(uint32_t i=0;i<lv_obj_get_child_count(o);i++)watch_styles(lv_obj_get_child(o,i));}
 static int fixture, send_result, send_count;static char last_sent[32];
 int __real_ui_local_playback_allowed(void);
 int __wrap_ui_local_playback_allowed(void){return (getenv("REVIEW_ZUNE")||getenv("REVIEW_ZUNE_BACK"))?1:__real_ui_local_playback_allowed();}
@@ -1141,7 +1148,7 @@ int main(int argc, char **argv){
             snprintf(st.title,sizeof st.title,"The Last Train Home Through Northern Lights");
             snprintf(st.artist,sizeof st.artist,"The Midnight & The Northern Lights Orchestra");
         }
-        st.have_track=1;st.state=2;st.duration_ms=240000;st.position_ms=92000;st.sample_rate=44100;ipc_seed_state(&st);
+        st.have_track=1;st.state=2;st.duration_ms=240000;st.position_ms=92000;st.sample_rate=getenv("PREVIEW_TECH")?96000:44100;ipc_seed_state(&st);
         if(getenv("MA_TRACK")){                      /* MA Sendspin: Music shows Music Assistant's track + its sidecar cover */
             struct timespec tn; clock_gettime(CLOCK_MONOTONIC,&tn);
             ipc_set_external("Midnight City","M83","Hurry Up, We're Dreaming",getenv("MA_TRACK"),243000,61000,tn.tv_sec*1000LL+tn.tv_nsec/1000000,1000);
@@ -1262,7 +1269,7 @@ int main(int argc, char **argv){
         if(getenv("ZMDIR")){ void fileops_action(const char*,const char*,int,void(*)(void),int); nav_wait(50); fileops_action(getenv("ZMDIR"),"t0.png",0,NULL,1); nav_wait(100); }
         if(getenv("ZART")){ void ui_zune_art_sync(void); cfg_set_int("zune_accent_art",1); ui_zune_art_sync(); ui_art_retry(); nav_wait(400); }
         if(getenv("ZSCANCEL")){ nav_wait(200); lv_obj_t *o=ui_action_find("kb.zune.cancel"); fprintf(stderr,"cancel btn %p scr before %d\n",(void*)o,screen_current()); if(o) lv_obj_send_event(o,LV_EVENT_CLICKED,NULL); nav_wait(600); fprintf(stderr,"scr after %d\n",screen_current()); }
-        if(getenv("ZHFOCUS")){ void zhome_test_focus(int); void home_set_weather(const char*); home_set_weather("\xEF\x86\x85  18\xC2\xB0C Clear"); zhome_test_focus(atoi(getenv("ZHFOCUS"))); nav_wait(100); }
+        if(getenv("ZHFOCUS")){ void zhome_test_focus(int); void home_set_weather(const char*); home_set_weather("\xEF\x86\x85  18\xC2\xB0" "C Clear"); zhome_test_focus(atoi(getenv("ZHFOCUS"))); nav_wait(100); }
         if(getenv("ZTAKE")){ nav_wait(50); int k=atoi(getenv("ZTAKE"));
             if(k==1){ ztake_t z={.icon=LV_SYMBOL_WIFI,.spin=1,.ring_pct=-1,.title="connecting",.sub="to studio",.l1="cancel"}; zune_takeover(&z); }
             else if(k==2){ ztake_t z={.icon=LV_SYMBOL_CLOSE,.icon_ring=64,.ring_pct=-1,.title="wrong password",.sub="studio didn't accept it. check caps and try again.",.l1="try again",.l2="cancel"}; zune_takeover(&z); }
@@ -1658,22 +1665,67 @@ int main(int argc, char **argv){
             test_track_override=0;
             puts("PASS Immersive: sharp live frame rotates, freezes paused, resumes, metadata time updates and Null two-line labels");
         }
-        if(getenv("REVIEW_ZUNE_MARQUEE")){
+        if(getenv("REVIEW_ZUNE_WRAP")){
             assert(th_zune());screen_show(SCR_NOWPLAYING);nav_wait(200);
-            lv_obj_t *r=screen_get_root(SCR_NOWPLAYING),*t=find_visible_text(r,st.title),*a=find_visible_text(r,st.artist);assert(t&&a);
-            assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_SCROLL_CIRCULAR&&lv_label_get_long_mode(a)==LV_LABEL_LONG_SCROLL_CIRCULAR);
-            assert(lv_obj_get_height(t)==lv_font_get_line_height(lv_obj_get_style_text_font(t,0))&&lv_obj_get_height(a)==lv_font_get_line_height(lv_obj_get_style_text_font(a,0)));
-            lv_area_t ta,aa;lv_obj_get_coords(t,&ta);lv_obj_get_coords(a,&aa);assert(ta.y2<aa.y1&&aa.y2<240);
-            ui_np_text_motion(0);assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_CLIP&&lv_label_get_long_mode(a)==LV_LABEL_LONG_CLIP);
-            ui_np_text_motion(1);assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_SCROLL_CIRCULAR&&lv_label_get_long_mode(a)==LV_LABEL_LONG_SCROLL_CIRCULAR);
-            screen_show(SCR_SETTINGS);nav_wait(250);assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_CLIP&&lv_label_get_long_mode(a)==LV_LABEL_LONG_CLIP);
-            screen_show(SCR_NOWPLAYING);nav_wait(250);assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_SCROLL_CIRCULAR&&lv_label_get_long_mode(a)==LV_LABEL_LONG_SCROLL_CIRCULAR);
-            puts("PASS Zune music: separate single-line marquees, stable geometry, no hidden/dimmed metadata animation");
+            lv_area_t prev={0};for(int i=0;i<3;i++){
+                lv_obj_t *o=ui_test_zune_np_part(i);assert(o&&lv_label_get_long_mode(o)==LV_LABEL_LONG_DOT);
+                int h=lv_obj_get_height(o),lh=lv_font_get_line_height(lv_obj_get_style_text_font(o,0));assert(h==0||h==lh||h==2*lh);
+                lv_area_t a;lv_obj_get_coords(o,&a);assert(a.x1==158&&lv_obj_get_width(o)>=140);if(i&&h)assert(a.y1>prev.y2);prev=a;
+                int far=abs(a.y1-180)>abs(a.y2-180)?abs(a.y1-180):abs(a.y2-180);assert((a.x2-180)*(a.x2-180)+far*far<180*180);
+            }
+            lv_obj_t *fmt=ui_test_zune_np_part(5);lv_area_t f;lv_obj_get_coords(fmt,&f);assert(f.y2==253);
+            for(int i=7;i<10;i++){lv_obj_t *b=ui_test_zune_np_part(i);assert(lv_obj_get_style_bg_opa(b,0)>0);}
+            screen_show(SCR_SETTINGS);nav_wait(150);screen_show(SCR_NOWPLAYING);nav_wait(500);for(int i=0;i<3;i++)assert(lv_label_get_long_mode(ui_test_zune_np_part(i))==LV_LABEL_LONG_DOT);
+            puts("PASS Zune: two-line metadata, wider curved-safe column, art-aligned footer, accent transport and return navigation");
         }
         if(getenv("REVIEW_ZUNE_RESTART")){
-            track_state_t none={0};ui_update(&none);ui_update(&st);lv_obj_t *r=screen_get_root(SCR_NOWPLAYING);lv_obj_update_layout(r);
-            lv_obj_t *t=find_visible_text(r,st.title),*a=find_visible_text(r,st.artist);assert(t&&a);assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_SCROLL_CIRCULAR&&lv_label_get_long_mode(a)==LV_LABEL_LONG_SCROLL_CIRCULAR);assert(lv_obj_get_height(t)==lv_font_get_line_height(lv_obj_get_style_text_font(t,0)));
-            puts("PASS Zune restart: resuming the same title after no-track restores track copy and single-line layout");return 0;
+            track_state_t none={0};ui_update(&none);ui_update(&st);nav_wait(100);for(int i=0;i<3;i++)assert(lv_label_get_long_mode(ui_test_zune_np_part(i))==LV_LABEL_LONG_DOT);puts("PASS Zune restart restores wrapped playback metadata");return 0;
+        }
+        if(getenv("REVIEW_TECH")){
+            assert(getenv("PREVIEW_TECH"));void ui_zune_imm_preview(int,int);ui_zune_imm_preview(2,0);nav_wait(200);
+            assert(find_visible_text(ui_action_find("imm.control"),"FLAC / 1088 kbps / 96 kHz"));int queries=test_rate_queries;
+            for(int i=0;i<4;i++){ui_zune_imm_preview(2,0);nav_wait(500);}assert(test_rate_queries==queries);
+            puts("PASS Immersive technical info: format/bitrate/rate in active theme, no repeated per-track DB lookup");
+        }
+        if(getenv("REVIEW_ZUNE_METADATA_HIT")){
+            screen_show(SCR_NOWPLAYING);nav_wait(500);lv_indev_t *in=lv_indev_create();lv_indev_set_type(in,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(in,nav_read);lv_timer_set_period(lv_indev_get_read_timer(in),10);
+            nav_touch((lv_point_t){320,170},50);nav_wait(100);assert(screen_current()==SCR_NOWPLAYING);
+            nav_pointer=(lv_indev_data_t){.point={200,170},.state=LV_INDEV_STATE_PRESSED};nav_wait(30);for(int x=200;x<=260;x+=5){nav_pointer.point.x=x;nav_wait(15);}nav_pointer.state=LV_INDEV_STATE_RELEASED;nav_wait(100);assert(screen_current()==SCR_NOWPLAYING);
+            nav_touch((lv_point_t){200,170},50);nav_wait(300);assert(screen_current()==SCR_NPMENU);lv_indev_delete(in);screen_back();nav_wait(500);
+            puts("PASS Zune metadata hit area: ordinary tap opens actions; rim tap and drag do not");
+        }
+        if(getenv("REVIEW_ZUNE_METADATA_WORK")){
+            assert(th_zune());screen_show(SCR_NOWPLAYING);nav_wait(500);for(int i=0;i<3;i++)watch_styles(ui_test_zune_np_part(i));test_style_events=0;
+            for(int i=0;i<20;i++)ui_update(&st);assert(test_style_events==0);
+            puts("PASS Zune: unchanged long, ellipsized metadata performs no layout/style writes");
+        }
+        if(getenv("REVIEW_ZUNE_STANDBY_WORK")){
+            void zsaver_set_track(const char*,const char*);void zsaver_set_clock(const char*);
+            assert(th_zune());screen_show(SCR_SAVER);nav_wait(200);zsaver_set_track(st.title,st.artist);zsaver_set_clock("10:09");nav_wait(100);
+            lv_obj_t *r=screen_get_root(SCR_SAVER);watch_styles(r);test_style_events=0;int state_reads=test_state_reads;
+            for(int i=0;i<20;i++){zsaver_set_track(st.title,st.artist);zsaver_set_clock("10:09");}assert(test_style_events==0&&test_state_reads==state_reads);
+            lv_obj_t *t=find_text(r,st.title),*a=find_text(r,st.artist);assert(t&&a);
+            screen_home();nav_wait(500);assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_CLIP&&lv_label_get_long_mode(a)==LV_LABEL_LONG_CLIP);
+            screen_show(SCR_SAVER);nav_wait(200);assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_SCROLL_CIRCULAR);zsaver_set_visible(0);assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_CLIP);zsaver_set_visible(1);
+            cfg_set_int_deferred("zlock_src",1);zsaver_set_clock("10:09");assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_CLIP);cfg_set_int_deferred("zlock_src",0);zsaver_set_clock("10:09");assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_SCROLL_CIRCULAR);
+            puts("PASS Zune standby: unchanged clock/track avoid style writes, hidden text animation stops and resumes");
+        }
+        if(getenv("REVIEW_ZUNE_SPINNER_WORK")){
+            screen_show(SCR_NOWPLAYING);nav_wait(500);lv_obj_t *r=screen_get_root(SCR_NOWPLAYING);zune_rim_spin(r,1);lv_obj_t *arc=lv_obj_get_child(r,-1);nav_wait(100);int rot=lv_arc_get_rotation(arc);nav_wait(100);assert(rot!=lv_arc_get_rotation(arc));
+            screen_home();nav_wait(500);rot=lv_arc_get_rotation(arc);nav_wait(250);assert(rot==lv_arc_get_rotation(arc));
+            test_panel_off=1;screen_show(SCR_NOWPLAYING);nav_wait(250);rot=lv_arc_get_rotation(arc);nav_wait(250);assert(rot==lv_arc_get_rotation(arc));test_panel_off=0;nav_wait(200);assert(rot!=lv_arc_get_rotation(arc));zune_rim_spin(r,0);
+            puts("PASS Zune spinner: visible animation advances, hidden/off animation stops and resumes");
+        }
+        if(getenv("REVIEW_IMM_AUTOTHIDE")){
+            void ui_zune_imm_preview(int,int);ui_zune_imm_preview(2,0);nav_wait(100);lv_obj_t *button=ui_action_find("imm.zune.prev"),*ctl=lv_obj_get_parent(button);assert(!lv_obj_has_flag(ctl,LV_OBJ_FLAG_HIDDEN));
+            nav_wait(th_null()?4000:12500);assert(lv_obj_has_flag(ctl,LV_OBJ_FLAG_HIDDEN));
+            if(!th_null()){assert(lv_label_get_long_mode(lv_obj_get_child(ctl,1))==LV_LABEL_LONG_CLIP&&lv_label_get_long_mode(lv_obj_get_child(ctl,2))==LV_LABEL_LONG_CLIP);}
+            puts("PASS Immersive auto-hide: long names do not reset timeout; hidden text animation stops");
+        }
+        if(getenv("REVIEW_ZUNE_QS_REDRAW")){
+            screen_show(SCR_QUICK);nav_wait(100);watch_styles(screen_get_root(SCR_QUICK));test_style_events=0;
+            for(int i=0;i<20;i++)quicksettings_set_now_playing(st.title,st.artist,1);assert(test_style_events==0);
+            puts("PASS Zune QS: identical playback refreshes perform no style writes");
         }
         if(getenv("REVIEW_ZUNE_SEARCH_ICON")){
             assert(th_zune());lv_font_glyph_dsc_t glyph={0};

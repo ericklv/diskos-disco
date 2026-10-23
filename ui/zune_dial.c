@@ -3,6 +3,7 @@
  * line at y 180, Light 46 / 32 / 24 by distance, opacity 1 -> 0.3, every row inset from the bezel curve. */
 #include "zune_dial.h"
 #include "screens.h"
+#include "ui.h"
 #include "theme.h"
 #include "theme_kit.h"
 #include <math.h>
@@ -199,7 +200,7 @@ const lv_font_t *zune_font(const lv_font_t *base){
 typedef struct zrim { lv_obj_t *arc; int scr; struct zrim *next; } zrim_t;
 static zrim_t *z_rims;
 static void rim_tick(zrim_t *r){
-    if(!r || !r->arc || screen_current() != r->scr) return;
+    if(!r||!r->arc||screen_current()!=r->scr||(r->scr==SCR_NOWPLAYING&&ui_np_fsart_active()))return;
     track_state_t st; ipc_get_state(&st);
     int v = (st.have_track && st.duration_ms > 0) ? (int)((long long)st.position_ms * 1000 / st.duration_ms) : 0;
     if(v < 0) v = 0; if(v > 1000) v = 1000;
@@ -258,6 +259,7 @@ lv_obj_t *zune_pivot(lv_obj_t *root, const char *title, lv_event_cb_t back_cb){
 void zhome_status_parts(char *t, size_t n, int *pct, int *chg);
 int ui_sleep_state(int *secs_left);
 int usage_plugged_in(void);
+LV_FONT_DECLARE(font_zune_bold_14)
 /* the status line (Figma 66): [moon + minutes of a running sleep timer] time [bolt] [battery]. The battery is drawn: an
  * outline with a fill to the level (red at 15% and under, unless on the charger) and a small nub; on the charger a bolt
  * in the accent stands before it. */
@@ -273,7 +275,7 @@ static void zst_paint(int k){
     show_if(g_zst[k].batt, pct >= 0); show_if(g_zst[k].bolt, pct >= 0 && on_power);
     if(pct >= 0){
         int p = pct > 100 ? 100 : pct, w = (14 * p + 50) / 100, low = !on_power && p <= 15; if(w < 3 && p > 0) w = 3;
-        lv_obj_set_width(g_zst[k].fill, w);                         /* (a no-op when unchanged) */
+        if(lv_obj_get_style_width(g_zst[k].fill,0)!=w)lv_obj_set_width(g_zst[k].fill,w);                         /* (a no-op when unchanged) */
         lv_color_t c = low ? TC(STATUS_DANGER) : TC(TEXT_PRIMARY);
         if(!lv_color_eq(lv_obj_get_style_bg_color(g_zst[k].fill, 0), c)){   /* every 2 s on every status bar: write only on a change */
             lv_obj_set_style_bg_color(g_zst[k].fill, c, 0);
@@ -285,7 +287,7 @@ static void zst_paint(int k){
             if(strcmp(lv_label_get_text(g_zst[k].sleep), m)) lv_label_set_text(g_zst[k].sleep, m); }
     show_if(g_zst[k].sleep, on); show_if(g_zst[k].moon, on);
 }
-void zune_status_refresh(void){ for(int k = 0; k < ZSTAT_MAX; k++) if(g_zst[k].row && lv_obj_is_visible(g_zst[k].row)) zst_paint(k); }   /* all of them: a screen shown next is current already */
+void zune_status_refresh(void){ for(int k = 0; k < ZSTAT_MAX; k++) if(g_zst[k].row && !(g_zst[k].scr==SCR_NOWPLAYING&&ui_np_fsart_active()) && lv_obj_is_visible(g_zst[k].row)) zst_paint(k); }   /* all of them: a screen shown next is current already */
 void zune_ui_tick(void){
  static uint32_t at;if(ui_display_is_off() || !th_zune() || lv_tick_elaps(at)<1000)return;at=lv_tick_get();
  zune_status_refresh();for(zrim_t *r=z_rims;r;r=r->next)rim_tick(r);
@@ -310,7 +312,7 @@ lv_obj_t *zune_status(lv_obj_t *root, int scr){
     lv_obj_set_style_text_font(sl, TF(UI_12), 0); lv_obj_set_style_text_color(sl, TC(ACCENT_PRIMARY), 0);
     lv_obj_set_style_margin_right(sl, 3, 0);
     lv_obj_t *l = lv_label_create(row); kit_keep(l); lv_label_set_text(l, "");
-    lv_obj_set_style_text_font(l, TF(UI_12), 0); lv_obj_set_style_text_color(l, TC(TEXT_PRIMARY), 0);
+    lv_obj_set_style_text_font(l,scr==SCR_HOME?zune_font(&font_zune_bold_14):TF(UI_12),0);lv_obj_set_style_text_color(l,TC(TEXT_PRIMARY),0);
     lv_obj_t *bolt = lv_label_create(row); kit_keep(bolt); lv_label_set_text(bolt, LV_SYMBOL_CHARGE);
     lv_obj_set_style_text_font(bolt, TF(UI_10), 0); lv_obj_set_style_text_color(bolt, TC(ACCENT_PRIMARY), 0);
     lv_obj_set_style_margin_left(bolt, 3, 0); lv_obj_set_style_margin_right(bolt, -3, 0);
@@ -548,7 +550,7 @@ static void zscan_tick(lv_timer_t *t){
     if(scanner_active()){
         ZS.rot = (ZS.rot + 12) % 360; lv_arc_set_rotation(ZS.arc, ZS.rot);
         int d = 0, n = 0; scanner_progress(&d, &n);
-        snprintf(b, sizeof b, "%d", d); lv_label_set_text(ZS.num, b);
+        snprintf(b,sizeof b,"%d",d);if(strcmp(lv_label_get_text(ZS.num),b))lv_label_set_text(ZS.num,b);
         return;
     }
     if(!ZS.done_ms){
@@ -597,7 +599,7 @@ void zune_scan_show(void){
 /* ---- takeovers (Figma 45 / 63 / 74): one full-glass state with a rim, an icon, a Light title and text links.
  * Used for wi-fi connecting / failed, bluetooth pairing / failed and the 2% shutdown countdown. One at a time. ---- */
 static struct { lv_obj_t *ov, *rim, *title, *big, *sub; lv_timer_t *t; int rot; void (*cb[2])(void); } ZT;
-static void ztake_spin(lv_timer_t *t){ (void)t; if(!ZT.rim) return; ZT.rot = (ZT.rot + 15) % 360; lv_arc_set_rotation(ZT.rim, ZT.rot); }
+static void ztake_spin(lv_timer_t *t){ (void)t; if(!ZT.rim||ui_display_is_off()||!lv_obj_is_visible(ZT.rim))return;ZT.rot = (ZT.rot + 15) % 360; lv_arc_set_rotation(ZT.rim, ZT.rot); }
 void zune_takeover_close(void){
     if(ZT.t){ lv_timer_delete(ZT.t); ZT.t = NULL; }
     if(ZT.ov){ lv_obj_t *o = ZT.ov; ZT.ov = NULL; lv_obj_delete_async(o); }
@@ -674,12 +676,12 @@ void zune_takeover(const ztake_t *s){
         lv_obj_align(l, LV_ALIGN_TOP_MID, two ? (i == 0 ? -46 : 46) : 0, ly);
     }
 }
-void zune_takeover_big(const char *txt){ if(ZT.big) lv_label_set_text(ZT.big, txt); }
+void zune_takeover_big(const char *txt){if(ZT.big&&strcmp(lv_label_get_text(ZT.big),txt?txt:""))lv_label_set_text(ZT.big,txt?txt:"");}
 void zune_takeover_ring(int pct){ if(ZT.rim && !ZT.t) lv_arc_set_angles(ZT.rim, 0, (uint16_t)(pct * 360 / 100)); }
 
 /* ---- a turning accent arc on a screen's rim while something is being looked for (Figma 74 scanning) ---- */
 static lv_obj_t *g_rim_arc; static lv_timer_t *g_rim_t; static int g_rim_rot;
-static void zrim_tick(lv_timer_t *t){ (void)t; if(g_rim_arc){ g_rim_rot = (g_rim_rot + 15) % 360; lv_arc_set_rotation(g_rim_arc, g_rim_rot); } }
+static void zrim_tick(lv_timer_t *t){ (void)t; if(g_rim_arc&&!ui_display_is_off()&&lv_obj_is_visible(g_rim_arc)){g_rim_rot = (g_rim_rot + 15) % 360; lv_arc_set_rotation(g_rim_arc, g_rim_rot); } }
 static void zrim_del_cb(lv_event_t *e){ (void)e; g_rim_arc = NULL; if(g_rim_t){ lv_timer_delete(g_rim_t); g_rim_t = NULL; } }
 void zune_rim_spin(lv_obj_t *scr, int on){
     if(!on){

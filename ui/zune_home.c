@@ -5,6 +5,7 @@
  * track under it. A short accent tick on the left rim marks the focus line. The time and battery sit centred at the
  * top. Scroll to move the dial, tap any item to open it. home.c forwards its setters here when th_zune(). */
 #include "screens.h"
+#include "simple_theme.h"
 #include "theme.h"
 #include "theme_kit.h"
 #include "zune_dial.h"
@@ -14,6 +15,8 @@
 #include <stdlib.h>
 
 void ui_np_status_changed(void);   /* ui.c: Now Playing repeats this status line */
+LV_FONT_DECLARE(font_zune_semibold_24)
+LV_FONT_DECLARE(font_zune_bold_14)
 #define ZH_PITCH 64          /* row pitch */
 #define ZH_FOCUS 180         /* the focus line (screen y) */
 #define ZH_INSET 34          /* text inset from the bezel at the focus line */
@@ -55,7 +58,8 @@ static const zitem_t ITEMS[] = {
 #define ZP (ZN * ZC)
 static lv_obj_t *g_dial, *g_row[ZP], *g_lbl[ZP], *g_sub[ZP], *g_status, *g_tick;
 static int g_size[ZP];                  /* the font step each label is on now (0 = 46, 1 = 32, 2 = 24), -1 unset */
-static char g_time[24], g_batt[16];
+static char g_time[24],g_batt[16],g_np_caption[192],g_weather_caption[192];
+static const lv_font_t *small_font(void){return zune_font(&font_zune_bold_14);}
 static int g_batt_pct = -1, g_batt_chg;
 int zhome_battery_pct(void){ return g_batt_pct; }   /* the lock screen shows it as "82%" */
 
@@ -69,7 +73,7 @@ static inline void zg_align(lv_obj_t *o, int x, int y){
     if(lv_obj_get_style_align(o, 0) == LV_ALIGN_LEFT_MID && lv_obj_get_style_x(o, 0) == x && lv_obj_get_style_y(o, 0) == y) return;
     lv_obj_align(o, LV_ALIGN_LEFT_MID, x, y);
 }
-static const lv_font_t *step_font(int s){ return s == 0 ? TF(UI_46) : s == 1 ? TF(UI_32) : TF(UI_24); }
+static const lv_font_t *step_font(int s){ return s == 0 ? TF(UI_46) : s == 1 ? TF(UI_32) : zune_font(&font_zune_semibold_24); }
 
 /* the bezel's left edge at screen y, plus the inset */
 static int edge_x(int y){
@@ -88,7 +92,7 @@ static void dial_layout(void){
         zg_hide(g_lbl[i], 0);
         int s = d < ZH_PITCH / 2 ? 0 : d < ZH_PITCH * 3 / 2 ? 1 : 2;
         if(s != g_size[i]){ g_size[i] = s; lv_obj_set_style_text_font(g_lbl[i], step_font(s), 0); }
-        float o = 1.0f - (float)d / ZH_PITCH * 0.4f; if(o < 0.3f) o = 0.3f;
+        float o = 1.0f - (float)d / ZH_PITCH * 0.4f; if(o < 0.45f)o=0.45f;
         lv_opa_t opa = (lv_opa_t)(o * 255);
         zg_opa(g_lbl[i], opa);
         int x = edge_x(yc);
@@ -97,7 +101,7 @@ static void dial_layout(void){
         if(g_sub[i]){
             if(has_sub){
                 zg_hide(g_sub[i], 0);
-                int w = 300 - x, h = lv_font_get_line_height(TF(UI_12));      /* one line, then "..." */
+                int w = 300 - x, h = lv_font_get_line_height(small_font());      /* one line, then "..." */
                 if(lv_obj_get_style_width(g_sub[i], 0) != w || lv_obj_get_style_height(g_sub[i], 0) != h) lv_obj_set_size(g_sub[i], w, h);
                 lv_obj_align_to(g_sub[i], g_lbl[i], LV_ALIGN_OUT_BOTTOM_LEFT, 2, -2);
                 zg_opa(g_sub[i], opa);
@@ -164,8 +168,8 @@ void zhome_create(lv_obj_t *root){
         if(i == NP_IDX || i == WX_IDX){
             lv_obj_t *s = lv_label_create(r); kit_keep(s);
             lv_label_set_text(s, "");
-            lv_obj_set_style_text_font(s, TF(UI_12), 0);
-            lv_obj_set_style_text_color(s, TC(TEXT_MUTED), 0);
+            lv_obj_set_style_text_font(s,small_font(),0);
+            lv_obj_set_style_text_color(s,TC(TEXT_SECONDARY),0);
             lv_label_set_long_mode(s, LV_LABEL_LONG_DOT);
             lv_obj_remove_flag(s, LV_OBJ_FLAG_CLICKABLE);
             g_sub[p] = s;
@@ -193,13 +197,15 @@ void zhome_create(lv_obj_t *root){
 
 void zhome_set_clock(const char *t, const char *sub){
     (void)sub;
-    snprintf(g_time, sizeof g_time, "%s", t ? t : "");
-    status_paint(); ui_np_status_changed();
+    if(!strcmp(g_time,t?t:""))return;
+    snprintf(g_time,sizeof g_time,"%s",t?t:"");status_paint();
 }
 LV_FONT_DECLARE(font_weather16)
 static void zhome_set_weather_one(lv_obj_t *sub, const char *s);
 void zhome_set_weather(const char *s){
-    for(int c = 0; c < ZC; c++) zhome_set_weather_one(g_sub[c * ZN + WX_IDX], s);
+    char text[sizeof g_weather_caption];snprintf(text,sizeof text,"%s",s?s:"");
+    if(!strcmp(g_weather_caption,text))return;snprintf(g_weather_caption,sizeof g_weather_caption,"%s",text);
+    for(int c=0;c<ZC;c++)zhome_set_weather_one(g_sub[c*ZN+WX_IDX],text);
     dial_layout();
 }
 static void zhome_set_weather_one(lv_obj_t *sub, const char *s){
@@ -207,7 +213,7 @@ static void zhome_set_weather_one(lv_obj_t *sub, const char *s){
     {   /* the weather line leads with a FontAwesome weather glyph: give its font the weather icons as a fallback
          * (text font -> weather icons -> the text font's own CJK chain) */
         static lv_font_t txt, wx; static const lv_font_t *made_for;
-        const lv_font_t *base = TF(UI_12);
+        const lv_font_t *base=small_font();
         if(made_for != base){ made_for = base; wx = font_weather16; wx.fallback = base->fallback; txt = *base; txt.fallback = &wx; }
         lv_obj_set_style_text_font(sub, &txt, 0);
         lv_obj_add_flag(sub, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
@@ -217,11 +223,12 @@ static void zhome_set_weather_one(lv_obj_t *sub, const char *s){
 }
 void zhome_set_status(int batt, int charging, int wifi, int bt){
     (void)wifi; (void)bt;
-    g_batt_pct = batt; g_batt_chg = charging;
+    if(g_batt_pct==batt&&g_batt_chg==charging)return;
+    g_batt_pct=batt;g_batt_chg=charging;
     const char *g = charging ? LV_SYMBOL_CHARGE : batt >= 90 ? LV_SYMBOL_BATTERY_FULL : batt >= 65 ? LV_SYMBOL_BATTERY_3 :
                     batt >= 40 ? LV_SYMBOL_BATTERY_2 : batt >= 15 ? LV_SYMBOL_BATTERY_1 : LV_SYMBOL_BATTERY_EMPTY;
     snprintf(g_batt, sizeof g_batt, "%s", batt >= 0 ? g : "");
-    status_paint(); ui_np_status_changed();
+    status_paint();
 }
 void zhome_set_now_playing(const char *title, const char *artist, bool playing){
     (void)playing;
@@ -229,7 +236,8 @@ void zhome_set_now_playing(const char *title, const char *artist, bool playing){
     char b[192];
     if(title && artist && artist[0]) snprintf(b, sizeof b, "%s \xC2\xB7 %s", title, artist);
     else snprintf(b, sizeof b, "%s", title ? title : "");
-    if(strcmp(lv_label_get_text(g_sub[NP_IDX]), b)){
+    if(strcmp(g_np_caption,b)){
+        snprintf(g_np_caption,sizeof g_np_caption,"%s",b);
         for(int c = 0; c < ZC; c++) if(g_sub[c * ZN + NP_IDX]) lv_label_set_text(g_sub[c * ZN + NP_IDX], b);
         dial_layout();
     }
