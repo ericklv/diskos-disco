@@ -8,6 +8,9 @@ diskOS remains beta software; version numbers do not imply broad hardware or fea
 
 ## Unreleased
 
+- Zune volume A: thin accent rim, oversized number, quiet gain label and square accent marker; 100 ms entry fade with direct touch adjustment and modal seek protection.
+- Verify Zune spinning-disc Immersive entry/exit for Vinyl, CD and Cover, including early exit/reopen and Animations off.
+
 - Fix vertical text marquees in Listening Stats, SongSphere headings/moods/tag details, and Tune values: single-line labels now size themselves to the final theme font. Horizontal overflow scrolling remains available.
 
 - Zune: separate confirmation headings, readable messages and buttons; fix SD update and reset dialog overlap.

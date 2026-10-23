@@ -4176,35 +4176,38 @@ static void dvol_paint(int v){
     int kc = v * DV_N / (VOL_MAX + 1);                                  /* the knob wears the colour at the level */
     lv_obj_set_style_bg_color(g_vol_arc, acc ? ui_current_accent() : theme_color_from_rgb(IRI[kc]), LV_PART_KNOB);
 }
-/* Zune (Figma 05): the whole glass - a hairline track round the rim (open at the bottom), the accent level with a dot,
- * the level in Light 96, "volume" under it, the gain in small caps and the max-volume cap as a tick on the track */
-LV_FONT_DECLARE(font_zune_light_96) LV_FONT_DECLARE(font_zune_regular_14) LV_FONT_DECLARE(font_zune_regular_16) LV_FONT_DECLARE(font_zune_semibold_11)
-static lv_obj_t *g_zvol_cap, *g_zvol_max, *g_zvol_out;
+/* Zune volume A: thin rim, large Light number, quiet labels and a square accent marker.
+ * The arc stays interactive without a visible knob; a configured maximum still has its tick and label. */
+LV_FONT_DECLARE(font_zune_light_96) LV_FONT_DECLARE(font_zune_regular_17) LV_FONT_DECLARE(font_zune_regular_14) LV_FONT_DECLARE(font_zune_regular_16) LV_FONT_DECLARE(font_zune_semibold_11)
+static lv_obj_t *g_zvol_cap, *g_zvol_max, *g_zvol_out, *g_zvol_mark;
 static lv_point_precise_t g_zvol_cp[2];
 static void vol_tap_close_cb(lv_event_t *e);
 static void zvol_build(void){
     lv_obj_add_flag(g_vol_panel, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(g_vol_panel, vol_tap_close_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_set_style_bg_color(g_vol_panel, TC(CANVAS), 0); lv_obj_set_style_bg_opa(g_vol_panel, LV_OPA_COVER, 0);
-    lv_obj_set_size(g_vol_arc, 332, 332); lv_obj_center(g_vol_arc);
+    lv_obj_set_size(g_vol_arc, 328, 328); lv_obj_center(g_vol_arc);
     lv_arc_set_rotation(g_vol_arc, 0); lv_arc_set_bg_angles(g_vol_arc, 135, 45); lv_arc_set_mode(g_vol_arc, LV_ARC_MODE_NORMAL);
-    lv_obj_set_style_arc_width(g_vol_arc, 4, LV_PART_MAIN); lv_obj_set_style_arc_width(g_vol_arc, 6, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(g_vol_arc, 4, LV_PART_MAIN); lv_obj_set_style_arc_width(g_vol_arc, 8, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(g_vol_arc, TC(CONTROL_TRACK), LV_PART_MAIN);
-    lv_obj_set_style_border_width(g_vol_arc, 0, LV_PART_KNOB); lv_obj_set_style_pad_all(g_vol_arc, 6, LV_PART_KNOB);
+    lv_obj_remove_style(g_vol_arc, NULL, LV_PART_KNOB); /* clean rounded end; the whole band remains draggable */
     lv_obj_t *badge = lv_obj_get_parent(g_vol_num);
     lv_obj_add_flag(lv_obj_get_child(badge, 0), LV_OBJ_FLAG_HIDDEN);                 /* no speaker */
     lv_obj_set_flex_flow(badge, LV_FLEX_FLOW_COLUMN); lv_obj_set_style_bg_opa(badge, 0, 0);
     lv_obj_set_style_pad_all(badge, 0, 0); lv_obj_set_style_pad_row(badge, 0, 0);
     lv_obj_set_size(badge, 200, LV_SIZE_CONTENT);
     lv_obj_set_flex_align(badge, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_align(badge, LV_ALIGN_TOP_MID, 0, 74);
+    lv_obj_align(badge, LV_ALIGN_TOP_MID, 0, 108);
     lv_obj_set_style_text_font(g_vol_num, zune_font(&font_zune_light_96), 0);
-    lv_obj_t *cap = lv_label_create(badge); lv_label_set_text(cap, "volume");
-    lv_obj_set_style_text_font(cap, zune_font(&font_zune_regular_14), 0); lv_obj_set_style_text_color(cap, TC(TEXT_MUTED), 0);
-    lv_obj_set_style_margin_top(cap, 12, 0);
+    lv_obj_t *cap = lv_label_create(g_vol_panel); lv_label_set_text(cap, "volume");
+    lv_obj_set_style_text_font(cap, zune_font(&font_zune_regular_17), 0); lv_obj_set_style_text_color(cap, TC(TEXT_MUTED), 0);
+    lv_obj_align(cap, LV_ALIGN_TOP_MID, 0, 52);
     g_zvol_out = lv_label_create(g_vol_panel);
-    lv_obj_set_style_text_font(g_zvol_out, &font_zune_semibold_11, 0); lv_obj_set_style_text_letter_space(g_zvol_out, 2, 0);
-    lv_obj_set_style_text_color(g_zvol_out, TC(ACCENT_PRIMARY), 0); lv_obj_align(g_zvol_out, LV_ALIGN_TOP_MID, 0, 262);
+    lv_obj_set_style_text_font(g_zvol_out, zune_font(&font_zune_regular_16), 0);
+    lv_obj_set_style_text_color(g_zvol_out, TC(TEXT_MUTED), 0); lv_obj_align(g_zvol_out, LV_ALIGN_TOP_MID, 0, 244);
+    g_zvol_mark=lv_obj_create(g_vol_panel);lv_obj_remove_style_all(g_zvol_mark);
+    lv_obj_set_size(g_zvol_mark,36,4);lv_obj_align(g_zvol_mark,LV_ALIGN_TOP_MID,0,289);
+    lv_obj_set_style_bg_opa(g_zvol_mark,LV_OPA_COVER,0);lv_obj_clear_flag(g_zvol_mark,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_clear_flag(g_zvol_out, LV_OBJ_FLAG_CLICKABLE);
     g_zvol_cap = lv_line_create(g_vol_panel);
     lv_obj_set_style_line_width(g_zvol_cap, 3, 0); lv_obj_set_style_line_rounded(g_zvol_cap, true, 0);
@@ -4216,7 +4219,7 @@ static void zvol_build(void){
 }
 static void zvol_paint(void){
     if(!g_zvol_cap) return;
-    lv_label_set_text(g_zvol_out, simple_cfg_get_int("audio_gain", 0) ? "HIGH GAIN" : "LOW GAIN");
+    lv_label_set_text(g_zvol_out, simple_cfg_get_int("audio_gain", 0) ? "high gain" : "low gain");
     int mx = simple_cfg_get_int("max_vol", VOL_MAX); if(mx < 1) mx = 1; if(mx > VOL_MAX) mx = VOL_MAX;
     if(mx >= VOL_MAX){ lv_obj_add_flag(g_zvol_cap, LV_OBJ_FLAG_HIDDEN); lv_obj_add_flag(g_zvol_max, LV_OBJ_FLAG_HIDDEN); return; }
     float an = (135 + 270.0f * mx / VOL_MAX) * 0.0174533f;
@@ -4250,6 +4253,7 @@ void ui_show_volume(int vol)
          * lightly dimmed; only the arc and the number redraw while it's up. Drag the arc to set the level. */
         lv_obj_t *top = lv_layer_top();
         g_vol_panel = lv_obj_create(top);
+        lv_obj_add_flag(g_vol_panel,LV_OBJ_FLAG_HIDDEN);
         lv_obj_remove_style_all(g_vol_panel);
         lv_obj_set_size(g_vol_panel, 360, 360);
         lv_obj_set_style_bg_color(g_vol_panel, TC(SCRIM), 0);
@@ -4408,7 +4412,8 @@ void ui_show_volume(int vol)
         }
     }
     if(th_zune() && !g_zvol_cap) zvol_build();
-    if(th_zune()) zvol_paint();
+    int zvol_opening=th_zune()&&lv_obj_has_flag(g_vol_panel,LV_OBJ_FLAG_HIDDEN);
+    if(th_zune()){zvol_paint();lv_obj_set_style_bg_color(g_zvol_mark,ui_current_accent(),0);}
     if(!th_braun()){ lv_color_t acc = ui_current_accent();       /* follow an accent change (Braun: always orange) */
       lv_obj_set_style_arc_color(g_vol_arc, acc, LV_PART_INDICATOR);
       lv_obj_set_style_bg_color(g_vol_arc, acc, LV_PART_KNOB);
@@ -4427,6 +4432,8 @@ void ui_show_volume(int vol)
     }
     lv_obj_remove_flag(g_vol_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_move_foreground(g_vol_panel);
+    if(zvol_opening && screen_get_anim())anim_fade(g_vol_panel,0,LV_OPA_COVER,100,NULL);
+    else if(th_zune()&&!screen_get_anim()){lv_anim_delete(g_vol_panel,NULL);lv_obj_set_style_opa(g_vol_panel,LV_OPA_COVER,0);}
     lv_timer_reset(g_vol_timer);
     lv_timer_resume(g_vol_timer);
     imm_volume_input_apply(g_vol_panel);
@@ -4454,6 +4461,7 @@ int ui_np_mode_next(void){                          /* as the Now Playing play-m
     return wm;
 }
 void ui_test_imm_in(int v){ imm_in_set(v); }                            /* host renders: a frame of the drop */
+int ui_test_imm_transition(void){return (lv_anim_get(&imm_in_tag,NULL)?1:0)|(lv_anim_get(&imm_out_tag,NULL)?2:0);}
 void ui_test_imm_out(int v){ imm_out_exec(NULL, v); }                   /* host renders: a frame of the lift */
 
 /* Host preview accessors; unused sections are discarded from device builds. */

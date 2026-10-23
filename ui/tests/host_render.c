@@ -81,7 +81,7 @@ static long scrub_last_seek;
 static int scrub_last_volume;
 int __real_ui_seek_to(long ms);int __real_ui_set_volume(int v);
 int __wrap_ui_seek_to(long ms){if(getenv("REVIEW_SCRUB")){scrub_seek_calls++;scrub_last_seek=ms;return scrub_send_fail?-1:0;}return __real_ui_seek_to(ms);}
-int __wrap_ui_set_volume(int v){if(getenv("REVIEW_SCRUB")){scrub_volume_calls++;scrub_last_volume=v;return scrub_send_fail?-1:0;}return __real_ui_set_volume(v);}
+int __wrap_ui_set_volume(int v){if(getenv("REVIEW_SCRUB")||getenv("REVIEW_ZUNE_VOLUME")){scrub_volume_calls++;scrub_last_volume=v;return scrub_send_fail?-1:0;}return __real_ui_set_volume(v);}
 int __real_ui_is_playing(void);
 int __wrap_ui_is_playing(void){const char*p=getenv("NP_PLAYING");return p?atoi(p):__real_ui_is_playing();}
 
@@ -2348,8 +2348,29 @@ render:
         for(int x=0;x<360;x+=12)for(int y=0;y<360;y+=12)assert(!ui_np_seek_press(x,y));
         lv_obj_t*panel=lv_obj_get_child(lv_layer_top(),-1);assert(lv_obj_has_flag(panel,LV_OBJ_FLAG_CLICKABLE));
         lv_obj_send_event(panel,LV_EVENT_CLICKED,NULL);assert(!ui_volume_overlay_visible());assert(screen_current()==SCR_NOWPLAYING);
-        screen_set_anim(1);ui_np_fsart_open();nav_wait(100);assert(ui_np_fsart_active());assert(lv_anim_count_running()>0);ui_np_fsart_close();nav_wait(300);assert(!ui_np_fsart_active()&&screen_current()==SCR_NOWPLAYING);
-        puts("PASS Zune volume blocks ring seeking, background dismisses without navigation; Immersive animated return stays on Music");
+        screen_set_anim(1);ui_show_volume(72);nav_wait(120);
+        panel=lv_obj_get_child(lv_layer_top(),-1);lv_obj_t*arc=NULL;
+        for(uint32_t i=0;i<lv_obj_get_child_count(panel);i++){lv_obj_t*c=lv_obj_get_child(panel,i);if(lv_obj_check_type(c,&lv_arc_class)){arc=c;break;}}
+        assert(arc&&lv_obj_get_width(arc)==328&&lv_obj_get_style_arc_width(arc,LV_PART_INDICATOR)==8);
+        assert(lv_color_eq(lv_obj_get_style_arc_color(arc,LV_PART_INDICATOR),ui_current_accent()));assert(lv_obj_get_style_opa(panel,0)==255);
+        assert(find_visible_text(panel,"volume")&&find_visible_text(panel,"72")&&find_visible_text(panel,"low gain"));
+        lv_indev_t*pointer=lv_indev_create();lv_indev_set_type(pointer,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(pointer,nav_read);lv_timer_set_period(lv_indev_get_read_timer(pointer),10);
+        int before=scrub_volume_calls;
+        nav_pointer=(lv_indev_data_t){.point={180,20},.state=LV_INDEV_STATE_PRESSED};nav_wait(60);
+        nav_pointer.point=(lv_point_t){340,180};nav_wait(140);nav_pointer.state=LV_INDEV_STATE_RELEASED;nav_wait(50);
+        assert(scrub_volume_calls>before&&lv_arc_get_value(arc)>72&&screen_current()==SCR_NOWPLAYING);lv_indev_delete(pointer);
+        lv_obj_send_event(panel,LV_EVENT_CLICKED,NULL);
+        int ui_test_imm_transition(void);
+        for(int style=0;style<3;style++){
+            cfg_set_int_deferred("imm_style",style);
+            ui_np_fsart_open();nav_wait(80);assert(ui_np_fsart_active()&&ui_test_imm_transition()==1);
+            ui_np_fsart_close();nav_wait(80);assert(ui_test_imm_transition()==2);
+            ui_np_fsart_open();nav_wait(80);assert(ui_np_fsart_active()&&ui_test_imm_transition()==1);
+            nav_wait(800);assert(ui_test_imm_transition()==0);ui_np_fsart_close();nav_wait(300);
+            assert(!ui_np_fsart_active()&&ui_test_imm_transition()==0&&screen_current()==SCR_NOWPLAYING);
+        }
+        screen_set_anim(0);ui_np_fsart_open();nav_wait(50);assert(ui_np_fsart_active()&&ui_test_imm_transition()==0);ui_np_fsart_close();nav_wait(250);assert(screen_current()==SCR_NOWPLAYING);
+        puts("PASS Zune volume A: accent rim, 100ms fade, direct drag and seek blocking; Vinyl/CD/Cover Immersive entry/exit, early close/reopen, animation-off return stays on Music");
     }
     /* Design preview only: gesture replacement is not enabled in production. */
     if(getenv("REVIEW_ALBUMWALL_LIFETIME")){
