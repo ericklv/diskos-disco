@@ -6,6 +6,15 @@ Entries follow the Keep a Changelog format, with Added, Changed, and Fixed categ
 diskOS remains beta software; version numbers do not imply broad hardware or feature validation.
 
 
+## Unreleased
+
+- Development preview: optional Zune theme, adapted from namastecoconut-imagined’s theme kit, retaining 2.7.0 transport, radios, multiselect and download handling. See [integration notes](docs/ZUNE.md).
+- Disc Shelf music overlay: separate scrolling title/artist, position bar, higher heading and smaller lower Close button.
+
+- Disc Shelf: small D! button on the download screen opens a themed music overlay with scrolling Artist - Title and previous/play-pause/next controls. Uses existing transport handling and the visible-app refresh cycle, without a new worker or timer.
+- Home navigation, Back and the header Back control cannot leave or cancel an active copy. Use Cancel, then wait for the worker to finish cleanup before leaving. Back can dismiss the music overlay while retaining the copy.
+- Null: hide the global menu drawer in Disc Shelf so it cannot cover the music button; preserve Disc Shelf's own themed layout when entering or returning from Quick Settings.
+
 ## [2.7.0] - 2026-10-22
 
 ### Added

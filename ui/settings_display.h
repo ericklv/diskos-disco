@@ -97,6 +97,7 @@ static const display_entry_t *display_entry(const setting_t *s){
     return NULL;
 }
 static int display_variant_hidden(const setting_t *s){
+    if(s->cfg_key&&!th_zune()&&(!strcmp(s->cfg_key,"zune_nav_hold")||!strncmp(s->cfg_key,"zlock_",6)))return 1;
     static const struct{const char *common,*null_key;} pairs[]={
         {"simple_background","null_music_background"},{"disco_controls","null_controls"},
         {"np_font","null_music_fonts"},{"disco_title_al","null_text_align"},
@@ -112,11 +113,14 @@ static int display_variant_hidden(const setting_t *s){
 static const char *display_label(const setting_t *s){const display_entry_t *d=display_entry(s);return d?d->label:s->label;}
 static const char *display_disabled_reason(const setting_t *s){
     const char *k=s->cfg_key?s->cfg_key:"";
+    if(!strcmp(k,"zune_nav_hold")&&!th_zune())return "This action belongs to the Zune main menu.";
     if(!strcmp(k,"imm_scrub_action")&&!simple_cfg_get_int("imm_scrub",0))return "Enable Circular control first.";
     if(s->apply==apply_open_colorpick && (th_simple()||th_null()))return accent_disabled_reason();
+    if(!strcmp(k,"theme_variant") && th_zune())return "Zune uses a fixed dark appearance. Choose an accent colour instead.";
     if(!strcmp(k,"theme_variant") && th_null())return "Null uses a fixed dark appearance. Choose a colour scheme instead.";
     if(!strcmp(k,"theme_auto") && !theme_auto_supported())return "Automatic light/dark switching is available in Disco, Ring and Braun.";
     if(!strcmp(k,"null_side"))return "Null keeps its navigation on the right.";
+    if((!strcmp(k,"zlock_src") || !strcmp(k,"zlock_tint")) && !th_zune())return "This option belongs to the Zune lock screen.";
     if(!strcmp(k,"null_palette") && !th_null())return "Colour schemes are specific to Null. Use light/dark and accent settings for this theme.";
     if(!strncmp(k,"null_",5) && !th_null())return "This option is available in Null.";
     if(!strcmp(k,"simple_background") && !th_simple())return "This theme uses its own artwork background.";

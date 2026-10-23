@@ -8,6 +8,7 @@ void discshelf_landing(void);
 void discshelf_tick(void);
 void discshelf_stop(void);
 int discshelf_busy(void);
+int discshelf_navigation_locked(void);
 int discshelf_back_consumed(void);
 void discshelf_preview(const char *scene);
 #endif

@@ -116,6 +116,13 @@ static void toggle(mp_host_t *h, lv_obj_t *r, int i){
     set_title(h);
     if(h->cnt == 0) mp_exit(h);                                             /* nothing ticked any more: back to normal */
 }
+void mp_start(mp_host_t *h, int index){                                    /* start picking with this item ticked (the hold menu's Select) */
+    if(!h || h->on) return;
+    lv_obj_t *row = NULL;
+    for(uint32_t k = 0; h->list && k < lv_obj_get_child_count(h->list); k++){
+        lv_obj_t *r = lv_obj_get_child(h->list, (int32_t)k); if(row_index(r) == index){ row = r; break; } }
+    toggle(h, row, index);
+}
 /* ---- the row gestures -------------------------------------------------------------------------------------- */
 int mp_swipe_event(mp_gesture_t*g,lv_event_t*e){
  lv_indev_t*in=lv_indev_active();if(!in)return 0;lv_event_code_t c=lv_event_get_code(e);

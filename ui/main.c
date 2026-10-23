@@ -983,6 +983,7 @@ void ui_rescan_library(void){
     if(!ui_local_playback_allowed()){ ui_toast("Return to local playback to scan"); return; }
     if(!sd_io_allowed()){ ui_toast("SD card is not ready"); return; }
     if(scanner_start() != 0){ ui_toast("Couldn't start library scan"); return; }
+    if(th_zune()){ void zune_scan_show(void); zune_scan_show(); return; }
     ui_toast("Scanning library...");
 }
 /* Poll for scan completion: reload the library from the rebuilt DB, refresh the view, toast. */
@@ -3453,6 +3454,7 @@ int main(int argc, char **argv){
         int playing = playstate_playing(&g_ps, st.have_track, st.position_ms, lv_tick_get(), 1600, 0);
         if(playing) g_play_sent_gen = ipc_generation();   /* playback observed this generation (any start, incl. hardware keys): its one-shot is moot */
         queue_tick(&st, playing);
+        if(th_zune()){ void zthumb_tick(void);void zune_ui_tick(void); zthumb_tick();zune_ui_tick(); }
         discshelf_tick();
         play_defer_tick();           /* a play waiting for the codec switch */
         crashlog_tick();             /* freeze detector + memory watch (log only) */

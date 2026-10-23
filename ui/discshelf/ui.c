@@ -15,6 +15,7 @@
 #include "shelf.h"
 #include "landing.h"
 #include "setup.h"
+#include "ipc.h"
 #include <math.h>
 #include <assert.h>
 #include <signal.h>
@@ -78,6 +79,30 @@ static request_t stack[32], current;
 static char captions[32][STR];
 static int level, rendering;
 static int copying;
+static int set_text(lv_obj_t *obj,const char *text);
+LV_FONT_DECLARE(diskos_splash_disco_72)
+static lv_obj_t *music_button, *music_overlay, *music_track, *music_artist, *music_progress, *music_pp;
+static void music_close(void){
+ if(music_overlay)lv_obj_delete(music_overlay);
+ music_overlay=music_track=music_artist=music_progress=music_pp=NULL;
+}
+static void music_refresh(void){
+ if(!music_overlay)return;
+ track_state_t state;ipc_get_state(&state);
+ set_text(music_track,state.have_track?state.title:"Not Playing");
+ set_text(music_artist,state.have_track?state.artist:"");
+ int pct=state.have_track && state.duration_ms>0?(int)((int64_t)state.position_ms*1000/state.duration_ms):0;
+ if(pct<0)pct=0;if(pct>1000)pct=1000;
+ if(lv_bar_get_value(music_progress)!=pct)lv_bar_set_value(music_progress,pct,LV_ANIM_OFF);
+ ui_pp_glyph(music_pp,ui_pp_icon_playing(ui_is_playing()));
+}
+static void music_control(lv_event_t *e){
+ int action=(int)(intptr_t)lv_event_get_user_data(e);
+ if(action==3){music_close();return;}
+ const char *commands[]={"0201000C0002","0201000C0000","0201000C0001"};
+ ui_transport_command(commands[action]);music_refresh();
+}
+static void music_open(lv_event_t *e);
 static void render(void);
 static void refresh_selection(void);
 static int az_open(void) {return alphabet.wheel || (letters && !lv_obj_has_flag(letters,LV_OBJ_FLAG_HIDDEN));}
@@ -139,6 +164,53 @@ static lv_obj_t *button(lv_obj_t *parent, const char *text, int x, int y, int w,
     lv_obj_add_event_cb(b, cb, LV_EVENT_SHORT_CLICKED, data);
   return b;
 }
+static void music_open(lv_event_t *e){
+ (void)e;
+ if(music_overlay || !copying)return;
+ music_overlay=lv_obj_create(root);lv_obj_remove_style_all(music_overlay);
+ lv_obj_set_size(music_overlay,360,360);lv_obj_set_style_bg_color(music_overlay,TC(CANVAS),0);
+ lv_obj_set_style_bg_opa(music_overlay,LV_OPA_COVER,0);
+ lv_obj_remove_flag(music_overlay,LV_OBJ_FLAG_SCROLLABLE|LV_OBJ_FLAG_GESTURE_BUBBLE);kit_keep(music_overlay);
+ lv_obj_t *title=label(music_overlay,"Now playing",80,46,200,TF(UI_24));
+ lv_obj_set_style_text_align(title,LV_TEXT_ALIGN_CENTER,0);
+ music_track=label(music_overlay,"",44,102,272,TF(UI_24));kit_keep(music_track);
+ lv_label_set_long_mode(music_track,LV_LABEL_LONG_SCROLL_CIRCULAR);
+ lv_obj_set_style_text_align(music_track,LV_TEXT_ALIGN_CENTER,0);
+ music_artist=label(music_overlay,"",44,140,272,TF(UI_20));kit_keep(music_artist);
+ lv_label_set_long_mode(music_artist,LV_LABEL_LONG_SCROLL_CIRCULAR);
+ lv_obj_set_style_text_align(music_artist,LV_TEXT_ALIGN_CENTER,0);
+ lv_obj_set_style_text_color(music_artist,TC(TEXT_SECONDARY),0);
+ music_progress=lv_bar_create(music_overlay);kit_keep(music_progress);
+ lv_obj_set_pos(music_progress,72,184);lv_obj_set_size(music_progress,216,5);lv_bar_set_range(music_progress,0,1000);
+ lv_obj_set_style_bg_color(music_progress,TC(CONTROL_TRACK),0);
+ lv_obj_set_style_bg_color(music_progress,TC(ACCENT_PRIMARY),LV_PART_INDICATOR);
+ lv_obj_remove_flag(music_progress,LV_OBJ_FLAG_CLICKABLE);
+
+ const char *icons[]={LV_SYMBOL_PREV,LV_SYMBOL_PLAY,LV_SYMBOL_NEXT};
+ for(int i=0;i<3;i++){
+  lv_obj_t *b=button(music_overlay,icons[i],62+i*82,212,72,64,music_control,(void*)(intptr_t)i);
+  lv_obj_t *glyph=lv_obj_get_child(b,0);
+  lv_obj_set_style_text_font(glyph,ui_font_cjk(24),0);
+  lv_obj_set_style_text_color(glyph,TC(ACCENT_PRIMARY),0);
+  if(th_zune()){lv_obj_set_style_shadow_width(b,0,0);lv_obj_set_style_bg_opa(b,LV_OPA_TRANSP,0);lv_obj_set_style_border_width(b,i==1?1:0,0);}
+  if(i==1)music_pp=glyph;
+ }
+ button(music_overlay,"Close",108,302,144,38,music_control,(void*)3);
+ music_refresh();
+}
+static void music_button_create(void){
+ music_button=button(root,"",312,159,42,42,music_open,NULL);
+ /* The same outline D! logo as Squash's hub, reduced for the screen edge. */
+ lv_obj_set_style_radius(music_button,LV_RADIUS_CIRCLE,0);
+ lv_obj_t *logo=lv_obj_get_child(music_button,0);set_text(logo,"D!");
+ lv_obj_set_style_text_font(logo,&diskos_splash_disco_72,0);
+ lv_obj_set_size(logo,90,72);lv_obj_set_style_text_align(logo,LV_TEXT_ALIGN_CENTER,0);
+ lv_obj_set_style_text_color(logo,TC(ACCENT_PRIMARY),0);
+ lv_obj_set_style_transform_scale_x(logo,96,0);lv_obj_set_style_transform_scale_y(logo,96,0);
+ lv_obj_set_style_transform_pivot_x(logo,45,0);lv_obj_set_style_transform_pivot_y(logo,36,0);
+ lv_obj_center(logo);kit_keep(logo);
+ lv_obj_add_flag(music_button,LV_OBJ_FLAG_HIDDEN);
+}
 static int pick_index(const item_t *r) {
   for (int i = 0; i < nselected; i++)
     if (selected[i].kind == r->kind && !strcmp(selected[i].id, r->id))
@@ -181,12 +253,14 @@ static void request(request_t req) {
 }
 static void exit_cb(lv_event_t *e) {
   (void)e;
+  if(discshelf_navigation_locked())return;
   close_choice(); quit = 1; screen_back();
   atomic_store(&ds_stopping, 1);
   atomic_store(&ds_abort_job, 1);
 }
 static void back_cb(lv_event_t *e) {
   (void)e;
+  if(discshelf_navigation_locked())return;
   if (az_open()) {
     az_close();
     return;
@@ -492,6 +566,7 @@ static void render_window(void){
 }
 static void render(void){
  az_close();rendering=1;
+ if(music_button){if(busy&&copying)lv_obj_remove_flag(music_button,LV_OBJ_FLAG_HIDDEN);else lv_obj_add_flag(music_button,LV_OBJ_FLAG_HIDDEN);}
  if(view==HOME){
   lv_obj_add_flag(brand_icon,LV_OBJ_FLAG_HIDDEN);
   lv_obj_remove_flag(landing,LV_OBJ_FLAG_HIDDEN);
@@ -524,11 +599,12 @@ static void render(void){
   render_window();lv_obj_scroll_to_y(content,current.scroll_y,LV_ANIM_OFF);lv_obj_update_layout(content);curve_rows();
   if(!total_rows){lv_obj_remove_flag(note,LV_OBJ_FLAG_HIDDEN);set_text(note,browse_message[0]?browse_message:"No matching results");}
  }
- download_text();rendering=0;
+ download_text();if(music_overlay)lv_obj_move_foreground(music_overlay);rendering=0;
 }
 
 static void tick(lv_timer_t *timer){
  (void)timer;
+ music_refresh();
  if(az_open())return;
  /* Keep a row under the finger stable while a viewport result is delivered. */
  for(lv_indev_t *in=lv_indev_get_next(NULL);in;in=lv_indev_get_next(in))if(lv_indev_get_state(in)==LV_INDEV_STATE_PRESSED)return;
@@ -621,15 +697,20 @@ void discshelf_open(void){
  rows=calloc(PAGE,sizeof *rows);if(!rows){ui_toast("Not enough memory");return;}
  hint_requested=0;view=HOME;level=0;nrows=nselected=total_rows=offset=selecting=quit=fatal=reporting=copying=closing=modal_saved=0;revision=-1;busy=1;current=(request_t){0};row_pool[0]=NULL;choice=NULL;last_tick=0;
  if(!ds_backend_start("/usr/data/apps/disc-shelf/shelf.conf")){free(rows);rows=NULL;ui_toast("Cannot start Disc Shelf");return;}
- build();screen_show(SCR_SHELF);
+ build();screen_show(SCR_SHELF);music_button_create();
 }
 int discshelf_back_consumed(void){
  if(!rows)return 0;
+ if(music_overlay){music_close();return 1;}
+ if(discshelf_navigation_locked())return 1;
  if(ds_setup_close())return 1;
  if(choice){close_choice();return 1;}
  if(az_open()){az_close();return 1;}
  if(view==HOME)return 0;
  back_cb(NULL);return 1;
+}
+int discshelf_navigation_locked(void){
+ return rows && copying && !closing && (busy || discshelf_busy());
 }
 void discshelf_stop(void){if(!ds_context)return;closing=1;ds_backend_stop();}
 int discshelf_busy(void){
@@ -640,7 +721,7 @@ void discshelf_tick(void){
  if(!preview_mode && (!sd_io_allowed() || (screen_current()!=SCR_SHELF && screen_current()!=SCR_SAVER && screen_current()!=SCR_QUICK)))discshelf_stop();
  if(closing){
   if(!ds_backend_collect())return;
-  ds_setup_close();close_choice();azjump_destroy(&alphabet);lv_obj_clean(host_root);memset(&list_curve,0,sizeof list_curve);free(rows);rows=NULL;root=NULL;closing=0;if(restart_after_close&&screen_current()==SCR_SHELF){restart_after_close=0;discshelf_open();}else {restart_after_close=0;ds_session_clear();}return;
+  music_close();music_button=NULL;ds_setup_close();close_choice();azjump_destroy(&alphabet);lv_obj_clean(host_root);memset(&list_curve,0,sizeof list_curve);free(rows);rows=NULL;root=NULL;closing=0;if(restart_after_close&&screen_current()==SCR_SHELF){restart_after_close=0;discshelf_open();}else {restart_after_close=0;ds_session_clear();}return;
  }
  if(lv_tick_elaps(last_tick)<200)return;last_tick=lv_tick_get();
  if(!ui_display_is_off() && screen_current()==SCR_SHELF)tick(NULL);
@@ -669,14 +750,14 @@ void discshelf_preview(const char *scene){
   rows[i].local=i==1?1:i==2?2:0;
  }
  if(atomic_load(&ds_source)==DS_SMB){const char*files[]={"Albums","Björk - Live.flac","Book.m4b","Favourites","Midnight City.flac","Northern Lights.flac","Playlists","Readme.txt"};for(int i=0;i<PAGE;i++){snprintf(rows[i].name,STR,"%s",files[i%8]);rows[i].kind=i%8==0||i%8==3||i%8==6?SMB_DIR:SMB_FILE;}}
- build();screen_show(SCR_SHELF);
+ build();screen_show(SCR_SHELF);music_button_create();
  if(!strcmp(scene,"home")||!strcmp(scene,"smb-home")){view=HOME;render();}
  if(!strcmp(scene,"selected")||!strcmp(scene,"dialog")){
   toggle(&rows[0]);toggle(&rows[1]);toggle(&rows[2]);refresh_selection();
   if(!strcmp(scene,"dialog"))download_cb(NULL);
  }
  if(!strcmp(scene,"setup")||!strcmp(scene,"smb-setup")){ds_setup_open(NULL);if(!strcmp(scene,"smb-setup")){void ds_setup_preview_source(int);ds_setup_preview_source(DS_SMB);}}
- if(!strcmp(scene,"download")){
+ if(!strcmp(scene,"download")||!strcmp(scene,"player")){
   view=TRACKS;busy=copying=1;download_speed.active=0;render();
   pthread_mutex_lock(&ds_shared.mu);ds_shared.busy=1;ds_shared.byte_done=37LL*1048576;ds_shared.byte_total=86LL*1048576;
   snprintf(ds_shared.message,sizeof ds_shared.message,"Downloading Everything in Its Right Place - Live at the Roundhouse, London, Special Extended Anniversary Edition\n3 saved / 2 already local");
@@ -684,6 +765,7 @@ void discshelf_preview(const char *scene){
   lv_tick_inc(1000);ds_shared.byte_done+=820*1024;tick(NULL);
   assert(strstr(lv_label_get_text(progress_percent),"820 KiB/s"));
   lv_obj_update_layout(content);assert(lv_obj_get_height(progress_label)==3*lv_font_get_line_height(TF(UI_20)));
+  if(!strcmp(scene,"player")){track_state_t st={.have_track=1,.duration_ms=240000,.position_ms=92000};strcpy(st.artist,"The Midnight");strcpy(st.title,"Everything in Its Right Place");ipc_seed_state(&st);music_open(NULL);}
  }
  if(!strcmp(scene,"grid")){azjump_show(&alphabet,1);lv_obj_send_event(alphabet.btn,LV_EVENT_SHORT_CLICKED,NULL);}
  if(!strcmp(scene,"wheel")){azjump_show(&alphabet,1);lv_obj_send_event(alphabet.btn,LV_EVENT_LONG_PRESSED,NULL);}
@@ -696,7 +778,7 @@ int discshelf_test_selected(void){return nselected;}
 lv_obj_t *discshelf_test_list(void){return content;}
 void discshelf_test_reset(void){
  /* Preview-only cleanup; real lifetimes are owned by the backend completion handshake. */
- if(!preview_mode)return;ds_setup_close();close_choice();azjump_destroy(&alphabet);
+ if(!preview_mode)return;music_close();music_button=NULL;ds_setup_close();close_choice();azjump_destroy(&alphabet);
  lv_obj_clean(host_root);memset(&list_curve,0,sizeof list_curve);free(rows);rows=NULL;
  pthread_cond_destroy(&ds_shared.wake);pthread_mutex_destroy(&ds_shared.mu);free(ds_context);ds_context=NULL;
  root=NULL;preview_mode=0;

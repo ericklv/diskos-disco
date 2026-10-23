@@ -2,6 +2,7 @@
 #include "onboarding.h"
 #include "azjump.h"
 #include "discshelf.h"
+#include "zune_dial.h"
 #include "null_theme.h"
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Copyright (C) 2026 diskOS contributors */
@@ -24,8 +25,8 @@ static int s_current = SCR_HOME;
 static int s_popping;
 static int s_stack[16];
 static int s_sp = 0;
-#define PUSH_MS (th_simple()?180:th_null()?200:300) //   /* entrance (cubic ease-out: covers distance fast, settles gently) */
-#define POP_MS (th_simple()?140:th_null()?180:240) //   /* exit faster than entrance - a premium-motion reflex */
+#define PUSH_MS (th_simple()?180:th_null()?200:th_zune()?230:300) //   /* entrance (cubic ease-out: covers distance fast, settles gently) */
+#define POP_MS (th_simple()?140:th_null()?180:th_zune()?190:240) //   /* exit faster than entrance - a premium-motion reflex */
 static int s_anim = 1;   /* slide transitions; disabled by /usr/data/anim_off */
 static int s_skip;       /* the next change shows at once: the caller animates it itself (Disco immersive) */
 
@@ -113,6 +114,7 @@ void crash_crumb(int screen);
 int disco_editor_back(void);
 static void transition(int from, int to, int dir)
 {
+    if(th_zune()&&from!=to)zune_overlays_close();
     if(from==SCR_NOWPLAYING && to!=SCR_NOWPLAYING)ui_imm_control_cancel();
     azjump_close_active();
     albumwall_visible(to==SCR_ALBUMWALL);
@@ -149,6 +151,7 @@ static void transition_core(int from, int to, int dir)
      * routes through here - screen_show alone missed the back case, leaving stale labels
      * e.g. after editing Custom EQ / a setting detail page). */
     if (to == SCR_SETTINGS) settings_refresh_list();
+    else if (to == SCR_SEARCH){ int search_zune_enter(void); search_zune_enter(); }
     else if (to == SCR_SETLIST) setlist_refresh();          /* one category's rows, rebuilt per entry */
     else if (to == SCR_SETTING_DETAIL) setting_detail_refresh();  /* stay live if changed elsewhere (e.g. drawer EQ) */
     else if (to == SCR_QSCONFIG) qsconfig_refresh();        /* tile picker, rebuilt per entry */
@@ -173,6 +176,11 @@ static void transition_core(int from, int to, int dir)
                                                     * (Settings) elsewhere, without needing a restart */
 
     kit_pass(nw);   /* the active theme styles anything new on the incoming screen (no-op for Default) */
+    if(th_zune() && (to == SCR_STATS || to == SCR_LASTFM || to == SCR_APPS || to == SCR_ROULETTE || to == SCR_APPLAND || to == SCR_APPSHELF
+                     || to == SCR_SPHERE || to == SCR_ROULETTE_SPIN || to == SCR_MA || to == SCR_TUNE || to == SCR_APPPICK || to == SCR_SCCONFIG
+                     || to == SCR_QSCONFIG || to == SCR_DEBUG || to == SCR_CHAPTERS)){
+        void zune_retype(lv_obj_t *root); zune_retype(nw);          /* stock screens without a Zune layout: at least the Zune type */
+    }
 
     /* Cancel any in-flight animation on BOTH screens + reset their offset up front, so a
      * stale anim_done_hide from a prior fast transition can't fire later and hide the new
@@ -208,7 +216,8 @@ static void transition_core(int from, int to, int dir)
      * right, revealing the previous. */
     if (dir > 0) {                                  /* FORWARD: `nw` slides in over static `od` */
         if (od) { lv_obj_set_x(od, 0); lv_obj_clear_flag(od, LV_OBJ_FLAG_HIDDEN); }
-        if (s_scrim && od) {                        /* dim the covered screen: recedes into depth */
+        if (s_scrim && od && !th_zune()) {          /* dim the covered screen: recedes into depth (Zune: pure black already -
+                                                     * a fading scrim there only repaints the whole covered screen every frame) */
             lv_obj_set_style_opa(s_scrim, LV_OPA_TRANSP, 0);
             lv_obj_clear_flag(s_scrim, LV_OBJ_FLAG_HIDDEN);
             lv_obj_move_foreground(s_scrim);        /* scrim above od, below nw */
@@ -222,7 +231,7 @@ static void transition_core(int from, int to, int dir)
     } else {                                        /* BACK: `od` slides out, revealing static `nw` */
         lv_obj_set_x(nw, 0);
         lv_obj_clear_flag(nw, LV_OBJ_FLAG_HIDDEN);
-        if (s_scrim) {                              /* revealed screen lifts out of depth */
+        if (s_scrim && !th_zune()) {                /* revealed screen lifts out of depth */
             lv_obj_set_style_opa(s_scrim, 36, 0);
             lv_obj_clear_flag(s_scrim, LV_OBJ_FLAG_HIDDEN);
             lv_obj_move_foreground(s_scrim);        /* scrim above nw, below od */
@@ -242,6 +251,8 @@ static void transition_core(int from, int to, int dir)
 void screen_show(int which)
 {
     if (which < 0 || which >= SCR_COUNT) return;
+    /* A copy owns Shelf's UI/SD lifetime. Only temporary system overlays may leave it. */
+    if (discshelf_navigation_locked() && which != SCR_SHELF && which != SCR_SAVER && which != SCR_QUICK) return;
     if ((th_disco_family() || th_null()) && which == SCR_NOWPLAYING && !disco_np_wanted()) { screen_home(); return; }   /* Disco/Null: ordinary playback routes to Music; only explicit Immersive enters the shared NP root. */
     int from = s_current;
     if (which != s_current) {
@@ -267,6 +278,7 @@ int screen_press_was_long(void)
 /* Straight to Home, dropping the whole back stack. */
 void screen_home(void)
 {
+    if (discshelf_navigation_locked()) return;
     if (s_current == SCR_HOME) { s_sp = 0; return; }
     int from = s_current;
     s_sp = 0;
@@ -280,6 +292,9 @@ void screen_home(void)
  * input event, so they always step back one screen. */
 void screen_back(void)
 {
+    /* Before long-press Home and other generic handlers: never tear down an active copy. */
+    if (s_current == SCR_SHELF && discshelf_navigation_locked()) { discshelf_back_consumed(); return; }
+    if(th_zune()&&zune_overlay_back())return;
     if(azjump_close_active())return;
     if(th_simple()&&simple_nav_is_open()){simple_nav_open(0);return;}
     if(disco_editor_back())return;

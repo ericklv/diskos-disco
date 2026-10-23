@@ -1,5 +1,7 @@
 <h1 align="center">diskOS Disco!</h1>
 
+Development branch preview: [Zune theme and validation notes](docs/ZUNE.md).
+
 <p align="center">
   <b>Your music. Your kind of Disco.</b><br>
   A touch UI for the round screen of the FiiO Snowsky Disc, built on

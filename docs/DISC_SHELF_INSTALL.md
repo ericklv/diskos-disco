@@ -50,6 +50,10 @@ Swipe from the middle of a row to enter selection. A first-use hint explains thi
 
 The download page shows up to three text lines with ellipsis, the current file’s percentage and rolling speed, a progress bar, and transferred/total MiB. These are **per-file**, not a total-job percentage. The speed settles after the first sample and resets for each file.
 
+In the next development build, the small **D! circle on the right edge** opens a music overlay matching your theme. It shows scrolling **Artist - Title**, Previous, Play/Pause and Next. **Close**, or the Back gesture, dismisses the overlay and returns to the copy. Music controls use Disco's existing playback commands; the download continues underneath.
+
+During a copy, **Home and Back cannot exit Disc Shelf**, and the header Back arrow does not cancel it. Use **Cancel** to stop copying; navigation stays locked until the worker has finished cleanup. Quick Settings and the screensaver remain available. This is a local overlay, not background downloading or an app switcher. It adds no new worker, polling timer, artwork decode or network request; its labels refresh only through the existing visible-app update cycle.
+
 Cancel keeps completed files and removes the incomplete temporary file. A replacement retains the old copy until the new one has completed and passed checks. No automatic full-library rescan is triggered: use Disco’s normal indexing after adding new music.
 
 ## Passwords and privacy

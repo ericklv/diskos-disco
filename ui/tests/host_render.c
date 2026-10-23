@@ -1,6 +1,8 @@
+#include "../zune_dial.h"
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Render actual LVGL screens without starting diskOS's hardware main loop. */
 #include "md5.h"
+#include "zune_dial.h"
 #include "azjump.h"
 #include "discshelf.h"
 #include "discshelf/shelf.h"
@@ -124,12 +126,14 @@ static int find_sharp_image(lv_obj_t *root){
     return 0;
 }
 /* Fixture seams exist only in the host executable; device firmware gates remain intact. */
-static int fixture, send_result, send_count;
+static int fixture, send_result, send_count;static char last_sent[32];
+int __real_ui_local_playback_allowed(void);
+int __wrap_ui_local_playback_allowed(void){return getenv("REVIEW_ZUNE")?1:__real_ui_local_playback_allowed();}
 static int null_transport_calls;static char null_last_command[24];
 int __real_ui_transport_command(const char*);
-int __wrap_ui_transport_command(const char*cmd){if(getenv("REVIEW_NULL")||getenv("REVIEW_NULL_GESTURES")||getenv("REVIEW_SQUASH_HOLD")||getenv("REVIEW_SIMPLE_PERF")||getenv("REVIEW_SIMPLE")){null_transport_calls++;snprintf(null_last_command,sizeof null_last_command,"%s",cmd);return 0;}return __real_ui_transport_command(cmd);}
+int __wrap_ui_transport_command(const char*cmd){if(getenv("REVIEW_ZUNE")||getenv("REVIEW_SHELF_PLAYER")||getenv("REVIEW_NULL")||getenv("REVIEW_NULL_GESTURES")||getenv("REVIEW_SQUASH_HOLD")||getenv("REVIEW_SIMPLE_PERF")||getenv("REVIEW_SIMPLE")){null_transport_calls++;snprintf(null_last_command,sizeof null_last_command,"%s",cmd);return 0;}return __real_ui_transport_command(cmd);}
 int __real_ipc_send_cmd(const char *frame);
-int __wrap_ipc_send_cmd(const char *frame){send_count++;return fixture?send_result:__real_ipc_send_cmd(frame);}
+int __wrap_ipc_send_cmd(const char *frame){send_count++;snprintf(last_sent,sizeof last_sent,"%s",frame);return fixture?send_result:__real_ipc_send_cmd(frame);}
 int __real_fw_custom_peq_writable(void);
 int __wrap_fw_custom_peq_writable(void){return fixture?1:__real_fw_custom_peq_writable();}
 int __real_fw_custom_peq_curve_writable(const int *hz,int count);
@@ -193,7 +197,8 @@ static void assert_visible_icon_glyphs(lv_obj_t *root){
 /* Real pointer events exercise LVGL's hold/release handling, not direct callbacks. */
 static lv_indev_data_t nav_pointer;
 static void nav_read(lv_indev_t *in,lv_indev_data_t *data){(void)in;*data=nav_pointer;}
-static void nav_wait(int ms){for(int i=0;i<ms;i+=10){lv_tick_inc(10);simple_refresh_budget(lv_anim_count_running()>0||nav_pointer.state==LV_INDEV_STATE_PRESSED);lv_timer_handler();}}
+void zthumb_tick(void);void zune_ui_tick(void);
+static void nav_wait(int ms){for(int i=0;i<ms;i+=10){lv_tick_inc(10);simple_refresh_budget(lv_anim_count_running()>0||nav_pointer.state==LV_INDEV_STATE_PRESSED);if(th_zune()){zthumb_tick();zune_ui_tick();}lv_timer_handler();}}
 static void nav_touch(lv_point_t point,int ms){
     nav_pointer.point=point;nav_pointer.state=LV_INDEV_STATE_PRESSED;nav_wait(ms);
     nav_pointer.state=LV_INDEV_STATE_RELEASED;nav_wait(40);
@@ -1038,6 +1043,38 @@ int main(int argc, char **argv){
         fixture=1;sd_io_init(media_local);assert(sd_io_resume());screen_set_anim(0);screens_init();
         if(!strcmp(argv[3]+6,"wheel"))cfg_set_int("library_seeking",1);
         screen_set_anim(0);discshelf_preview(argv[3]+6);nav_wait(50);
+        if(getenv("REVIEW_SHELF_PLAYER")){
+          assert(discshelf_navigation_locked());
+          atomic_store(&ds_abort_job,0);
+          screen_show(SCR_HOME);assert(screen_current()==SCR_SHELF);
+          screen_home();assert(screen_current()==SCR_SHELF);
+          /* Back dismisses only the local overlay; further Back cannot cancel/exit. */
+          screen_back();assert(!find_visible_text(screen_get_root(SCR_SHELF),"Now playing"));
+          screen_back();assert(screen_current()==SCR_SHELF&&!atomic_load(&ds_abort_job));
+          lv_indev_t *in=lv_indev_create();lv_indev_set_type(in,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(in,nav_read);lv_timer_set_period(lv_indev_get_read_timer(in),10);
+          nav_touch((lv_point_t){112,44},80);nav_touch((lv_point_t){112,44},750);
+          assert(screen_current()==SCR_SHELF&&!atomic_load(&ds_abort_job));
+          nav_touch((lv_point_t){333,180},80);
+          assert(find_visible_text(screen_get_root(SCR_SHELF),"Now playing"));
+          const char *commands[]={"0201000C0002","0201000C0000","0201000C0001"};
+          for(int i=0;i<3;i++){int calls=null_transport_calls;nav_touch((lv_point_t){98+82*i,244},80);assert(null_transport_calls==calls+1&&!strcmp(null_last_command,commands[i]));}
+          screen_show(SCR_QUICK);assert(screen_current()==SCR_QUICK);
+          screen_home();screen_show(SCR_HOME);assert(screen_current()==SCR_QUICK);
+          screen_back();assert(screen_current()==SCR_SHELF);
+          nav_touch((lv_point_t){180,321},80);
+          assert(!find_visible_text(screen_get_root(SCR_SHELF),"Now playing"));
+          nav_touch((lv_point_t){180,306},80);assert(atomic_load(&ds_abort_job));
+          assert(discshelf_navigation_locked());screen_home();assert(screen_current()==SCR_SHELF);
+          /* Completion releases the guard and does not invalidate an open music overlay. */
+          nav_touch((lv_point_t){333,180},80);
+          pthread_mutex_lock(&ds_shared.mu);ds_shared.busy=0;ds_shared.done=1;ds_shared.revision++;strcpy(ds_shared.message,"Download finished");pthread_mutex_unlock(&ds_shared.mu);
+          nav_wait(250);discshelf_tick();
+          assert(!discshelf_navigation_locked());
+          assert(find_visible_text(screen_get_root(SCR_SHELF),"Now playing"));
+          screen_back();screen_home();assert(screen_current()==SCR_HOME);
+          void discshelf_test_reset(void);discshelf_test_reset();lv_indev_delete(in);
+          puts("PASS Shelf player: three transport controls, Home/Back/header blocked without cancellation, QS round-trip, explicit Cancel, lock through cancellation, completion with overlay open");return 0;
+        }
         if(getenv("REVIEW_SHELF")){
           int discshelf_test_selected(void);lv_obj_t*discshelf_test_list(void);void discshelf_test_reset(void);
           assert(screen_current()==SCR_SHELF && !discshelf_test_selected());
@@ -1057,6 +1094,7 @@ int main(int argc, char **argv){
     }
     if(!strncmp(argv[3],"preview-",8)){
         fixture=1;sd_io_init(media_local);assert(sd_io_resume());
+        if(getenv("ZUNE_LIBRARY_FIXTURE"))assert(mdb_load()>0);
         if(strstr(argv[3],"queue")){
             char qp[512]; snprintf(qp,sizeof qp,"%s",CFG_PATH);
             char *slash=strrchr(qp,'/'); assert(slash); strcpy(slash+1,"queue.tsv");
@@ -1089,7 +1127,7 @@ int main(int argc, char **argv){
         }
         if(getenv("TRACKNO"))cfg_set_int_deferred("disco_trackno",1);
         screen_set_anim(0);screens_init();ui_set_accent_config(getenv("ACCENT")?1:0,getenv("ACCENT")?(int)strtol(getenv("ACCENT"),NULL,16):0);ui_set_np_style(theme_preset()==THEME_PRESET_RING?3:1);
-        track_state_t st={0};snprintf(st.path,sizeof st.path,"%s",argv[5]);
+        track_state_t st={0};snprintf(st.path,sizeof st.path,"%s",getenv("ZNP_PATH")?getenv("ZNP_PATH"):argv[5]);
         char *dot=strrchr(st.path,'.');assert(dot);strcpy(dot,".png");
         snprintf(st.title,sizeof st.title,"Northern Lights");snprintf(st.artist,sizeof st.artist,"The Midnight");snprintf(st.album,sizeof st.album,"Afterglow");
         if(getenv("NP_TITLE"))snprintf(st.title,sizeof st.title,"%s",getenv("NP_TITLE"));
@@ -1177,7 +1215,7 @@ int main(int argc, char **argv){
         else if(!strcmp(page,"settings")){scr=SCR_SETTINGS;}
         else if(!strcmp(page,"howto")){extern void settings_open_howto(void);settings_open_howto();scr=SCR_SETLIST;}
         else if(!strcmp(page,"quick"))scr=SCR_QUICK;else if(!strcmp(page,"np") || !strncmp(page,"immersive",9))scr=SCR_NOWPLAYING;else if(!strcmp(page,"eq"))scr=SCR_EQ;
-        else if(!strcmp(page,"bands"))scr=SCR_EQ_EDITOR;else if(!strcmp(page,"display")){setlist_open("Display");scr=SCR_SETLIST;}else if(!strcmp(page,"network")){setlist_open("Network");scr=SCR_SETLIST;}else if(!strcmp(page,"system")){setlist_open("System");scr=SCR_SETLIST;}else if(!strcmp(page,"info")){songinfo_unpin();songinfo_set(&st);scr=SCR_SONGINFO;}else if(!strcmp(page,"group")){void settings_open_group(const char*);setlist_open("Display");scr=SCR_SETLIST;screen_show(scr);settings_open_group(getenv("SETGROUP"));}
+        else if(!strcmp(page,"bands"))scr=SCR_EQ_EDITOR;else if(!strcmp(page,"display")){setlist_open("Display");scr=SCR_SETLIST;}else if(!strcmp(page,"network")){setlist_open("Network");scr=SCR_SETLIST;}else if(!strcmp(page,"system")){setlist_open("System");scr=SCR_SETLIST;}else if(!strcmp(page,"info")){songinfo_unpin();songinfo_set(&st);scr=SCR_SONGINFO;}else if(!strcmp(page,"colorpick")){colorpick_open();scr=SCR_COLORPICK;}else if(!strcmp(page,"zdate")){scr=SCR_DATETIME;}else if(!strcmp(page,"zabout")){void system_about_open(int);scr=SCR_SETTINGS;screen_show(scr);system_about_open(0);}else if(!strcmp(page,"zsdupd")){void system_update_sd_open(int);scr=SCR_SETTINGS;screen_show(scr);system_update_sd_open(0);}else if(!strcmp(page,"wifiinfo")){void wifi_info_open(void);wifi_info_open();scr=SCR_WIFI_INFO;}else if(!strcmp(page,"stats")){void stats_open(void);stats_open();scr=SCR_STATS;}else if(!strcmp(page,"lastfm")){scr=SCR_LASTFM;}else if(!strcmp(page,"zmove")){scr=SCR_FOLDER;}else if(!strcmp(page,"zscan")){void zune_scan_show(void);scr=SCR_LIBRARY;screen_show(scr);zune_scan_show();}else if(!strcmp(page,"setkey")){void settings_test_open_key(const char*);settings_test_open_key(getenv("SETKEY"));scr=SCR_SETTING_DETAIL;}else if(!strcmp(page,"group")){void settings_open_group(const char*);setlist_open("Display");setlist_open(getenv("SETGROUP"));scr=SCR_SETLIST;screen_show(scr);settings_open_group(getenv("SETGROUP"));}
         else if(!strcmp(page,"library") || !strcmp(page,"albums"))scr=SCR_LIBRARY;else if(!strcmp(page,"settings"))scr=SCR_SETTINGS;
         else if(!strcmp(page,"upnext"))scr=SCR_UPNEXT;else if(!strcmp(page,"modes"))scr=SCR_WORKMODE;
         else if(!strcmp(page,"queue"))scr=SCR_QUEUE;
@@ -1187,7 +1225,7 @@ int main(int argc, char **argv){
         else if(!strcmp(page,"discoopts")){void settings_open_disco(void);setlist_open("Display");scr=SCR_SETLIST;screen_show(scr);settings_open_disco();}
         else if(!strncmp(page,"scr",3)){scr=atoi(page+3);}
         else if(!strcmp(page,"weather")){void weather_demo(void);scr=SCR_WEATHER;screen_show(scr);weather_demo();}
-        else if(!strcmp(page,"low"))home_set_status(10,0,1,1);else if(!strcmp(page,"charging"))home_set_status(67,1,1,1);
+        else if(!strcmp(page,"low")){home_set_status(10,0,1,1);void usage_note_battery(int,int);usage_note_battery(10,0);}else if(!strcmp(page,"charging"))home_set_status(67,1,1,1);
         else if(!strncmp(page,"saver",5)){
             cfg_set_int_deferred("saver_style",5);
             saver_set_track(st.title,st.artist,NULL,st.path);
@@ -1197,6 +1235,69 @@ int main(int argc, char **argv){
         }
         if(th_null()&&!strcmp(page,"scr43"))appshelf_open();
         screen_show(scr);
+        if(getenv("REVIEW_ZUNE")){
+            assert(th_zune()&&THEME_PRESET_ZUNE==13&&THEME_PRESET_DISCO==10);qs_wifi=qs_bt=0;
+            lv_indev_t *in=lv_indev_create();lv_indev_set_type(in,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(in,nav_read);lv_timer_set_period(lv_indev_get_read_timer(in),10);
+            void zhome_test_focus(int);screen_home();zhome_test_focus(1);nav_wait(100);
+            nav_touch((lv_point_t){180,180},80);nav_wait(150);assert(screen_current()==SCR_LIBRARY);
+            screen_back();assert(screen_current()==SCR_HOME);
+            shuffle_test_active=1;simple_cfg_set_int_deferred("zune_nav_hold",DISCO_NAV_SHUFFLE);zhome_test_focus(0);nav_wait(100);
+            nav_touch((lv_point_t){180,180},750);nav_wait(100);
+            assert(shuffle_test_calls==1&&screen_current()==SCR_NOWPLAYING);
+            assert(find_visible_text(lv_layer_top(),"happy listening!"));
+            const char *act[]={"np.prev","np.next"};const char *cmd[]={"0201000C0002","0201000C0001"};
+            queue_clear();
+            for(int k=0;k<2;k++){int n=send_count;nav_touch_object(ui_action_find(act[k]),80);nav_wait(400);assert(send_count==n+1&&!strcmp(last_sent,cmd[k]));}
+
+            screen_show(SCR_QUICK);nav_wait(100);int n=qs_wifi_taps;nav_touch_object(ui_action_find("qs.zune.wifi"),80);assert(qs_wifi_taps==n+1);
+            screen_back();assert(screen_current()==SCR_NOWPLAYING);
+            zune_confirm("test?","body","cancel","yes",NULL);assert(zune_confirm_open());screen_back();assert(!zune_confirm_open()&&screen_current()==SCR_NOWPLAYING);
+            zune_confirm("test?","body","cancel","yes",NULL);screen_show(SCR_WORKMODE);assert(!zune_confirm_open());assert(!find_visible_text(screen_get_root(SCR_WORKMODE),"usb-c audio"));
+            screen_home();lv_indev_delete(in);
+            puts("PASS Zune: menu pointer navigation, configured hold Shuffle!, shared prev/next, QS radio toggle and return, existing working modes only");return 0;
+        }
+        if(getenv("ZMDIR")){ void fileops_action(const char*,const char*,int,void(*)(void),int); nav_wait(50); fileops_action(getenv("ZMDIR"),"t0.png",0,NULL,1); nav_wait(100); }
+        if(getenv("ZART")){ void ui_zune_art_sync(void); cfg_set_int("zune_accent_art",1); ui_zune_art_sync(); ui_art_retry(); nav_wait(400); }
+        if(getenv("ZSCANCEL")){ nav_wait(200); lv_obj_t *o=ui_action_find("kb.zune.cancel"); fprintf(stderr,"cancel btn %p scr before %d\n",(void*)o,screen_current()); if(o) lv_obj_send_event(o,LV_EVENT_CLICKED,NULL); nav_wait(600); fprintf(stderr,"scr after %d\n",screen_current()); }
+        if(getenv("ZHFOCUS")){ void zhome_test_focus(int); void home_set_weather(const char*); home_set_weather("\xEF\x86\x85  18\xC2\xB0C Clear"); zhome_test_focus(atoi(getenv("ZHFOCUS"))); nav_wait(100); }
+        if(getenv("ZTAKE")){ nav_wait(50); int k=atoi(getenv("ZTAKE"));
+            if(k==1){ ztake_t z={.icon=LV_SYMBOL_WIFI,.spin=1,.ring_pct=-1,.title="connecting",.sub="to studio",.l1="cancel"}; zune_takeover(&z); }
+            else if(k==2){ ztake_t z={.icon=LV_SYMBOL_CLOSE,.icon_ring=64,.ring_pct=-1,.title="wrong password",.sub="studio didn't accept it. check caps and try again.",.l1="try again",.l2="cancel"}; zune_takeover(&z); }
+            else if(k==3){ ztake_t z={.icon=LV_SYMBOL_AUDIO,.icon_ring=80,.spin=1,.ring_pct=-1,.title="connecting",.sub="with sony wh-1000xm5",.note="if a code appears on your device, it should match",.l1="cancel"}; zune_takeover(&z); }
+            nav_wait(100); }
+        if(getenv("ZSAVER_IDLE")){ saver_set_track(NULL,NULL,NULL,NULL); }
+        if(getenv("ZSAVER_T")){ saver_set_clock(getenv("ZSAVER_T"),""); nav_wait(50); }
+        if(getenv("ZKB")){ if(getenv("ZKB_PW")) kbinput_open_password(getenv("ZKB"), "aurora_r", NULL); else kbinput_open(getenv("ZKB"), "late night", NULL);
+            if(getenv("ZKB_PAGE")) for(int k=0;k<atoi(getenv("ZKB_PAGE"));k++){ lv_obj_t *o=ui_action_find("kb.zune.mode"); if(o) lv_obj_send_event(o,LV_EVENT_CLICKED,NULL); }
+            nav_wait(100); }
+        if(getenv("ZTOAST")){ nav_wait(100); if(getenv("ZTOAST_ICON")) ui_toast_icon(LV_SYMBOL_OK, ui_current_accent(), getenv("ZTOAST")); else ui_toast(getenv("ZTOAST")); nav_wait(100); }
+        if(getenv("ZVOL")){ if(getenv("ZMAXVOL")) simple_cfg_set_int("max_vol", atoi(getenv("ZMAXVOL"))); simple_cfg_set_int("audio_gain",1); nav_wait(100); ui_show_volume(atoi(getenv("ZVOL"))); nav_wait(100); }
+        if(getenv("ZPLV")){ void plview_open(long,const char*); plview_open(atol(getenv("ZPLV")), getenv("ZPLV_NAME")?getenv("ZPLV_NAME"):"late night"); nav_wait(200); }
+        if(getenv("ZPICK")){ plpick_set_song(getenv("ZPICK"),0,NULL); screen_show(SCR_PLPICK); nav_wait(200); }
+        if(getenv("ZLIB_FLOW")){ simple_cfg_set_int("album_view",1); }
+        if(getenv("ZLIB_ALBUM")){ void library_open_album(const char*); library_open_album(getenv("ZLIB_ALBUM")); nav_wait(100); }
+        if(getenv("ZLIB_ARTIST")){ void library_open_artist(const char*); library_open_artist(getenv("ZLIB_ARTIST")); nav_wait(100); }
+        if(getenv("ZLIB_SCROLL")){ lv_obj_t *library_scroller(void); lv_obj_scroll_to_y(library_scroller(),atoi(getenv("ZLIB_SCROLL")),LV_ANIM_OFF); nav_wait(200); }
+        if(getenv("ZUNE_SLEEP")){ ui_set_sleep_timer(atoi(getenv("ZUNE_SLEEP"))); zune_status_refresh(); nav_wait(100); }
+        if(getenv("ZUNE_LYRICS")){ sd_io_init(media_local); sd_io_resume(); cfg_set_int_deferred("online_lyrics",0); lyrics_open();
+            for(int i=0;i<300;i++){ lv_tick_inc(10); lv_timer_handler(); lyrics_poll(NULL); usleep(2000); } }
+        if(getenv("ZUNE_IMM")){ void ui_zune_imm_preview(int,int); nav_wait(200); ui_zune_imm_preview(atoi(getenv("ZUNE_IMM")),550); nav_wait(300); }
+        if(getenv("ZUNE_SI")){ songinfo_set(&st); nav_wait(200); }
+        if(getenv("ZSEARCH_Q")){ void search_test_query(const char*); void kbinput_close(void); nav_wait(100); search_test_query(getenv("ZSEARCH_Q")); for(int i=0;i<20;i++){lv_tick_inc(10);lv_timer_handler();} }
+        if(getenv("ZAZ")){ void azjump_test_grid(void); azjump_test_grid(); for(int i=0;i<10;i++){lv_tick_inc(10);lv_timer_handler();} }
+        if(getenv("ZHOLD")){ void songmenu_open_song(const char*); songmenu_open_song(getenv("ZHOLD")); for(int i=0;i<20;i++){lv_tick_inc(10);lv_timer_handler();} }
+        if(getenv("ZUNE_CLICK")){ nav_wait(350); lv_obj_t *o=ui_action_find(getenv("ZUNE_CLICK")); assert(o); lv_obj_send_event(o,LV_EVENT_CLICKED,NULL); }
+        if(getenv("ZUNE_CLICK2")){ nav_wait(200); lv_obj_t *o=ui_action_find(getenv("ZUNE_CLICK2")); assert(o); lv_obj_send_event(o,LV_EVENT_CLICKED,NULL); nav_wait(300); }
+        if(getenv("ZLIB_SWIPE")){ int x0=0,y=0,x1=0; sscanf(getenv("ZLIB_SWIPE"),"%d,%d,%d",&x0,&y,&x1);
+            lv_indev_t *zi=lv_indev_create();lv_indev_set_type(zi,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(zi,nav_read);lv_timer_set_period(lv_indev_get_read_timer(zi),10);
+            void library_refresh(void); library_refresh(); nav_wait(100);
+            nav_pointer.point=(lv_point_t){x0,y}; nav_pointer.state=LV_INDEV_STATE_PRESSED; nav_wait(30);
+            for(int k=1;k<=10;k++){ nav_pointer.point.x=x0+(x1-x0)*k/10; nav_wait(15); }
+            nav_pointer.state=LV_INDEV_STATE_RELEASED; nav_wait(500); fprintf(stderr,"after swipe scr=%d\n",screen_current()); }
+        if(getenv("ZLIB_PIVOT")){ int library_pivot_swipe(int); nav_wait(100); library_pivot_swipe(atoi(getenv("ZLIB_PIVOT"))); nav_wait(400); }
+        if(getenv("ZUNE_SCLICK")){ nav_wait(200); lv_obj_t *o=ui_action_find(getenv("ZUNE_SCLICK")); assert(o); lv_obj_send_event(o,LV_EVENT_SHORT_CLICKED,NULL); nav_wait(300); }
+        if(getenv("ZLIB_SCROLL2")){ lv_obj_t *library_scroller(void); nav_wait(100); lv_obj_scroll_to_y(library_scroller(),atoi(getenv("ZLIB_SCROLL2")),LV_ANIM_OFF); nav_wait(200); }
+        if(getenv("ZLIB_WAIT")){ for(int i=0;i<atoi(getenv("ZLIB_WAIT"))/10;i++){ lv_tick_inc(10); lv_timer_handler(); if(th_zune()){zthumb_tick();zune_ui_tick();} usleep(10000); } }
         if(!strcmp(page,"bt")){extern void bt_preview_null(void);bt_preview_null();}
         if(!strcmp(page,"wifi")){extern void wifi_preview_null(void);wifi_preview_null();}
         if(th_simple() && getenv("REVIEW_SQUASH_RADIO")){
@@ -1304,7 +1405,7 @@ int main(int argc, char **argv){
             assert(th_null());
             null_home_weather("18\xC2\xB0" "C");
             assert(find_text(screen_get_root(SCR_HOME),"18C"));
-            if(scr==SCR_SAVER){
+            if(scr==SCR_SAVER && !getenv("ZSAVER_IDLE")){
                 lv_obj_t *sb=lv_obj_get_child(screen_get_root(SCR_SAVER),0);
                 assert(lv_obj_check_type(sb,&lv_image_class));
                 assert(lv_obj_has_flag(sb,LV_OBJ_FLAG_HIDDEN)==(cfg_get_int("null_music_background",0)==0));
@@ -1553,7 +1654,18 @@ int main(int argc, char **argv){
             else if(id==3){cfg_set_int("disco_hints",0);cfg_set_int("hint_menu",2);cfg_set_int("hint_music",0);}
             onboarding_mode_changed();nav_wait(1000);
         }
-        if(!strcmp(page,"albums")){                  /* Library > Albums */
+        if(!strcmp(page,"albums") && th_zune()){void library_open_pivot(int);library_open_pivot(1);nav_wait(600);}
+        if(getenv("ZUNE_CATALOG")){void library_open_pivot(int);library_open_pivot(atoi(getenv("ZUNE_CATALOG")));nav_wait(700);}
+        if(getenv("REVIEW_ZUNE_PICK")){
+            lv_indev_t *in=lv_indev_create();lv_indev_set_type(in,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(in,nav_read);lv_timer_set_period(lv_indev_get_read_timer(in),10);
+            lv_obj_t *t=find_visible_text(screen_get_root(SCR_LIBRARY),"After Hours");assert(t);lv_area_t a;lv_obj_get_coords(t,&a);int y=(a.y1+a.y2)/2;
+            nav_pointer=(lv_indev_data_t){.point={150,y},.state=LV_INDEV_STATE_PRESSED};nav_wait(30);
+            for(int x=150;x<=210;x+=5){nav_pointer.point.x=x;nav_wait(15);}nav_pointer.state=LV_INDEV_STATE_RELEASED;nav_wait(80);
+            int library_picking(void);assert(library_picking());assert(library_back());assert(!library_picking());lv_indev_delete(in);
+            puts("PASS Zune: row swipe enters selection, Back clears selection; header pivot does not steal row gestures");
+        }
+
+        if(!strcmp(page,"albums") && !th_zune()){                  /* Library > Albums */
             lv_obj_t *l=find_text(screen_get_root(SCR_LIBRARY),"Albums"); assert(l); lv_obj_send_event(lv_obj_get_parent(l),LV_EVENT_CLICKED,NULL);
             for(int i=0;i<60;i++){lv_tick_inc(10);lv_timer_handler();}
         }
@@ -1819,7 +1931,7 @@ int main(int argc, char **argv){
             int extra=atoi(page+9);
             for(int i=0;i<extra/10;i++){lv_tick_inc(10);lv_timer_handler();}
         }
-        if(scr==SCR_SAVER){
+        if(scr==SCR_SAVER && !getenv("ZSAVER_IDLE")){
             if(th_null()){assert_visible_icon_glyphs(screen_get_root(scr));assert(lv_font_get_line_height(lv_obj_get_style_text_font(find_text(screen_get_root(scr),"10:09"),0))>=70);}
             char saver_title[192];theme_upper(saver_title,sizeof saver_title,st.title);
             lv_obj_t *title=find_text(screen_get_root(scr),th_null()?saver_title:st.title), *artist=find_text(screen_get_root(scr),st.artist);
@@ -1878,6 +1990,16 @@ int main(int argc, char **argv){
     } else if(!strcmp(argv[3],"np") || !strcmp(argv[3],"immersive")){
         ui_create(root);
         assert(ui_action_find("np.queue")); assert(ui_action_find("np.queue.long"));
+        if(getenv("NP_TITLE")){
+            track_state_t st={0};
+            snprintf(st.path,sizeof st.path,"/tmp/zune-test.mp3");
+            snprintf(st.title,sizeof st.title,"%s",getenv("NP_TITLE"));
+            snprintf(st.artist,sizeof st.artist,"%s",getenv("NP_ARTIST")?getenv("NP_ARTIST"):"John Mayer");
+            snprintf(st.album,sizeof st.album,"%s",getenv("NP_ALBUM")?getenv("NP_ALBUM"):"Room for Squares");
+            st.have_track=1; st.state=1; st.duration_ms=289000; st.position_ms=97000;
+            ipc_seed_state(&st); ui_update(&st);
+            for(int i=0;i<40;i++){ lv_tick_inc(10); lv_timer_handler(); }
+        }
     } else return 2;
     if(!strcmp(argv[3],"immersive")){
         sd_io_init(media_local); assert(sd_io_resume());
