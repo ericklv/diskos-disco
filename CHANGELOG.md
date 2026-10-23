@@ -8,6 +8,10 @@ diskOS remains beta software; version numbers do not imply broad hardware or fea
 
 ## Unreleased
 
+- Zune branch: reuse Squash's search magnifier; independent title/artist marquees on Music, paused while hidden or dimmed; correct idle-to-playback metadata restoration.
+- Null Immersive: start the renderer independently of Music layout, retain sharp Cover/Vinyl/CD artwork, and use smaller two-line control metadata without scrolling.
+- Immersive: clear previous-track progress when duration becomes unknown.
+
 - Zune branch: cancellable immersive edge Back with scrubbing enabled or disabled; six configurable themed Quick Settings slots retaining the original actions and shared radio/EQ behavior.
 - All themes: text-only List, three-column Wall and Zune-style Coverflow album views; header category swipes and adjacent-category taps. Albums shortcuts respect the chosen view.
 

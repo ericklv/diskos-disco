@@ -672,7 +672,7 @@ static void zqs_items_build(void){
         ui_on(hit, zq_tap, LV_EVENT_SHORT_CLICKED, (void *)(intptr_t)i, "qs.zune.item", UI_CORE);
         lv_obj_add_event_cb(hit, zq_hold, LV_EVENT_LONG_PRESSED, (void *)(intptr_t)i);
         lv_obj_t *ic = lv_label_create(b); kit_keep(ic); lv_label_set_text(ic, quicksettings_item_glyph(id));
-        lv_obj_set_style_text_font(ic, id==Q_WEATHER||id==Q_FAVS||id==Q_SLEEP?TF(ICON_28):TF(UI_20), 0);
+        lv_obj_set_style_text_font(ic, id==Q_SEARCH?&font_theme_24:id==Q_WEATHER||id==Q_FAVS||id==Q_SLEEP?TF(ICON_28):TF(UI_20), 0);
         if(id==Q_WEATHER){ lv_obj_set_style_transform_pivot_x(ic, LV_PCT(50), 0); lv_obj_set_style_transform_pivot_y(ic, LV_PCT(50), 0);
                            lv_obj_set_style_transform_scale(ic, 190, 0); }
         lv_obj_center(ic);

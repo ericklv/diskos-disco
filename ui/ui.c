@@ -735,7 +735,7 @@ static void imm_overlay_mode(int baked){
 }
 static void zi_tick(lv_timer_t *t);
 static uint32_t g_zi_updated;
-static int g_zi_ctl_on;                                   /* Zune: its controls are up (lyrics step aside) */
+static int g_zi_ctl_on;                                   /* shared controls are up (lyrics step aside) */
 static void imm_overlays_refresh(void){
     if(!imm_fast) return;
     if(g_zi_ctl_on){ imm_record_set_overlays(NULL, 0); return; }
@@ -1007,8 +1007,10 @@ static void imm_tick(lv_timer_t *t){
     int pl = g_np_is_playing;                             /* never the raw ipc state: it reports 0 while playing */
     if(pl != imm_playing){ imm_playing = pl; if(imm_timer) lv_timer_set_period(imm_timer, imm_dragging || pl ? imm_frame_period : 250); }
     imm_lyrics_reload();
-    if(imm_prog && st.duration_ms > 0) lv_arc_set_value(imm_prog, (int32_t)((long long)st.position_ms * 1000 / st.duration_ms));
-    if(st.duration_ms > 0) imm_ring_update((int)((long long)st.position_ms * 1000 / st.duration_ms));   /* fork perf: baked ring */
+    int progress=st.duration_ms>0?(int)((long long)st.position_ms*1000/st.duration_ms):0;
+    if(progress<0)progress=0;if(progress>1000)progress=1000;
+    if(imm_prog && lv_arc_get_value(imm_prog)!=progress)lv_arc_set_value(imm_prog,progress);
+    imm_ring_update(progress); /* Unknown duration must clear the previous track's progress. */
     if(g_lyr_n <= 0) return;
     int cur = -1;
     for(int i = 0; i < g_lyr_n && g_lyr[i].ms <= st.position_ms + 200; i++) cur = i;   /* +200: show a hair early */
@@ -1052,8 +1054,8 @@ void ui_np_fsart_open(void){
     lv_obj_move_foreground(fsart);
     if(th_disco_family() || th_null()) lv_obj_set_style_opa(fsart, LV_OPA_COVER, 0);
     else anim_fade(fsart, LV_OPA_TRANSP, LV_OPA_COVER, 240, NULL);
-    fsart_on = 1;
-    if(g_np_poster || g_np_ring){                       /* Ring and Braun share this immersive path */
+    fsart_on = 1;ui_np_text_motion(0);
+    if(imm_spin){                                      /* Immersive is independent of the main Music layout. */
         if(g_poster_stale) poster_reload();               /* decode the sharp cover now, not on every track */
         else if(!g_spin_ok)spin_from_poster();
         if(imm_spin){
@@ -1185,7 +1187,7 @@ static void zi_tick(lv_timer_t *t){
         g_zi_hide_ms=3000;lv_obj_t *rows[]={g_zi_title,g_zi_artist};
         for(int i=0;i<2;i++){lv_obj_t*l=rows[i];const lv_font_t*f=lv_obj_get_style_text_font(l,0);lv_point_t z;
             lv_text_get_size(&z,lv_label_get_text(l),f,lv_obj_get_style_text_letter_space(l,0),0,LV_COORD_MAX,LV_TEXT_FLAG_NONE);
-            if(z.x>lv_obj_get_style_width(l,0)){uint32_t ms=(uint32_t)(z.x+3*lv_font_get_glyph_width(f,' ',' '))*1000/40;if(ms>10000)ms=10000;ms+=1500;if(ms>g_zi_hide_ms)g_zi_hide_ms=ms;}
+            if(lv_label_get_long_mode(l)==LV_LABEL_LONG_SCROLL_CIRCULAR && z.x>lv_obj_get_style_width(l,0)){uint32_t ms=(uint32_t)(z.x+3*lv_font_get_glyph_width(f,' ',' '))*1000/40;if(ms>10000)ms=10000;ms+=1500;if(ms>g_zi_hide_ms)g_zi_hide_ms=ms;}
         }
         g_zi_ctl_at=lv_tick_get();
     }
@@ -1232,6 +1234,13 @@ static lv_obj_t *zi_label(lv_obj_t *par, const lv_font_t *f, lv_color_t c, int w
     lv_obj_align(l, LV_ALIGN_TOP_MID, 0, y); lv_obj_remove_flag(l, LV_OBJ_FLAG_CLICKABLE);
     return l;
 }
+static const lv_font_t *imm_null_font(int max_height){
+    const theme_font_role_t roles[]={THEME_FONT_UI_20,THEME_FONT_UI_18,THEME_FONT_UI_16,THEME_FONT_UI_14,THEME_FONT_UI_12};
+    for(unsigned i=0;i<sizeof roles/sizeof roles[0];i++){
+        const lv_font_t *f=theme_font(roles[i]);if(lv_font_get_line_height(f)<=max_height)return f;
+    }
+    return TF(UI_12);
+}
 static void imm_controls_build(lv_obj_t *fs){
     if(th_zune()){                  /* once, on top of the record's layers */
     imm_record_set_ring_full(1);                           /* the baked ring: the whole rim */
@@ -1249,15 +1258,23 @@ static void imm_controls_build(lv_obj_t *fs){
     lv_obj_remove_flag(g_zi_dim, LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
     g_zi_ctl = lv_obj_create(fs); lv_obj_remove_style_all(g_zi_ctl); lv_obj_set_size(g_zi_ctl, 360, 360);
     lv_obj_remove_flag(g_zi_ctl, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_t *heading=zi_label(g_zi_ctl,th_zune()?TF(UI_22):TF(UI_20),TC(FIXED_MEDIA_WHITE),230,40);
+    lv_obj_t *heading=zi_label(g_zi_ctl,th_zune()?TF(UI_22):TF(UI_20),TC(FIXED_MEDIA_WHITE),230,th_null()?30:40);
     lv_label_set_text(heading,th_zune()?"now playing":th_null()?"NOW PLAYING":"Now playing");
-    const lv_font_t *ft=th_zune()?TF(UI_32):th_null()?TF(UI_28):th_braun()?br_font(30,0):TF(UI_32);
-    const lv_font_t *fa=th_zune()?zune_font(&font_zune_light_28):th_null()?TF(UI_22):th_braun()?br_font(26,0):TF(UI_28);
-    g_zi_title=zi_label(g_zi_ctl,ft,TC(FIXED_MEDIA_WHITE),280,82);
-    g_zi_artist=zi_label(g_zi_ctl,fa,TC(FIXED_MEDIA_WHITE),272,132);
+    const lv_font_t *ft=th_zune()?TF(UI_32):th_null()?imm_null_font(26):th_braun()?br_font(30,0):TF(UI_32);
+    const lv_font_t *fa=th_zune()?zune_font(&font_zune_light_28):th_null()?imm_null_font(22):th_braun()?br_font(26,0):TF(UI_28);
+    g_zi_title=zi_label(g_zi_ctl,ft,TC(FIXED_MEDIA_WHITE),280,th_null()?70:82);
+    g_zi_artist=zi_label(g_zi_ctl,fa,TC(FIXED_MEDIA_WHITE),272,th_null()?128:132);
     lv_obj_set_height(g_zi_title,lv_font_get_line_height(ft));lv_obj_set_height(g_zi_artist,lv_font_get_line_height(fa));
     lv_label_set_long_mode(g_zi_title,LV_LABEL_LONG_SCROLL_CIRCULAR);lv_label_set_long_mode(g_zi_artist,LV_LABEL_LONG_SCROLL_CIRCULAR);
-    lv_obj_set_style_text_letter_space(g_zi_title,-1,0);
+    if(th_null()){
+        /* Two bounded lines each, no marquee or vertical scroll. DOT wraps and
+         * ellipsizes only when a name exceeds those two lines. */
+        lv_obj_set_height(g_zi_title,2*lv_font_get_line_height(ft));
+        lv_obj_set_height(g_zi_artist,2*lv_font_get_line_height(fa));
+        lv_label_set_long_mode(g_zi_title,LV_LABEL_LONG_DOT);
+        lv_label_set_long_mode(g_zi_artist,LV_LABEL_LONG_DOT);
+    }
+    lv_obj_set_style_text_letter_space(g_zi_title,th_null()?0:-1,0);
     zi_btn(g_zi_ctl, LV_SYMBOL_PREV, -78, 52, "0201000C0002", "imm.zune.prev", 0);
     g_zi_pp=zi_btn(g_zi_ctl, LV_SYMBOL_PAUSE, 0, 68, "0201000C0000", "imm.zune.pp", 1);
     zi_btn(g_zi_ctl, LV_SYMBOL_NEXT, 78, 52, "0201000C0001", "imm.zune.next", 0);
@@ -1286,6 +1303,7 @@ void ui_np_fsart_close(void){
     lv_anim_delete(&imm_lyric_slide_tag,NULL);imm_record_set_lyric_offset(0);
     if(!fsart || !fsart_on) return;
     imm_control_reset();fsart_on = 0;imm_volume_input_restore();
+    if(screen_current()==SCR_NOWPLAYING)ui_np_text_motion(1);
     if(imm_timer){ lv_timer_delete(imm_timer); imm_timer = NULL; }
     if((th_disco_family() || th_null()) && screen_current() == SCR_NOWPLAYING && screen_get_anim() && imm_spin && !lv_obj_has_flag(imm_spin, LV_OBJ_FLAG_HIDDEN)){
         lv_anim_delete(&imm_out_tag, NULL);                  /* the record lifts off, then Music slides back in */
@@ -1796,7 +1814,7 @@ void ui_queue_changed(void){                                  /* the badge: the 
 void ui_np_tags_changed(void){ lyrics_invalidate_current(); g_lyr_n = -1; g_lyr_path[0] = 0; }   /* immersive re-reads the new lyrics */
 void ui_np_rescroll(void){
     ui_queue_changed();                                       /* Now Playing shown: the queue's count */
-    if(th_zune()) return;                                 /* Zune: one or two lines, then "...", no scroll */
+    if(th_zune()){ui_np_text_motion(1);return;}           /* separate one-line marquees */
     if(!title || g_np_poster) return;                     /* the Poster wraps its title instead */
     lv_label_set_long_mode(title, LV_LABEL_LONG_SCROLL_CIRCULAR);
     if(g_np_ring && artist) lv_label_set_long_mode(artist, LV_LABEL_LONG_SCROLL_CIRCULAR);
@@ -1986,14 +2004,22 @@ static void zune_col_chain(void){
 }
 static int g_zcol_pending;
 static void zune_col_async(void *u){ (void)u; g_zcol_pending = 0; zune_col_chain(); }
-/* the title box: as tall as its text, at most two lines, ending with "..." past that */
+/* Stable metadata column: one line each during playback; idle copy may wrap. */
+void ui_np_text_motion(int on){
+    if(!th_zune() || g_zidle==1)return;
+    int ui_main_is_idle(void);
+    lv_label_long_mode_t mode=on&&!fsart_on&&!ui_main_is_idle()?LV_LABEL_LONG_SCROLL_CIRCULAR:LV_LABEL_LONG_CLIP;
+    lv_obj_t *rows[]={title,artist};
+    for(int i=0;i<2;i++)if(rows[i]&&lv_label_get_long_mode(rows[i])!=mode)lv_label_set_long_mode(rows[i],mode);
+}
 static void zune_title_fit_text(const char *t){
     if(!th_zune() || !title || !t) return;
     const lv_font_t *f = TF(MUSIC_TITLE);
     lv_point_t sz; lv_text_get_size(&sz, t, f, 0, 0, ZNP_COL_W, LV_TEXT_FLAG_NONE);
-    int lh = lv_font_get_line_height(f), h = sz.y > lh ? 2 * lh : lh;
-    lv_label_set_long_mode(title, LV_LABEL_LONG_DOT);
+    int lh = lv_font_get_line_height(f), h = g_zidle==1 && sz.y>lh ? 2*lh:lh;
+    lv_label_set_long_mode(title,g_zidle==1?LV_LABEL_LONG_DOT:LV_LABEL_LONG_CLIP);
     lv_obj_set_size(title, ZNP_COL_W, h);
+    ui_np_text_motion(screen_current()==SCR_NOWPLAYING);
     zune_col_chain(); lv_async_call(zune_col_async, NULL);
 }
 static void zune_album_fit(const char *t){
@@ -2041,7 +2067,7 @@ static void zune_idle(int idle){
                     lv_obj_set_size(artist, ZNP_COL_W, LV_SIZE_CONTENT); }
         SHOW(g_zshuf, n > 0);
     } else if(artist){ lv_obj_set_style_text_color(artist, TC(TEXT_PRIMARY), 0);
-                       lv_obj_set_style_text_font(artist, TF(MUSIC_ARTIST), 0); lv_label_set_long_mode(artist, LV_LABEL_LONG_DOT);
+                       lv_obj_set_style_text_font(artist, TF(MUSIC_ARTIST), 0); lv_label_set_long_mode(artist, LV_LABEL_LONG_CLIP);
                        lv_obj_set_size(artist, ZNP_COL_W, lv_font_get_line_height(TF(MUSIC_ARTIST))); }
     zune_col_chain(); lv_async_call(zune_col_async, NULL);
 }
@@ -2089,7 +2115,7 @@ void kit_fork_np_zune(void){
         lv_obj_set_style_text_align(artist, LV_TEXT_ALIGN_LEFT, 0);
         lv_obj_set_style_text_color(artist, TC(TEXT_PRIMARY), 0);
         lv_obj_set_size(artist, ZNP_COL_W, lv_font_get_line_height(TF(MUSIC_ARTIST)));
-        lv_label_set_long_mode(artist, LV_LABEL_LONG_DOT);
+        lv_label_set_long_mode(artist, LV_LABEL_LONG_CLIP);
         lv_obj_align(artist, LV_ALIGN_TOP_LEFT, ZNP_COL_X, 122);
     }
     if(album){
@@ -3922,18 +3948,18 @@ void ui_update(const track_state_t *st)
 
     ui_history_tick(st);
 
+    if(th_zune()){zune_idle(0);zune_fmt_update(st);}
     { const char *nt = st->title[0] ? st->title : "Untitled";
-      if(th_zune()){                                   /* Zune: the label holds "..." when cut, so compare the source */
-          static char zt[256];
-          if(strcmp(zt, nt)){ copy_cstr(zt, sizeof zt, nt); lv_label_set_text(title, nt); zune_title_fit_text(nt); }
+      if(th_zune()){
+          if(strcmp(lv_label_get_text(title),nt)){lv_label_set_text(title,nt);zune_title_fit_text(nt);}
           goto zune_title_done;
       }
       int changed = strcmp(lv_label_get_text(title), nt) != 0;
       set_label_text_changed(title, nt);
       if(changed) ui_np_rescroll(); }                      /* a new track may scroll again */
     zune_title_done:
-    if(th_zune()){ zune_idle(0); zune_fmt_update(st); }
     set_label_text_changed(artist, st->artist[0] ? st->artist : "");
+    if(th_zune())ui_np_text_motion(screen_current()==SCR_NOWPLAYING);
     /* keep the full-screen art view fresh while it's open: text every update, image only on a
      * genuine track change (a PNG decode is too costly to do every position tick). */
     if(fsart_on){

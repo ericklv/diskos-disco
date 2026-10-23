@@ -404,6 +404,15 @@ static void theme_fonts_install(void){
         g_tf[r] = *face;
         /* the chain of the role's size (the largest chain is 20 px); 12 px and under: Montserrat 12 (symbols) */
         g_tf[r].fallback = px <= 12 ? &lv_font_montserrat_12 : ui_font_cjk(px > 20 ? 20 : px);
+        if(th_zune()){
+            /* Open Sans lacks the shared magnifier and several app symbols.
+             * Reuse Squash's icon faces before the existing language fallback. */
+            static lv_font_t symbols[THEME_FONT_COUNT];
+            extern const lv_font_t font_theme_20,font_theme_24;
+            symbols[r]=px>=24?font_theme_24:font_theme_20;
+            symbols[r].fallback=g_tf[r].fallback;
+            g_tf[r].fallback=&symbols[r];
+        }
         g_tfp[r] = &g_tf[r];
     }
     /* a text size the theme's set lacks takes the theme's nearest own face: otherwise Default's face shows through

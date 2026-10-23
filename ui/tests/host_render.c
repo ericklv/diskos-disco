@@ -68,11 +68,12 @@ int __wrap_art_make_all_ex_gen(const char *path,const char *c,const char *t,cons
     return __real_art_make_all_ex_gen(path,c,t,b,cancel,gen);
 }
 
-static int test_panel_off,test_state_reads;
+static int test_panel_off,test_state_reads,test_track_override;
+static track_state_t test_track_state;
 int __real_ui_display_is_off(void);
 int __wrap_ui_display_is_off(void){return test_panel_off || __real_ui_display_is_off();}
 void __real_ipc_get_state(track_state_t *out);
-void __wrap_ipc_get_state(track_state_t *out){test_state_reads++;__real_ipc_get_state(out);}
+void __wrap_ipc_get_state(track_state_t *out){test_state_reads++;if(test_track_override)*out=test_track_state;else __real_ipc_get_state(out);}
 static int scrub_seek_calls,scrub_volume_calls,scrub_send_fail;
 static long scrub_last_seek;
 static int scrub_last_volume;
@@ -1636,6 +1637,49 @@ int main(int argc, char **argv){
             settings_open_group("Music progress");nav_wait(80);
             assert(find_text(screen_get_root(SCR_SETLIST),"Progress shape"));
             puts("PASS: Disco first in theme picker; Progress shape in Music progress, absent from Appearance");return 0;
+        }
+        if(getenv("REVIEW_IMM_RENDER")){
+            /* Exercise the live renderer, not just a static overlay screenshot. */
+            if(th_disco_family()||th_null()){disco_open_np_immersive();nav_wait(900);}else{screen_show(SCR_NOWPLAYING);ui_np_fsart_open();nav_wait(500);}
+            assert(ui_np_fsart_active());lv_obj_t *fs=ui_action_find("imm.control");assert(fs);
+            lv_obj_t *spin=lv_obj_get_child(fs,1);assert(lv_obj_check_type(spin,&lv_image_class)&&lv_obj_is_visible(spin));
+            const lv_image_dsc_t *im=lv_image_get_src(spin);assert(im&&im->header.w==360&&im->header.h==360);
+            char before[33],after[33];md5_hex(im->data,im->data_size,before);nav_wait(600);md5_hex(im->data,im->data_size,after);assert(strcmp(before,after));
+            track_state_t paused=st;paused.state=1;test_track_override=1;test_track_state=paused;ui_update(&paused);nav_wait(500);
+            md5_hex(im->data,im->data_size,before);nav_wait(600);md5_hex(im->data,im->data_size,after);assert(!strcmp(before,after));
+            void ui_zune_imm_preview(int,int);ui_zune_imm_preview(2,0);nav_wait(50);
+            lv_obj_t *t=find_visible_text(fs,st.title),*a=find_visible_text(fs,st.artist);assert(t&&a);
+            if(th_null()){assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_DOT&&lv_label_get_long_mode(a)==LV_LABEL_LONG_DOT);assert(lv_obj_get_height(t)==2*lv_font_get_line_height(lv_obj_get_style_text_font(t,0)));assert(lv_obj_get_height(a)==2*lv_font_get_line_height(lv_obj_get_style_text_font(a,0)));lv_area_t ta,aa;lv_obj_get_coords(t,&ta);lv_obj_get_coords(a,&aa);assert(ta.y2<aa.y1&&aa.y2<180);}
+            assert(find_visible_text(fs,"1:32  /  4:00"));paused.position_ms=123000;paused.duration_ms=300000;test_track_state=paused;ui_update(&paused);nav_wait(600);assert(find_visible_text(fs,"2:03  /  5:00"));
+            paused.state=2;test_track_state=paused;ui_update(&paused);nav_wait(600);md5_hex(im->data,im->data_size,before);nav_wait(600);md5_hex(im->data,im->data_size,after);assert(strcmp(before,after));
+            paused.duration_ms=0;test_track_state=paused;ui_update(&paused);nav_wait(600);
+            for(uint32_t j=0;j<lv_obj_get_child_count(fs);j++){lv_obj_t *o=lv_obj_get_child(fs,j);if(lv_obj_check_type(o,&lv_arc_class))assert(lv_arc_get_value(o)==0);}
+            ui_np_fsart_close();nav_wait(500);assert(!ui_np_fsart_active());
+            test_track_override=0;
+            puts("PASS Immersive: sharp live frame rotates, freezes paused, resumes, metadata time updates and Null two-line labels");
+        }
+        if(getenv("REVIEW_ZUNE_MARQUEE")){
+            assert(th_zune());screen_show(SCR_NOWPLAYING);nav_wait(200);
+            lv_obj_t *r=screen_get_root(SCR_NOWPLAYING),*t=find_visible_text(r,st.title),*a=find_visible_text(r,st.artist);assert(t&&a);
+            assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_SCROLL_CIRCULAR&&lv_label_get_long_mode(a)==LV_LABEL_LONG_SCROLL_CIRCULAR);
+            assert(lv_obj_get_height(t)==lv_font_get_line_height(lv_obj_get_style_text_font(t,0))&&lv_obj_get_height(a)==lv_font_get_line_height(lv_obj_get_style_text_font(a,0)));
+            lv_area_t ta,aa;lv_obj_get_coords(t,&ta);lv_obj_get_coords(a,&aa);assert(ta.y2<aa.y1&&aa.y2<240);
+            ui_np_text_motion(0);assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_CLIP&&lv_label_get_long_mode(a)==LV_LABEL_LONG_CLIP);
+            ui_np_text_motion(1);assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_SCROLL_CIRCULAR&&lv_label_get_long_mode(a)==LV_LABEL_LONG_SCROLL_CIRCULAR);
+            screen_show(SCR_SETTINGS);nav_wait(250);assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_CLIP&&lv_label_get_long_mode(a)==LV_LABEL_LONG_CLIP);
+            screen_show(SCR_NOWPLAYING);nav_wait(250);assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_SCROLL_CIRCULAR&&lv_label_get_long_mode(a)==LV_LABEL_LONG_SCROLL_CIRCULAR);
+            puts("PASS Zune music: separate single-line marquees, stable geometry, no hidden/dimmed metadata animation");
+        }
+        if(getenv("REVIEW_ZUNE_RESTART")){
+            track_state_t none={0};ui_update(&none);ui_update(&st);lv_obj_t *r=screen_get_root(SCR_NOWPLAYING);lv_obj_update_layout(r);
+            lv_obj_t *t=find_visible_text(r,st.title),*a=find_visible_text(r,st.artist);assert(t&&a);assert(lv_label_get_long_mode(t)==LV_LABEL_LONG_SCROLL_CIRCULAR&&lv_label_get_long_mode(a)==LV_LABEL_LONG_SCROLL_CIRCULAR);assert(lv_obj_get_height(t)==lv_font_get_line_height(lv_obj_get_style_text_font(t,0)));
+            puts("PASS Zune restart: resuming the same title after no-track restores track copy and single-line layout");return 0;
+        }
+        if(getenv("REVIEW_ZUNE_SEARCH_ICON")){
+            assert(th_zune());lv_font_glyph_dsc_t glyph={0};
+            const theme_font_role_t roles[]={THEME_FONT_UI_14,THEME_FONT_UI_20,THEME_FONT_UI_24,THEME_FONT_UI_28,THEME_FONT_HEADER};
+            for(unsigned j=0;j<sizeof roles/sizeof roles[0];j++){assert(lv_font_get_glyph_dsc(theme_font(roles[j]),&glyph,0xf002,0));assert(glyph.box_w>0&&glyph.box_h>0);}
+            puts("PASS Zune search: shared magnifier resolves across text and icon font roles");
         }
         if(getenv("REVIEW_ZUNE_BACK")){
             lv_indev_t *in=lv_indev_create();lv_indev_set_type(in,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(in,nav_read);lv_timer_set_period(lv_indev_get_read_timer(in),10);

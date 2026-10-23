@@ -58,6 +58,15 @@ Adapted from namastecoconut-imagined/diskos-disco-zune, commit `13821d6d024d6dfc
 
 ## Shared Immersive playback overlay (preview)
 
-Immersive includes the same tap-to-show controls in every theme. The heading, separate horizontally scrolling title and artist, white transport buttons and subtle accent shading follow the active theme. The existing dark scrim remains. Tap again to hide; swipe from the left edge to return, with cancellable gesture feedback. Circular scrubbing hides the controls while adjusting position or volume. Long metadata gets additional reading time before auto-hide.
+Immersive includes the same tap-to-show controls in every theme. The heading, separate title and artist rows, white transport buttons and subtle accent shading follow the active theme. Null uses smaller two-line wrapped names without scrolling; other themes scroll overflowing metadata horizontally. The existing dark scrim remains. Tap again to hide; swipe from the left edge to return, with cancellable gesture feedback. Circular scrubbing hides the controls while adjusting position or volume. Long metadata gets additional reading time before auto-hide.
 
 The overlay uses the existing Immersive timer, updates metadata only while visible, and inherits its screen-off/idle gate. No separate polling timer or worker is added. Host renders and edge-gesture checks cover all seven available presets; device testing remains necessary.
+
+## Null and Zune polish
+
+- Zune Search uses the same magnifier as Squash in Quick Settings; the shared font fallback also covers other Zune screens.
+- Zune Music keeps its artwork and transport layout, with separate one-line scrolling title and artist. Metadata animation stops when hidden, dimmed or covered by Immersive. Returning from the idle state restores playback text and sizing, including the same track.
+- Null Immersive starts its own existing renderer regardless of the main Now Playing layout. Cover, Vinyl and CD use sharp artwork independently of Null's pixelated Music background. Its controls have a higher heading and smaller, bounded two-line metadata, with alternate-font clearance.
+- Immersive clears stale progress when the next track has no known duration.
+
+31 host cases passed, including live rotation, pause/resume, time updates, unknown-duration reset, all Null font choices, modern-theme Back/transport, and Zune search/metadata behavior. No additional worker or periodic timer was added. Device testing remains pending. PRs #19 and #20 are not included; standby and power-button behavior remain unchanged.

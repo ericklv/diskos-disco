@@ -3960,6 +3960,7 @@ int main(int argc, char **argv){
             }
         }
         g_bl_idle = (bl_state >= 1);   /* prewarm worker reads this: only work while dimmed/off */
+        ui_np_text_motion(bl_state==0 && screen_current()==SCR_NOWPLAYING && !ui_np_fsart_active());
         int busy = lv_anim_count_running() > 0 || prev_ts == LV_INDEV_STATE_PRESSED;
         if(bl_state == 2){
             /* deep idle (panel off): sleep ~5x/s REGARDLESS of any running animation. Nothing is
