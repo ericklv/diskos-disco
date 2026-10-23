@@ -279,6 +279,7 @@ int screen_press_was_long(void)
 void screen_home(void)
 {
     if (discshelf_navigation_locked()) return;
+    if(th_zune())zhome_focus_now_playing();
     if (s_current == SCR_HOME) { s_sp = 0; return; }
     int from = s_current;
     s_sp = 0;

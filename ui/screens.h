@@ -87,6 +87,7 @@ void screens_init(void);
 void screen_show(int which);
 void screen_back(void);
 void screen_home(void);              /* straight to Home, clearing the back stack */
+void zhome_focus_now_playing(void);   /* Zune Home always returns to the Now Playing item */
 int  screen_press_was_long(void);    /* in a click handler: the press was a long press */
 void screen_set_anim(int on);
 int  screen_get_anim(void);

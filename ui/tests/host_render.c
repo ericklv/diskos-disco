@@ -1290,6 +1290,27 @@ int main(int argc, char **argv){
         if(th_zune())zune_status_refresh();
         if(getenv("FB_FIXTURE")){folderbrowser_open();nav_wait(500);if(getenv("FB_SCROLL")){lv_obj_t *list=NULL;lv_obj_t*r=screen_get_root(SCR_FOLDER);for(uint32_t i=0;i<lv_obj_get_child_count(r);i++){lv_obj_t*c=lv_obj_get_child(r,i);if(lv_obj_get_scroll_dir(c)==LV_DIR_VER&&lv_obj_get_y(c)==124){list=c;break;}}assert(list);lv_obj_scroll_to_y(list,atoi(getenv("FB_SCROLL")),LV_ANIM_OFF);nav_wait(500);}}
         if(getenv("ZUNE_CONFIRM")){void system_preview_confirmation(int);system_preview_confirmation(atoi(getenv("ZUNE_CONFIRM")));nav_wait(150);}
+        if(getenv("REVIEW_ZUNE_HOME")){
+            void zhome_test_focus(int);screen_home();nav_wait(100);
+            lv_obj_t*row=ui_action_find("home.zune.nowplaying");assert(row);lv_obj_t*zhome_test_subtext(void);lv_obj_t*heading=lv_obj_get_child(row,0),*caption=zhome_test_subtext();
+            assert(lv_font_get_line_height(lv_obj_get_style_text_font(caption,0))>=18);
+            assert(lv_obj_get_content_height(caption)>=lv_font_get_line_height(lv_obj_get_style_text_font(caption,0)));
+            assert(lv_obj_get_parent(caption)==screen_get_root(SCR_HOME));assert(lv_label_get_long_mode(caption)==LV_LABEL_LONG_DOT);
+            for(int focus=0;focus<3;focus++){
+                zhome_test_focus(focus);nav_wait(100);lv_area_t a,b,c;lv_obj_get_coords(row,&a);lv_obj_get_coords(lv_obj_get_child(lv_obj_get_parent(row),lv_obj_get_index(row)+1),&b);assert(b.y1-a.y1==64);
+                lv_obj_get_coords(caption,&b);lv_obj_t*next=lv_obj_get_child(lv_obj_get_parent(row),lv_obj_get_index(row)+1);lv_obj_get_coords(lv_obj_get_child(next,0),&c);assert(b.y2<c.y1);
+            }
+            int ui_zune_home_swipe(int,int,int,int,int,uint32_t);
+            assert(ui_zune_home_swipe(SCR_NOWPLAYING,180,345,180,200,300));assert(ui_zune_home_swipe(SCR_QUICK,180,345,180,200,300));
+            assert(ui_zune_home_swipe(SCR_HOME,180,345,180,200,300));assert(!ui_zune_home_swipe(SCR_SAVER,180,345,180,200,300));
+            assert(!ui_zune_home_swipe(SCR_LIBRARY,180,300,180,100,300));assert(!ui_zune_home_swipe(SCR_LIBRARY,180,345,300,320,300));
+            assert(!ui_zune_home_swipe(SCR_LIBRARY,180,345,180,200,800));
+            int screens[]={SCR_LIBRARY,SCR_NOWPLAYING,SCR_SETTINGS,SCR_QUICK,SCR_UPNEXT};
+            for(int i=0;i<5;i++){zhome_test_focus(8);screen_show(screens[i]);nav_wait(50);screen_home();nav_wait(250);assert(screen_current()==SCR_HOME);lv_area_t a;lv_obj_get_coords(row,&a);assert(abs((a.y1+a.y2)/2-180)<=1);}
+            zhome_test_focus(3);screen_home();nav_wait(100);lv_area_t a;lv_obj_get_coords(row,&a);assert(abs((a.y1+a.y2)/2-180)<=1);
+            assert(lv_obj_get_width(caption)>290);assert(lv_obj_get_y(heading)<lv_obj_get_y(caption));
+            puts("PASS Zune Home: enlarged full-height caption, unchanged 64px pitch, no next-item overlap, Home focuses Now Playing from five screens and Home itself");
+        }
         if(getenv("REVIEW_ZUNE_MAIN")){
             assert(th_zune());screen_home();cfg_set_int_deferred("up_next",0);cfg_set_int_deferred("zune_main",ZMAIN_UPNEXT);cfg_set_int_deferred("zune_double",ZMAIN_SEARCH);cfg_set_int_deferred("zune_hold",ZMAIN_LIBRARY);home_shortcuts_refresh();nav_wait(200);
             lv_obj_t*b=ui_action_find("home.upnext");assert(b&&lv_obj_is_visible(b));lv_area_t area;lv_obj_get_coords(b,&area);assert(area.x2==359&&area.y1==158&&area.y2==201);

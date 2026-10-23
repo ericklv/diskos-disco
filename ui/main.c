@@ -3085,6 +3085,10 @@ void ui_home_hint(int x, int dy){
         lv_obj_set_style_transform_scale(g_hh, armed ? 272 : 256, 0);
     }
 }
+/* Shared predicate for the raw bottom-edge Home gesture and native regression checks. */
+int ui_zune_home_swipe(int from,int sx,int sy,int x,int y,uint32_t dt){
+    return th_zune()&&from!=SCR_SAVER&&sy>320&&sy-y>=g_swipe_thresh*2&&sy-y>2*abs(x-sx)&&dt<700;
+}
 int main(int argc, char **argv){
     {int f=ds_fetch_entry(argc,argv);if(f>=0)return f;}
     /* fork: fiio_init starts us with stdin/stdout closed. Fill 0..2 with /dev/null first, so no descriptor opened later
@@ -3643,7 +3647,7 @@ int main(int argc, char **argv){
                 if(!woke && !fsart_touch && !sleep_touch && !seek_touch && screen_current()==SCR_HOME && SIDE_DX(p.x-sx)<0
                    && abs(p.x-sx)>2*abs(p.y-sy))ui_shortcuts_hint(p.y,-SIDE_DX(p.x-sx));
                 else ui_shortcuts_hint(0,0);
-                if(!woke && !fsart_touch && sy > 320 && screen_current()!=SCR_HOME && screen_current()!=SCR_QUICK && screen_current()!=SCR_SAVER && screen_current()!=SCR_NOWPLAYING && !sleep_touch
+                if(!woke && !fsart_touch && sy > 320 && screen_current()!=SCR_HOME && screen_current()!=SCR_QUICK && screen_current()!=SCR_SAVER && (screen_current()!=SCR_NOWPLAYING||th_zune()) && !sleep_touch
                    && sy - p.y > 0 && abs(p.y - sy) > 2 * abs(p.x - sx)) ui_home_hint(p.x, sy - p.y);   /* fork: home-swipe feedback */
                 else ui_home_hint(0, 0);
                 if(screen_current()==SCR_NOWPLAYING && !ui_np_fsart_active() && !sleep_touch) ui_np_seek_move(p.x, p.y);
@@ -3658,6 +3662,9 @@ int main(int argc, char **argv){
                 if(p.x >= 0 && p.x < 360 && p.y >= 0 && p.y < 360){ lastx = p.x; lasty = p.y; g_press_lx = p.x; g_press_ly = p.y; }
                 if(woke){
                     woke = 0;   /* swallow the release that woke the saver */
+                } else if(!fsart_touch&&!sleep_touch&&ui_zune_home_swipe(s_press_scr,sx,sy,lastx,lasty,lv_tick_elaps(sms))){
+                    /* Bottom-edge Home takes priority over a list's rim recognizer. */
+                    rim_release();screen_home();
                 } else if(rim_release()){
                     /* rim-scroll owned this gesture -> no nav/tap classification */
                 } else {

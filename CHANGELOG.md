@@ -8,6 +8,8 @@ diskOS remains beta software; version numbers do not imply broad hardware or fea
 
 ## Unreleased
 
+- Zune Home: enlarge the Now Playing caption from 14 to 16 px with a wider, padded line box while preserving 64 px menu spacing. Home focuses Now Playing; bottom-edge Home swipes also work from Music and take priority over list-rim scrolling.
+
 - Zune volume A: thin accent rim, oversized number, quiet gain label and square accent marker; 100 ms entry fade with direct touch adjustment and modal seek protection.
 - Verify Zune spinning-disc Immersive entry/exit for Vinyl, CD and Cover, including early exit/reopen and Animations off.
 

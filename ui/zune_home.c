@@ -17,6 +17,7 @@
 void ui_np_status_changed(void);   /* ui.c: Now Playing repeats this status line */
 LV_FONT_DECLARE(font_zune_semibold_24)
 LV_FONT_DECLARE(font_zune_bold_14)
+LV_FONT_DECLARE(font_zune_regular_16)
 #define ZH_PITCH 64          /* row pitch */
 #define ZH_FOCUS 180         /* the focus line (screen y) */
 #define ZH_INSET 34          /* text inset from the bezel at the focus line */
@@ -60,6 +61,7 @@ static lv_obj_t *g_dial, *g_row[ZP], *g_lbl[ZP], *g_sub[ZP], *g_status, *g_tick;
 static int g_size[ZP];                  /* the font step each label is on now (0 = 46, 1 = 32, 2 = 24), -1 unset */
 static char g_time[24],g_batt[16],g_np_caption[192],g_weather_caption[192];
 static const lv_font_t *small_font(void){return zune_font(&font_zune_bold_14);}
+static const lv_font_t *np_sub_font(void){return zune_font(&font_zune_regular_16);}
 static int g_batt_pct = -1, g_batt_chg;
 int zhome_battery_pct(void){ return g_batt_pct; }   /* the lock screen shows it as "82%" */
 
@@ -97,13 +99,14 @@ static void dial_layout(void){
         zg_opa(g_lbl[i], opa);
         int x = edge_x(yc);
         int has_sub = g_sub[i] && lv_label_get_text(g_sub[i])[0];
-        zg_align(g_lbl[i], x, has_sub ? -8 : 0);
+        zg_align(g_lbl[i], x, has_sub ? (i%ZN==NP_IDX?-12:-8) : 0);
         if(g_sub[i]){
             if(has_sub){
                 zg_hide(g_sub[i], 0);
-                int w = 300 - x, h = lv_font_get_line_height(small_font());      /* one line, then "..." */
+                int np=i%ZN==NP_IDX;
+                int w = (np?342:300) - x, h = lv_font_get_line_height(np?np_sub_font():small_font())+(np?4:0);      /* one line, then "..." */
                 if(lv_obj_get_style_width(g_sub[i], 0) != w || lv_obj_get_style_height(g_sub[i], 0) != h) lv_obj_set_size(g_sub[i], w, h);
-                lv_obj_align_to(g_sub[i], g_lbl[i], LV_ALIGN_OUT_BOTTOM_LEFT, 2, -2);
+                lv_obj_align_to(g_sub[i], g_lbl[i], LV_ALIGN_OUT_BOTTOM_LEFT, 2, i%ZN==NP_IDX?0:-2);
                 zg_opa(g_sub[i], opa);
             } else zg_hide(g_sub[i], 1);
         }
@@ -166,9 +169,10 @@ void zhome_create(lv_obj_t *root){
         g_lbl[p] = l; g_size[p] = -1;
         g_sub[p] = NULL;
         if(i == NP_IDX || i == WX_IDX){
-            lv_obj_t *s = lv_label_create(r); kit_keep(s);
+            lv_obj_t *s = lv_label_create(i==NP_IDX?root:r); kit_keep(s); /* caption draws above fixed-pitch rows without being clipped by them */
             lv_label_set_text(s, "");
-            lv_obj_set_style_text_font(s,small_font(),0);
+            lv_obj_set_style_text_font(s,i==NP_IDX?np_sub_font():small_font(),0);
+            if(i==NP_IDX){lv_obj_set_style_pad_ver(s,2,0);}
             lv_obj_set_style_text_color(s,TC(TEXT_SECONDARY),0);
             lv_label_set_long_mode(s, LV_LABEL_LONG_DOT);
             lv_obj_remove_flag(s, LV_OBJ_FLAG_CLICKABLE);
@@ -247,4 +251,6 @@ void zhome_set_now_playing(const char *title, const char *artist, bool playing){
 /* the status line's parts: the time text, the battery level (-1 unknown) and whether it is charging */
 void zhome_status_parts(char *t, size_t n, int *pct, int *chg){ snprintf(t, n, "%s", g_time); *pct = g_batt_pct; *chg = g_batt_chg; }
 void zhome_status_text(char *b, size_t n){ snprintf(b, n, "%s%s%s", g_time, g_time[0] && g_batt[0] ? "  " : "", g_batt); }
+lv_obj_t *zhome_test_subtext(void){return g_sub[ZN+NP_IDX];}
+void zhome_focus_now_playing(void){if(g_dial){lv_obj_scroll_to_y(g_dial,ZH_PITCH*ZN,LV_ANIM_OFF);dial_layout();}}
 void zhome_test_focus(int i){ if(g_dial){ lv_obj_scroll_to_y(g_dial, ZH_PITCH * (ZN + i), LV_ANIM_OFF); dial_layout(); } }   /* host renders */
