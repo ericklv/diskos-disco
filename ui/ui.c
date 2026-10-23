@@ -332,6 +332,7 @@ static int zune_near_knob(int x, int y){
 }
 int ui_np_seek_press(int x, int y){
     g_seek_cand = 0; g_seek_on = 0; g_scrubbing = 0;   /* also clears a stuck scrub from a missed release */
+    if(ui_volume_overlay_visible()) return 0;       /* the volume dial owns the rim */
     if(y < 40 && !(th_zune() && zune_near_knob(x, y))) return 0;   /* top drawer zone (Zune: unless the press is on the dot) */
     if(g_track_dur <= 0) return 0;                /* nothing to seek */
     if(!seek_on_band(x, y, g_tol_grab)) return 0;  /* not on the ring (grab band) */
@@ -1084,7 +1085,7 @@ void ui_np_fsart_open(void){
         imm_spin_ms=(uint32_t)imm_angle*20000/3600;
         imm_playing = g_np_is_playing;
         if(!imm_timer) imm_timer = lv_timer_create(imm_tick, imm_frame_period, NULL);   /* initial render already measured its cost */
-        if((th_disco_family() || th_null()) && screen_get_anim() && imm_spin && !lv_obj_has_flag(imm_spin, LV_OBJ_FLAG_HIDDEN)) imm_in_start();
+        if((th_disco_family() || th_null() || th_zune()) && screen_get_anim() && imm_spin && !lv_obj_has_flag(imm_spin, LV_OBJ_FLAG_HIDDEN)) imm_in_start();
     }
 }
 
@@ -1139,7 +1140,7 @@ static void imm_cold_release(void){
 static void imm_out_done(lv_anim_t *a){
     (void)a;if(fsart_on)return;
     imm_boost = 0; if(imm_spin) lv_image_set_scale(imm_spin, imm_fast || g_spin_ok ? 256 : (uint32_t)(364 * 256 / CBMP));   /* rest for next time */
-    screen_skip_anim_once(); screen_home(); if(th_disco_family()) dhome_imm_return();
+    if(!th_zune()){ screen_skip_anim_once(); screen_home(); if(th_disco_family()) dhome_imm_return(); }
     if(fsart) lv_obj_add_flag(fsart, LV_OBJ_FLAG_HIDDEN);imm_cold_release();
 }
 static void fsart_hidden_cb(lv_anim_t *a){ (void)a; if(!fsart_on){if(fsart)lv_obj_add_flag(fsart,LV_OBJ_FLAG_HIDDEN);imm_cold_release();} }
@@ -1331,10 +1332,11 @@ void ui_np_fsart_close(void){
     if(g_zi_dim){ zi_scrub(0, 0, 0); if(g_zi_ctl_on)zi_controls(0); }
     lv_anim_delete(&imm_lyric_slide_tag,NULL);imm_record_set_lyric_offset(0);
     if(!fsart || !fsart_on) return;
+    lv_anim_delete(&imm_in_tag,NULL);  /* an early exit must not keep settling the disc */
     imm_control_reset();fsart_on = 0;imm_volume_input_restore();
 
     if(imm_timer){ lv_timer_delete(imm_timer); imm_timer = NULL; }
-    if((th_disco_family() || th_null()) && screen_current() == SCR_NOWPLAYING && screen_get_anim() && imm_spin && !lv_obj_has_flag(imm_spin, LV_OBJ_FLAG_HIDDEN)){
+    if((th_disco_family() || th_null() || th_zune()) && screen_current() == SCR_NOWPLAYING && screen_get_anim() && imm_spin && !lv_obj_has_flag(imm_spin, LV_OBJ_FLAG_HIDDEN)){
         lv_anim_delete(&imm_out_tag, NULL);                  /* the record lifts off, then Music slides back in */
         lv_obj_set_style_opa(fsart, LV_OPA_COVER, 0);
         lv_anim_t a; lv_anim_init(&a); lv_anim_set_var(&a, &imm_out_tag); lv_anim_set_exec_cb(&a, imm_out_exec);
@@ -4110,6 +4112,7 @@ static int g_vol_suppress;   /* 1 while we set the arc programmatically (no echo
 static uint32_t g_vol_last_send;  /* throttle: tick of the last 0715 we sent */
 static int g_vol_pending;         /* 1 if a value changed but was throttled (commit on release) */
 static void vol_hide_cb(lv_timer_t *t){
+    if(g_vol_arc && lv_obj_has_state(g_vol_arc,LV_STATE_PRESSED)){lv_timer_reset(t);return;}
     if(g_vol_panel) lv_obj_add_flag(g_vol_panel, LV_OBJ_FLAG_HIDDEN);
     lv_timer_pause(t);
 }
@@ -4178,7 +4181,10 @@ static void dvol_paint(int v){
 LV_FONT_DECLARE(font_zune_light_96) LV_FONT_DECLARE(font_zune_regular_14) LV_FONT_DECLARE(font_zune_regular_16) LV_FONT_DECLARE(font_zune_semibold_11)
 static lv_obj_t *g_zvol_cap, *g_zvol_max, *g_zvol_out;
 static lv_point_precise_t g_zvol_cp[2];
+static void vol_tap_close_cb(lv_event_t *e);
 static void zvol_build(void){
+    lv_obj_add_flag(g_vol_panel, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(g_vol_panel, vol_tap_close_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_set_style_bg_color(g_vol_panel, TC(CANVAS), 0); lv_obj_set_style_bg_opa(g_vol_panel, LV_OPA_COVER, 0);
     lv_obj_set_size(g_vol_arc, 332, 332); lv_obj_center(g_vol_arc);
     lv_arc_set_rotation(g_vol_arc, 0); lv_arc_set_bg_angles(g_vol_arc, 135, 45); lv_arc_set_mode(g_vol_arc, LV_ARC_MODE_NORMAL);

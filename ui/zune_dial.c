@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+LV_FONT_DECLARE(font_zune_light_24)
 LV_FONT_DECLARE(font_zune_regular_16)
 LV_FONT_DECLARE(font_zune_light_50)
 LV_FONT_DECLARE(font_zune_regular_13)
@@ -52,7 +53,11 @@ static void layout(void){
         for(int k = 0; k < 3; k++) zg_hide(part[k], off);
         if(off) continue;
         int s = d < ZD_PITCH / 2 ? 0 : d < ZD_PITCH * 3 / 2 ? 1 : 2;
-        if(s != Z.size[i]){ Z.size[i] = s; lv_obj_set_style_text_font(Z.lbl[i], step_font(Z.sub[i]&&s==0?1:s), 0); }
+        if(s != Z.size[i]){
+            Z.size[i]=s;int face=Z.sub[i]&&s==0?1:s;lv_point_t text;
+            while(face<2){lv_text_get_size(&text,lv_label_get_text(Z.lbl[i]),step_font(face),0,0,LV_COORD_MAX,LV_TEXT_FLAG_NONE);if(text.x<=286)break;face++;}
+            lv_obj_set_style_text_font(Z.lbl[i],step_font(face),0);
+        }
         float o = 1.0f - (float)d / ZD_PITCH * 0.4f; if(o < 0.3f) o = 0.3f;
         zg_opa(Z.lbl[i], (lv_opa_t)(o * 255));
         int x = edge_x(yc);
@@ -375,18 +380,22 @@ void zune_confirm(const char *title, const char *body, const char *no, const cha
     char b[200];
     zc_lower(b, sizeof b, title);
     lv_obj_t *t = lv_label_create(o); kit_keep(t); lv_label_set_text(t, b);
-    lv_label_set_long_mode(t, LV_LABEL_LONG_DOT); lv_obj_set_width(t, 290);
-    lv_obj_set_style_max_height(t, 2 * lv_font_get_line_height(zune_font(&font_zune_light_32)), 0);
+    LV_FONT_DECLARE(font_zune_light_28)
+    const lv_font_t *faces[]={&font_zune_light_32,&font_zune_light_28,&font_zune_light_24};const lv_font_t*f=zune_font(faces[2]);
+    for(int i=0;i<3;i++){lv_point_t text;lv_text_get_size(&text,b,zune_font(faces[i]),0,0,LV_COORD_MAX,LV_TEXT_FLAG_NONE);if(text.x<=280){f=zune_font(faces[i]);break;}}
+    lv_label_set_long_mode(t, LV_LABEL_LONG_DOT);lv_obj_set_size(t,280,lv_font_get_line_height(f));
     lv_obj_set_style_text_align(t, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_font(t, zune_font(&font_zune_light_32), 0); lv_obj_set_style_text_color(t, TC(TEXT_PRIMARY), 0);
+    lv_obj_set_style_text_font(t, f, 0); lv_obj_set_style_text_color(t, TC(TEXT_PRIMARY), 0);
     lv_obj_align(t, LV_ALIGN_BOTTOM_MID, 0, -(360 - 120));               /* its last line sits on y 120 */
     if(body && body[0]){
         zc_lower(b, sizeof b, body);
-        lv_obj_t *d = lv_label_create(o); kit_keep(d); lv_label_set_text(d, b);
-        lv_label_set_long_mode(d, LV_LABEL_LONG_WRAP); lv_obj_set_width(d, 220);
+        lv_obj_t *area=lv_obj_create(o);lv_obj_remove_style_all(area);kit_keep(area);lv_obj_set_pos(area,46,132);lv_obj_set_size(area,268,88);
+        lv_obj_set_scroll_dir(area,LV_DIR_VER);lv_obj_set_scrollbar_mode(area,LV_SCROLLBAR_MODE_AUTO);
+        lv_obj_t *d = lv_label_create(area); kit_keep(d); lv_label_set_text(d, b);
+        lv_label_set_long_mode(d, LV_LABEL_LONG_WRAP); lv_obj_set_width(d, 260);
         lv_obj_set_style_text_align(d, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_style_text_font(d, zune_font(&font_zune_regular_14), 0); lv_obj_set_style_text_color(d, TC(TEXT_MUTED), 0);
-        lv_obj_align(d, LV_ALIGN_TOP_MID, 0, 132);
+        lv_obj_set_style_text_font(d, zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(d, TC(TEXT_MUTED), 0);
+        lv_obj_align(d, LV_ALIGN_TOP_MID, 0, 0);
     }
     char nb[40], yb[40]; zc_lower(nb, sizeof nb, no && no[0] ? no : "cancel"); zc_lower(yb, sizeof yb, yes && yes[0] ? yes : "ok");
     zc_half(o, 0, 178, TC(SURFACE), TC(TEXT_PRIMARY), nb, zc_no_cb, "zune.confirm.no");

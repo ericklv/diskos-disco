@@ -8,6 +8,11 @@ diskOS remains beta software; version numbers do not imply broad hardware or fea
 
 ## Unreleased
 
+- Zune: separate confirmation headings, readable messages and buttons; fix SD update and reset dialog overlap.
+- Zune: center the edge shortcut vertically and configure its tap, double-tap and hold in Display > Music screen > Zune; hide the unused Now Playing style option.
+- Volume: prevent Music seek/navigation underneath the overlay; Zune consumes taps outside the dial. Keep the overlay open while dragging.
+- Zune: reuse the flying-disc Immersive entry/exit animation and return to Music.
+
 - Zune folders: stop vertical title animation, fit a full text line to each curved row, and scroll only the focused long name horizontally. Covered folder pages stop scrolling.
 - Zune Music: move artwork 36 px farther left, widen the metadata column, and show format/bitrate/sample rate below duration using the shared Immersive cache.
 

@@ -66,6 +66,7 @@ static const display_entry_t DISPLAY_ENTRIES[]={
     {"online_lyrics",NULL,"Online & cache","Online lyrics",20},
     {"artcache",NULL,"Online & cache","Artwork cache",30},
     {"weather_on",NULL,"Online & cache","Weather",40},
+    {NULL,apply_grp_zune,"Music screen","Zune",45},
     {NULL,apply_grp_musictext,"Music screen","Text",50},
     {NULL,apply_grp_musicinfo,"Music screen","Information",60},
     {NULL,apply_grp_musicprogress,"Music screen","Progress",70},
@@ -97,6 +98,9 @@ static const display_entry_t *display_entry(const setting_t *s){
     return NULL;
 }
 static int display_variant_hidden(const setting_t *s){
+    if(s->apply==apply_grp_zune&&!th_zune())return 1;
+    if(s->cfg_key&&th_zune()&&!strcmp(s->cfg_key,"np_style"))return 1;
+    if(s->cfg_key&&!th_zune()&&!strncmp(s->cfg_key,"zune_",5))return 1;
     if(s->cfg_key&&!th_zune()&&(!strcmp(s->cfg_key,"zune_nav_hold")||!strncmp(s->cfg_key,"zlock_",6)))return 1;
     static const struct{const char *common,*null_key;} pairs[]={
         {"simple_background","null_music_background"},{"disco_controls","null_controls"},

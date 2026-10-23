@@ -27,6 +27,7 @@ lv_obj_t *quicksettings_test_button(int slot);
 #include "sdio.h"
 #include "musicdb.h"
 #include "folderbrowser.h"
+#include "home_shortcuts.h"
 #include "battery.h"
 #include "sqlite3.h"
 #include <assert.h>
@@ -208,6 +209,15 @@ static void assert_visible_icon_glyphs(lv_obj_t *root){
 static lv_indev_data_t nav_pointer;
 static void nav_read(lv_indev_t *in,lv_indev_data_t *data){(void)in;*data=nav_pointer;}
 void zthumb_tick(void);void zune_ui_tick(void);
+static void audit_vertical(lv_obj_t *o){
+    if(!lv_obj_is_visible(o))return;
+    if(lv_obj_check_type(o,&lv_label_class)){
+        lv_label_long_mode_t m=lv_label_get_long_mode(o);
+        if((m==LV_LABEL_LONG_SCROLL || m==LV_LABEL_LONG_SCROLL_CIRCULAR) && (((lv_label_t*)o)->offset.y || lv_obj_get_content_height(o)<lv_font_get_line_height(lv_obj_get_style_text_font(o,0))))
+            printf("VERTICAL text=[%s] offset=%d box=%dx%d font=%d\n",lv_label_get_text(o),(int)((lv_label_t*)o)->offset.y,(int)lv_obj_get_width(o),(int)lv_obj_get_height(o),(int)lv_font_get_line_height(lv_obj_get_style_text_font(o,0)));
+    }
+    for(uint32_t i=0;i<lv_obj_get_child_count(o);i++)audit_vertical(lv_obj_get_child(o,i));
+}
 static void nav_wait(int ms){for(int i=0;i<ms;i+=10){lv_tick_inc(10);simple_refresh_budget(lv_anim_count_running()>0||nav_pointer.state==LV_INDEV_STATE_PRESSED);zthumb_tick();if(th_zune())zune_ui_tick();lv_timer_handler();}}
 static void nav_touch(lv_point_t point,int ms){
     nav_pointer.point=point;nav_pointer.state=LV_INDEV_STATE_PRESSED;nav_wait(ms);
@@ -1250,6 +1260,37 @@ int main(int argc, char **argv){
         screen_show(scr);
         if(th_zune())zune_status_refresh();
         if(getenv("FB_FIXTURE")){folderbrowser_open();nav_wait(500);if(getenv("FB_SCROLL")){lv_obj_t *list=NULL;lv_obj_t*r=screen_get_root(SCR_FOLDER);for(uint32_t i=0;i<lv_obj_get_child_count(r);i++){lv_obj_t*c=lv_obj_get_child(r,i);if(lv_obj_get_scroll_dir(c)==LV_DIR_VER&&lv_obj_get_y(c)==124){list=c;break;}}assert(list);lv_obj_scroll_to_y(list,atoi(getenv("FB_SCROLL")),LV_ANIM_OFF);nav_wait(500);}}
+        if(getenv("ZUNE_CONFIRM")){void system_preview_confirmation(int);system_preview_confirmation(atoi(getenv("ZUNE_CONFIRM")));nav_wait(150);}
+        if(getenv("REVIEW_ZUNE_MAIN")){
+            assert(th_zune());screen_home();cfg_set_int_deferred("up_next",0);cfg_set_int_deferred("zune_main",ZMAIN_UPNEXT);cfg_set_int_deferred("zune_double",ZMAIN_SEARCH);cfg_set_int_deferred("zune_hold",ZMAIN_LIBRARY);home_shortcuts_refresh();nav_wait(200);
+            lv_obj_t*b=ui_action_find("home.upnext");assert(b&&lv_obj_is_visible(b));lv_area_t area;lv_obj_get_coords(b,&area);assert(area.x2==359&&area.y1==158&&area.y2==201);
+            lv_obj_t*l=lv_obj_get_child(b,0);lv_area_t glyph;lv_obj_get_coords(l,&glyph);assert(glyph.x2>=356&&glyph.x2<=358&&abs((glyph.y1+glyph.y2)/2-180)<=1);
+            lv_obj_send_event(b,LV_EVENT_PRESSED,NULL);lv_obj_send_event(b,LV_EVENT_CLICKED,NULL);nav_wait(200);assert(screen_current()==SCR_HOME);nav_wait(200);assert(screen_current()==SCR_UPNEXT);
+            screen_home();lv_obj_send_event(b,LV_EVENT_PRESSED,NULL);lv_obj_send_event(b,LV_EVENT_CLICKED,NULL);nav_wait(70);lv_obj_send_event(b,LV_EVENT_PRESSED,NULL);lv_obj_send_event(b,LV_EVENT_CLICKED,NULL);nav_wait(400);assert(screen_current()==SCR_SEARCH);lv_obj_t*cancel=find_visible_text(lv_layer_top(),"cancel");if(cancel){cancel=lv_obj_get_parent(cancel);lv_obj_send_event(cancel,LV_EVENT_PRESSED,NULL);lv_obj_send_event(cancel,LV_EVENT_CLICKED,NULL);nav_wait(100);}
+            screen_home();lv_obj_send_event(b,LV_EVENT_PRESSED,NULL);lv_obj_send_event(b,LV_EVENT_LONG_PRESSED,NULL);lv_obj_send_event(b,LV_EVENT_CLICKED,NULL);nav_wait(400);assert(screen_current()==SCR_LIBRARY);
+            screen_home();lv_obj_send_event(b,LV_EVENT_PRESSED,NULL);lv_obj_send_event(b,LV_EVENT_CLICKED,NULL);screen_show(SCR_SETTINGS);nav_wait(400);assert(screen_current()==SCR_SETTINGS);
+            screen_home();nav_wait(200);lv_indev_t*pointer=lv_indev_create();lv_indev_set_type(pointer,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(pointer,nav_read);lv_timer_set_period(lv_indev_get_read_timer(pointer),10);
+            nav_touch((lv_point_t){346,180},60);nav_wait(400);assert(screen_current()==SCR_UPNEXT);
+            screen_home();nav_wait(250);nav_touch((lv_point_t){346,180},40);nav_wait(60);nav_touch((lv_point_t){346,180},40);nav_wait(400);assert(screen_current()==SCR_SEARCH);cancel=find_visible_text(lv_layer_top(),"cancel");if(cancel){cancel=lv_obj_get_parent(cancel);lv_obj_send_event(cancel,LV_EVENT_PRESSED,NULL);lv_obj_send_event(cancel,LV_EVENT_CLICKED,NULL);nav_wait(100);}
+            screen_home();nav_wait(250);nav_touch((lv_point_t){346,180},650);nav_wait(400);assert(screen_current()==SCR_LIBRARY);lv_indev_delete(pointer);
+            cfg_set_int_deferred("zune_main",ZMAIN_EQ);home_shortcuts_refresh();assert(!strcmp(lv_label_get_text(l),LV_SYMBOL_BARS));
+            cfg_set_int_deferred("zune_main",ZMAIN_NONE);home_shortcuts_refresh();assert(lv_obj_has_flag(b,LV_OBJ_FLAG_HIDDEN));
+            cfg_set_int_deferred("zune_main",ZMAIN_UPNEXT);home_shortcuts_refresh();
+            setlist_open("Display");void settings_open_group(const char*);settings_open_group("Music screen");nav_wait(100);assert(find_visible_text(screen_get_root(SCR_SETLIST),"zune"));assert(!find_text(screen_get_root(SCR_SETLIST),"now playing style"));
+            settings_open_group("Zune");nav_wait(100);assert(find_text(screen_get_root(SCR_SETLIST),"main icon"));assert(find_text(screen_get_root(SCR_SETLIST),"main icon double-tap"));assert(find_text(screen_get_root(SCR_SETLIST),"main icon hold"));
+            const char*keys[]={"zune_main","zune_double","zune_hold"};void settings_test_open_key(const char*);
+            for(int k=0;k<3;k++){settings_test_open_key(keys[k]);nav_wait(80);lv_obj_t*choice=ui_action_find("settings.zdetail.25");assert(choice);lv_obj_send_event(choice,LV_EVENT_CLICKED,NULL);nav_wait(100);assert(cfg_get_int(keys[k],-1)==ZMAIN_WIFI);}
+            cfg_set_int_deferred("zune_main",ZMAIN_UPNEXT);cfg_set_int_deferred("zune_double",ZMAIN_SEARCH);cfg_set_int_deferred("zune_hold",ZMAIN_MUSIC);home_shortcuts_refresh();screen_home();nav_wait(100);
+            puts("PASS Zune main icon: edge geometry, tap/double/hold isolation, pending cancel, glyph changes, 27 choices saved for all gestures, submenu and style removal");
+        }
+        if(getenv("REVIEW_ZUNE_CONFIRM")){
+            void system_preview_confirmation(int);for(int kind=0;kind<3;kind++){
+                system_preview_confirmation(kind);nav_wait(80);lv_obj_t*ok=ui_action_find(kind==0?"system.sd_later":"system.ok");assert(ok);lv_obj_t*card=lv_obj_get_parent(ok),*title=lv_obj_get_child(card,0),*body=lv_obj_get_child(card,1);lv_area_t t,b,a;lv_obj_get_coords(title,&t);lv_obj_get_coords(body,&b);lv_obj_get_coords(ok,&a);assert(t.y2<b.y1&&b.y2<a.y1&&a.y1==256);assert(lv_obj_get_scroll_dir(body)==LV_DIR_VER);
+                lv_obj_t*text=lv_obj_get_child(body,0);if(kind==2)assert(lv_obj_get_height(text)>lv_obj_get_height(body));lv_obj_send_event(ok,LV_EVENT_CLICKED,NULL);nav_wait(50);
+            }
+            void zune_confirm(const char*,const char*,const char*,const char*,void(*)(void));zune_confirm("reset settings?","look and behaviour return to defaults, then diskos restarts. music, wi-fi, bluetooth, eq and audio settings are kept. this longer message must remain readable without covering the controls.","cancel","reset",NULL);nav_wait(50);lv_obj_t*no=ui_action_find("zune.confirm.no");assert(no);lv_obj_t*root=lv_obj_get_parent(no),*body=lv_obj_get_child(root,1);lv_area_t b,a;lv_obj_get_coords(body,&b);lv_obj_get_coords(no,&a);assert(b.y2<a.y1);lv_obj_send_event(no,LV_EVENT_CLICKED,NULL);nav_wait(50);
+            system_preview_confirmation(0);nav_wait(50);puts("PASS Zune confirmations: SD update, no key, verification help and reset have separate title/body/button bands; long messages scroll");
+        }
         if(getenv("REVIEW_ZUNE")){
             assert(th_zune()&&THEME_PRESET_ZUNE==13&&THEME_PRESET_DISCO==10);qs_wifi=qs_bt=0;
             lv_indev_t *in=lv_indev_create();lv_indev_set_type(in,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(in,nav_read);lv_timer_set_period(lv_indev_get_read_timer(in),10);
@@ -1273,7 +1314,7 @@ int main(int argc, char **argv){
         }
         if(getenv("ZMDIR")){ void fileops_action(const char*,const char*,int,void(*)(void),int); nav_wait(50); fileops_action(getenv("ZMDIR"),"t0.png",0,NULL,1); nav_wait(100); }
         if(getenv("ZART")){ void ui_zune_art_sync(void); cfg_set_int("zune_accent_art",1); ui_zune_art_sync(); ui_art_retry(); nav_wait(400); }
-        if(getenv("ZSCANCEL")){ nav_wait(200); lv_obj_t *o=ui_action_find("kb.zune.cancel"); fprintf(stderr,"cancel btn %p scr before %d\n",(void*)o,screen_current()); if(o) lv_obj_send_event(o,LV_EVENT_CLICKED,NULL); nav_wait(600); fprintf(stderr,"scr after %d\n",screen_current()); }
+        if(getenv("ZSCANCEL")){ nav_wait(200); lv_obj_t *o=find_visible_text(lv_layer_top(),"cancel"); fprintf(stderr,"cancel btn %p scr before %d\n",(void*)o,screen_current()); if(o) lv_obj_send_event(o,LV_EVENT_CLICKED,NULL); nav_wait(600); fprintf(stderr,"scr after %d\n",screen_current()); }
         if(getenv("ZHFOCUS")){ void zhome_test_focus(int); void home_set_weather(const char*); home_set_weather("\xEF\x86\x85  18\xC2\xB0" "C Clear"); zhome_test_focus(atoi(getenv("ZHFOCUS"))); nav_wait(100); }
         if(getenv("ZTAKE")){ nav_wait(50); int k=atoi(getenv("ZTAKE"));
             if(k==1){ ztake_t z={.icon=LV_SYMBOL_WIFI,.spin=1,.ring_pct=-1,.title="connecting",.sub="to studio",.l1="cancel"}; zune_takeover(&z); }
@@ -1771,7 +1812,7 @@ int main(int argc, char **argv){
                     float angle=(-90.0f+360.0f*i/n)*0.0174532925f;for(int r=128;r<=170;r+=21){lv_point_t pt={ma.x1+180+(int)lroundf(r*cosf(angle)),ma.y1+180+(int)lroundf(r*sinf(angle))};assert(lv_obj_hit_test(hit,&pt));}
                 }
             }
-            lv_obj_send_event(ui_action_find("kb.zune.cancel"),LV_EVENT_CLICKED,NULL);nav_wait(50);assert(!strcmp(zfollow_saved,"CANCEL"));
+            lv_obj_send_event(find_visible_text(lv_layer_top(),"cancel"),LV_EVENT_CLICKED,NULL);nav_wait(50);assert(!strcmp(zfollow_saved,"CANCEL"));
             kbinput_open("search","",zfollow_done);nav_wait(30);lv_obj_t*label=find_visible_text(lv_layer_top(),"a");assert(label);lv_obj_t*key=lv_obj_get_parent(label);lv_obj_t*hit=lv_obj_get_child(lv_obj_get_parent(key),lv_obj_get_index(key)+1);lv_obj_send_event(hit,LV_EVENT_SHORT_CLICKED,NULL);lv_obj_send_event(ui_action_find("kb.zune.done"),LV_EVENT_CLICKED,NULL);nav_wait(40);assert(!strcmp(zfollow_saved,"a"));
             screen_show(SCR_WORKMODE);nav_wait(50);const char*names[]={"playback","usb dac","storage","airplay","bt receiver"};for(int i=0;i<5;i++){lv_obj_t*l=find_visible_text(screen_get_root(SCR_WORKMODE),names[i]);assert(l);lv_obj_t*b=lv_obj_get_parent(l);assert(lv_obj_get_width(b)==144&&lv_obj_get_height(b)==56);lv_area_t a;lv_obj_get_coords(b,&a);assert(a.x1>=38&&a.x2<=333&&a.y1>=113&&a.y2<=288);}
             screen_show(SCR_QUICK);nav_wait(50);puts("PASS Zune follow-up: keyboard sector targets on all pages, cancel, typed submission, five visible mode targets");
@@ -2271,6 +2312,15 @@ int main(int argc, char **argv){
         puts("PASS: real bounded decoder feeds 364px immersive image and async timed lyrics; close/reopen works");
     }
 render:
+    if(getenv("AUDIT_VERTICAL")){for(int i=0;i<12;i++){nav_wait(137);audit_vertical(lv_screen_active());audit_vertical(lv_layer_top());}}
+    if(getenv("REVIEW_ZUNE_VOLUME")){
+        screen_show(SCR_NOWPLAYING);nav_wait(250);ui_show_volume(60);nav_wait(50);assert(ui_volume_overlay_visible());
+        for(int x=0;x<360;x+=12)for(int y=0;y<360;y+=12)assert(!ui_np_seek_press(x,y));
+        lv_obj_t*panel=lv_obj_get_child(lv_layer_top(),-1);assert(lv_obj_has_flag(panel,LV_OBJ_FLAG_CLICKABLE));
+        lv_obj_send_event(panel,LV_EVENT_CLICKED,NULL);assert(!ui_volume_overlay_visible());assert(screen_current()==SCR_NOWPLAYING);
+        screen_set_anim(1);ui_np_fsart_open();nav_wait(100);assert(ui_np_fsart_active());assert(lv_anim_count_running()>0);ui_np_fsart_close();nav_wait(300);assert(!ui_np_fsart_active()&&screen_current()==SCR_NOWPLAYING);
+        puts("PASS Zune volume blocks ring seeking, background dismisses without navigation; Immersive animated return stays on Music");
+    }
     /* Design preview only: gesture replacement is not enabled in production. */
     if(getenv("REVIEW_ALBUMWALL_LIFETIME")){
         assert(mdb_load()==40);screen_set_anim(0);

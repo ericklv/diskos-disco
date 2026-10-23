@@ -5,7 +5,7 @@
 #ifndef ZUNE_DIAL_H
 #define ZUNE_DIAL_H
 #include "lvgl/lvgl.h"
-#define ZDIAL_MAX 24          /* items in one dial (a looping dial keeps three copies of them) */
+#define ZDIAL_MAX 32          /* items in one dial (a looping dial keeps three copies of them) */
 #define ZDIAL_ROWS (ZDIAL_MAX * 3)
 /* labels: n items (lower case); focus: the item on the focus line at start; pick(i): a tap on item i.
  * top: rows above this screen y are hidden (room for a header); action: ui_on name prefix, e.g. "npmenu.zune" */

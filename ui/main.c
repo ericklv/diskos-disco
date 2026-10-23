@@ -3606,7 +3606,7 @@ int main(int argc, char **argv){
                     s_press_scr=screen_current();   /* a gesture belongs to the screen it STARTED on */
                     cover_tap = 0;
                     fsart_touch = ui_np_fsart_active();   /* latch: overlay owns this whole gesture */
-                    sleep_touch = ui_np_overlay_active() || azjump_owns_point(p.x,p.y)   /* latch: the sleep popover owns this whole gesture, */
+                    sleep_touch = ui_volume_overlay_visible() || ui_np_overlay_active() || azjump_owns_point(p.x,p.y)   /* latch: the sleep popover owns this whole gesture, */
                                || (screen_current()==SCR_EQ_EDITOR && eqcustom_owns_point(p.x, p.y))    /* and so does the EQ dial (fork) */
                                || (screen_current()==SCR_SPHERE && sphere_ui_owns_point(p.x, p.y));     /* and SongSphere's marker */
                     seek_touch = dhome_owns_point(p.x, p.y) || simple_owns_point(p.x,p.y);

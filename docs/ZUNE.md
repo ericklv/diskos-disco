@@ -112,3 +112,9 @@ Folder titles have an explicit full-font line height and follow their row's curv
 Music artwork moves left from -46 to -82 while retaining its 192-pixel size. The metadata column starts at 122 instead of 158 and has a nominal 224-pixel width (previously 184), narrowed at the round bezel. Two-line title and artist fitting remain. The line under duration uses Immersive's per-track cached format, bitrate and sample rate, including its marked file-size estimate when needed. No new metadata polling or worker is introduced.
 
 Validation includes folder focus changes at three scroll positions, one horizontal title at a time with no vertical offset, full line height, curved width and covered-page stop; Music long names, metadata hit/seek boundaries, technical-line placement and unchanged-update DB-query counts. Before/after renders use identical fixtures. Physical testing remains pending.
+
+### Main icon and modal interactions
+
+Display > Music screen > Zune sets Main icon, Main icon double-tap and Main icon hold independently. The main-menu icon sits at the right edge, vertically centered. Each setting offers 27 shared shortcuts and actions, including Nothing. Defaults are Up Next, Search and Music screen. A hold or double-tap does not also trigger the single-tap action. The unused Now Playing style setting is hidden for Zune.
+
+SD update, error and reset confirmations reserve separate heading, message and button areas. Long messages can be dragged within their viewport. Volume owns the whole touch gesture so adjusting its dial cannot seek or navigate Music underneath it. Immersive uses the shared disc animation when Animations is enabled, and returns to Zune Music.

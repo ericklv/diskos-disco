@@ -2,6 +2,7 @@
 #include "null_theme.h"
 #include "onboarding.h"
 #include "quicksettings.h"
+#include "home_shortcuts.h"
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Copyright (C) 2026 diskOS contributors */
 #include "screens.h"
@@ -195,6 +196,8 @@ static void apply_language(int v){ (void)v; theme_reload_or_revert("language"); 
 
 static void rescan_go(void){ ui_rescan_library(); }
 static void apply_autotag(int v){ (void)v; }
+static void apply_grp_zune(int v);
+static void apply_zune_main(int v){(void)v;home_shortcuts_refresh();}
 static void apply_upnext(int v){ (void)v; home_shortcuts_refresh(); }
 
 /* ---- Date & Time (parity with stock: automatic time switch, set by hand, time zone) ---------------------------- */
@@ -750,6 +753,10 @@ static const char *const D_NPSTYLE[] = {
 };
 
 static const setting_t TABLE[] = {
+    {"Music screen","Zune",ST_ACTION,NULL,0,0,0,NULL,0,LV_SYMBOL_RIGHT,apply_grp_zune,0,"Set the main icon and its double-tap and hold actions.",NULL},
+    {"Zune","Main icon",ST_CHOICE,"zune_main",0,0,0,zune_main_names,ZMAIN_COUNT,NULL,apply_zune_main,ZMAIN_UPNEXT,"Tap the edge icon on the main menu.",NULL},
+    {"Zune","Main icon double-tap",ST_CHOICE,"zune_double",0,0,0,zune_main_names,ZMAIN_COUNT,NULL,NULL,ZMAIN_SEARCH,"Double-tap the main icon for this shortcut.",NULL},
+    {"Zune","Main icon hold",ST_CHOICE,"zune_hold",0,0,0,zune_main_names,ZMAIN_COUNT,NULL,NULL,ZMAIN_MUSIC,"Hold the main icon for this shortcut.",NULL},
     {"Controls","Menu hold",ST_CYCLER,"zune_nav_hold",0,0,0,OPT_NAV_ACTION,DISCO_NAV_COUNT,NULL,NULL,DISCO_NAV_MUSIC,"Hold a row on the Zune main menu. Shuffle! starts the whole library.",NULL},
     { "Playback", "Library seeking", ST_CYCLER,"library_seeking",0,0,0,OPT_LIBRARY_SEEK,2,NULL,NULL,0,
       "A-Z picker uses the letter grid. Letter wheel: hold the scrollbar letter, turn around the screen, then tap the centre to jump. After release, 1 second without touching also jumps.",NULL },
@@ -1177,6 +1184,7 @@ static void apply_grp_musicinfo(int v){(void)v;g_active_group="Music info";setli
 static void apply_grp_clockinfo(int v){(void)v;g_active_group="Clock and info";setlist_refresh();}
 static void apply_grp_musicprogress(int v){(void)v;g_active_group="Music progress";setlist_refresh();}
 static void apply_grp_immersive(int v){(void)v;g_active_group="Immersive";setlist_refresh();}
+static void apply_grp_zune(int v){(void)v;g_active_group="Zune";setlist_refresh();}
 static void apply_null_options(int v){(void)v;g_active_group="Navigation";setlist_refresh();}
 static void apply_disco_options(int v){ (void)v; g_active_group = "Music screen"; setlist_refresh(); }
 /* Settings sub-groups (Display, Disco Options and System are split into short pages; back steps up one level) */
@@ -1210,6 +1218,7 @@ static const struct { const char *child, *parent; } SUBGROUP[] = {
     { "Online & cache", "Layout & extras" },
     { "Gestures", "Navigation" },
     { "Quick settings", "Navigation" },
+    { "Zune", "Music screen" },
     { "Music text", "Music screen" },
     { "Music info", "Music screen" },
     { "Clock and info", "Music info" },
@@ -1909,6 +1918,7 @@ static void howto_body(lv_obj_t *root){
     }
     const char *bodies[]={disco_mirror()?"Swipe left from the right edge: back. Swipe up from the bottom on other screens: Music. Pull down from the top: QS.":"Swipe right from the left edge: back. Swipe up from the bottom on other screens: Music. Pull down from the top: QS.",nav,music,seek,quick,"Hold an item for actions. Tap A-Z, then a letter. Drag the rim to scroll. Cover flow: drag to browse; tap for tracks; hold to play.","Swipe across songs, albums, artists or folders to pick several. Queue: add songs, then Play on the Queue screen, even with nothing playing.","Clock: tap for Weather; hold the top strip to hide/show. Drag volume to adjust; tap outside to dismiss.",more,"Hold Volume Up at power-on: the other interface, once. Always: Controls > Default UI. Battery: hold the line under the bar to reset totals.","Open Disc Shelf. In Server, choose Navidrome or SMB3. Swipe rows to select, then Download. Nothing syncs with it closed. SMB3 is experimental.","Set Navigation > Gestures > Menu hold to Shuffle! Hold the open menu control to shuffle all songs, return to Music and see Happy listening!"};
     _Static_assert(sizeof titles/sizeof *titles==sizeof bodies/sizeof *bodies,"one body per how-to page");
+    if(th_zune()){bodies[1]="Main menu: drag the list and tap an item. Tap, double-tap or hold the edge icon for your shortcuts. Set them in Display > Music screen > Zune.";}
     if(th_simple()){
         snprintf(nav,sizeof nav,"Tap D! to open. Drag the wheel to browse; release to snap. Tap the icon to open. D! closes; double-tap D! / hold either icon for your shortcuts.");
         snprintf(quick,sizeof quick,"Eight icon slots. Tap Wi-Fi / Bluetooth to toggle; hold for connections. Tap EQ to switch it; hold for the Equalizer. Hold other icons for names. Drag the sun arc for brightness; battery arc shows charge.");
