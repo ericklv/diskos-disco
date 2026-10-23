@@ -74,9 +74,24 @@ static void zpiv_go(void *p);
 static const char *zlow(const char *t);
 static void zpiv_attach(void);
 int library_wall_active(void);
-static lv_obj_t *g_category_strip;
+static mp_host_t g_mp;
+static lv_obj_t *g_category_strip, *g_category_next;
+static int category_modern(void){return th_zune()||th_disco_family()||th_null();}
 static void category_click(lv_event_t *e){if(lv_event_get_code(e)==LV_EVENT_CLICKED)lv_async_call(zpiv_go,lv_event_get_user_data(e));}
-void library_category_nav(lv_obj_t *root,int index){
+void library_category_nav(lv_obj_t *root,int index,lv_obj_t *original){
+    static const char *const cats[]={"Songs","Albums","Artists","Genres"};
+    if(category_modern()){
+        int x=th_zune()?100:th_simple()?124:116;
+        const lv_font_t*f=th_zune()?zune_font(&font_zune_light_50):th_disco()?TF(UI_28):TF(HEADER);
+        lv_obj_t*clip=lv_obj_create(root);lv_obj_remove_style_all(clip);kit_keep(clip);lv_obj_set_pos(clip,x,32);lv_obj_set_size(clip,360-x,lv_font_get_line_height(f)+4);lv_obj_remove_flag(clip,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_t*active=lv_label_create(clip);kit_keep(active);theme_title_text(active,cats[index]);lv_obj_set_style_text_font(active,f,0);lv_obj_set_style_text_color(active,TC(TEXT_PRIMARY),0);lv_obj_set_style_text_letter_space(active,th_zune()?-2:0,0);
+        lv_point_t size;lv_text_get_size(&size,lv_label_get_text(active),f,th_zune()?-2:0,0,LV_COORD_MAX,LV_TEXT_FLAG_NONE);
+        lv_obj_t*next=lv_label_create(clip);kit_keep(next);theme_title_text(next,cats[(index+1)%4]);lv_obj_set_style_text_font(next,f,0);lv_obj_set_style_text_color(next,TC(TEXT_PRIMARY),0);lv_obj_set_style_text_opa(next,LV_OPA_50,0);lv_obj_set_style_text_letter_space(next,th_zune()?-2:0,0);lv_obj_set_pos(next,size.x+24,0);lv_obj_add_flag(next,LV_OBJ_FLAG_CLICKABLE);
+        ui_on(next,category_click,LV_EVENT_CLICKED,(void*)(intptr_t)1,"library.category.next",UI_CORE);
+        if(original)lv_obj_add_flag(original,LV_OBJ_FLAG_HIDDEN);
+        if(root==lv_obj_get_parent(g_list)){g_category_strip=clip;g_category_next=next;g_mp.title=active;}
+        zpiv_attach();return;
+    }
     static const char *const names[]={"Songs","Albums","Artists","Genres"};
     lv_obj_t *row=lv_obj_create(root);lv_obj_remove_style_all(row);kit_keep(row);lv_obj_set_pos(row,24,76);lv_obj_set_size(row,312,26);lv_obj_remove_flag(row,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
     for(int d=-1;d<=1;d+=2){lv_obj_t*l=lv_label_create(row);kit_keep(l);char b[64];
@@ -89,10 +104,11 @@ void library_category_nav(lv_obj_t *root,int index){
 }
 static void category_refresh(void){
     int k=zpiv_index();
-    if(g_category_strip){lv_obj_delete(g_category_strip);g_category_strip=NULL;}
-    if(k>=0)library_category_nav(lv_obj_get_parent(g_list),k);
+    if(g_category_strip){lv_obj_delete(g_category_strip);g_category_strip=NULL;g_category_next=NULL;}
+    g_mp.title=g_title;if(g_title)lv_obj_remove_flag(g_title,LV_OBJ_FLAG_HIDDEN);
+    if(k>=0)library_category_nav(lv_obj_get_parent(g_list),k,g_title);
     if(!th_zune()){
-        lv_obj_set_pos(g_list,library_wall_active()?0:22,k>=0?106:LIST_Y);lv_obj_set_size(g_list,library_wall_active()?360:316,k>=0?216:LIST_H);
+        lv_obj_set_pos(g_list,library_wall_active()?0:22,k>=0?(category_modern()?96:106):LIST_Y);lv_obj_set_size(g_list,library_wall_active()?360:316,k>=0?(category_modern()?226:216):LIST_H);
         lv_obj_set_flex_align(g_list,LV_FLEX_ALIGN_START,library_wall_active()?LV_FLEX_ALIGN_START:LV_FLEX_ALIGN_CENTER,LV_FLEX_ALIGN_CENTER);
     }
     if(library_wall_active()){lv_obj_set_width(g_list,360);lv_obj_set_x(g_list,0);}
@@ -172,7 +188,7 @@ static void position_tick(void){
 }
 static void focus_clear(void);
 static void sel_exit(void);           /* stop picking several items (multi-select, below) */
-static mp_host_t g_mp;                /* the picking state (multipick.c) */
+/* g_mp is declared with the category header, whose title follows selection. */
 static void az_show(int on);
 static void focus_scroll_begin(lv_event_t*);
 /* album order: disc, then track number (untagged tracks after tagged ones), then title */
@@ -766,7 +782,7 @@ static int lib_pick_collect(const uint8_t *sel, int cap, int **out){
     if(a.fail){ free(a.ids); *out = NULL; return -1; }
     *out = a.ids; return a.n;
 }
-static void lib_pick_az(int show){ az_show(show ? g_count >= 20 : 0); }
+static void lib_pick_az(int show){az_show(show?g_count>=20:0);if(g_category_next){if(show)lv_obj_remove_flag(g_category_next,LV_OBJ_FLAG_HIDDEN);else lv_obj_add_flag(g_category_next,LV_OBJ_FLAG_HIDDEN);}}
 static void sel_exit(void){ mp_exit(&g_mp); }
 int library_picking(void){ return mp_active(&g_mp); }
 void library_pick_demo(const char *csv){ mp_demo(&g_mp, csv); }
@@ -1627,7 +1643,7 @@ static int category_index(void){return screen_current()==SCR_ALBUMWALL?1:zpiv_in
 static void menu_go(int v);
 static void zpiv_anim_x(void *o, int32_t v){ lv_obj_set_style_translate_x(o, v, 0); }
 static void zpiv_slide(int dir){
-    lv_obj_t *o[2] = { g_list, g_zpiv };
+    lv_obj_t *o[2] = { g_list, g_category_strip?g_category_strip:g_zpiv };
     for(int k = 0; k < 2; k++){
         if(!o[k])continue;
         lv_anim_t a; lv_anim_init(&a); lv_anim_set_var(&a, o[k]); lv_anim_set_exec_cb(&a, zpiv_anim_x);

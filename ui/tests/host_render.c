@@ -129,10 +129,10 @@ static int find_sharp_image(lv_obj_t *root){
 /* Fixture seams exist only in the host executable; device firmware gates remain intact. */
 static int fixture, send_result, send_count;static char last_sent[32];
 int __real_ui_local_playback_allowed(void);
-int __wrap_ui_local_playback_allowed(void){return getenv("REVIEW_ZUNE")?1:__real_ui_local_playback_allowed();}
+int __wrap_ui_local_playback_allowed(void){return (getenv("REVIEW_ZUNE")||getenv("REVIEW_ZUNE_BACK"))?1:__real_ui_local_playback_allowed();}
 static int null_transport_calls;static char null_last_command[24];
 int __real_ui_transport_command(const char*);
-int __wrap_ui_transport_command(const char*cmd){if(getenv("REVIEW_ZUNE")||getenv("REVIEW_SHELF_PLAYER")||getenv("REVIEW_NULL")||getenv("REVIEW_NULL_GESTURES")||getenv("REVIEW_SQUASH_HOLD")||getenv("REVIEW_SIMPLE_PERF")||getenv("REVIEW_SIMPLE")){null_transport_calls++;snprintf(null_last_command,sizeof null_last_command,"%s",cmd);return 0;}return __real_ui_transport_command(cmd);}
+int __wrap_ui_transport_command(const char*cmd){if(getenv("REVIEW_ZUNE")||getenv("REVIEW_ZUNE_BACK")||getenv("REVIEW_SHELF_PLAYER")||getenv("REVIEW_NULL")||getenv("REVIEW_NULL_GESTURES")||getenv("REVIEW_SQUASH_HOLD")||getenv("REVIEW_SIMPLE_PERF")||getenv("REVIEW_SIMPLE")){null_transport_calls++;snprintf(null_last_command,sizeof null_last_command,"%s",cmd);return 0;}return __real_ui_transport_command(cmd);}
 int __real_ipc_send_cmd(const char *frame);
 int __wrap_ipc_send_cmd(const char *frame){send_count++;snprintf(last_sent,sizeof last_sent,"%s",frame);return fixture?send_result:__real_ipc_send_cmd(frame);}
 int __real_fw_custom_peq_writable(void);
@@ -1283,7 +1283,7 @@ int main(int argc, char **argv){
         if(getenv("ZUNE_SLEEP")){ ui_set_sleep_timer(atoi(getenv("ZUNE_SLEEP"))); zune_status_refresh(); nav_wait(100); }
         if(getenv("ZUNE_LYRICS")){ sd_io_init(media_local); sd_io_resume(); cfg_set_int_deferred("online_lyrics",0); lyrics_open();
             for(int i=0;i<300;i++){ lv_tick_inc(10); lv_timer_handler(); lyrics_poll(NULL); usleep(2000); } }
-        if(getenv("ZUNE_IMM")){ void ui_zune_imm_preview(int,int); nav_wait(200); ui_zune_imm_preview(atoi(getenv("ZUNE_IMM")),550); nav_wait(300); }
+        if(getenv("ZUNE_IMM")){ void ui_zune_imm_preview(int,int); nav_wait(200); if(th_disco_family()||th_null()){disco_open_np_immersive();nav_wait(900);} ui_zune_imm_preview(atoi(getenv("ZUNE_IMM")),550); nav_wait(300); }
         if(getenv("ZUNE_SI")){ songinfo_set(&st); nav_wait(200); }
         if(getenv("ZSEARCH_Q")){ void search_test_query(const char*); void kbinput_close(void); nav_wait(100); search_test_query(getenv("ZSEARCH_Q")); for(int i=0;i<20;i++){lv_tick_inc(10);lv_timer_handler();} }
         if(getenv("ZAZ")){ void azjump_test_grid(void); azjump_test_grid(); for(int i=0;i<10;i++){lv_tick_inc(10);lv_timer_handler();} }
@@ -1640,15 +1640,19 @@ int main(int argc, char **argv){
         if(getenv("REVIEW_ZUNE_BACK")){
             lv_indev_t *in=lv_indev_create();lv_indev_set_type(in,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(in,nav_read);lv_timer_set_period(lv_indev_get_read_timer(in),10);
             for(int scrub=0;scrub<=1;scrub++){
-                cfg_set_int_deferred("imm_scrub",scrub);screen_show(SCR_NOWPLAYING);ui_np_fsart_open();nav_wait(500);assert(ui_np_fsart_active());
-                nav_touch((lv_point_t){180,200},50);assert(ui_np_fsart_active());
+                cfg_set_int_deferred("imm_scrub",scrub);if(th_disco_family()||th_null())disco_open_np_immersive();else{screen_show(SCR_NOWPLAYING);ui_np_fsart_open();}nav_wait(900);assert(ui_np_fsart_active());
+                nav_touch((lv_point_t){180,100},50);assert(ui_np_fsart_active());
+                lv_obj_t *buttons[]={ui_action_find("imm.zune.prev"),ui_action_find("imm.zune.pp"),ui_action_find("imm.zune.next")};
+                const char *commands[]={"0201000C0002","0201000C0000","0201000C0001"};
+                for(int k=0;k<3;k++){assert(buttons[k]);assert(!lv_obj_has_flag(lv_obj_get_parent(buttons[k]),LV_OBJ_FLAG_HIDDEN));int n=send_count;nav_touch_object(buttons[k],50);nav_wait(400);assert(send_count==n+1&&!strcmp(last_sent,commands[k]));assert(ui_np_fsart_active());}
+
                 nav_pointer=(lv_indev_data_t){.point={12,180},.state=LV_INDEV_STATE_PRESSED};nav_wait(30);
                 nav_pointer.point.x=90;nav_wait(70);assert(ui_np_fsart_active());
                 nav_pointer.point.x=18;nav_wait(40);nav_pointer.state=LV_INDEV_STATE_RELEASED;nav_wait(100);assert(ui_np_fsart_active());
                 nav_pointer=(lv_indev_data_t){.point={12,180},.state=LV_INDEV_STATE_PRESSED};nav_wait(30);
                 for(int x=12;x<=130;x+=8){nav_pointer.point.x=x;nav_wait(15);}nav_pointer.state=LV_INDEV_STATE_RELEASED;nav_wait(500);assert(!ui_np_fsart_active());
             }
-            lv_indev_delete(in);puts("PASS Zune immersive: controls tap, cancelled edge swipe, completed edge Back with scrubbing off and on");
+            lv_indev_delete(in);puts("PASS shared immersive: controls tap, cancelled edge swipe, completed edge Back with scrubbing off and on");
         }
         if(getenv("REVIEW_ZQS")){
             assert(quicksettings_item_limit()==6);int ids[10],saved[10];int n=quicksettings_items_load(saved);assert(n<=6);
@@ -1673,8 +1677,11 @@ int main(int argc, char **argv){
             assert(!library_picking());assert(screen_current()==(simple_cfg_get_int("album_view",0)==2?SCR_ALBUMWALL:SCR_LIBRARY));
             int library_test_pivot(void);assert(library_test_pivot()==1);
             lv_obj_t *next=ui_action_find("library.category.next");assert(next);lv_obj_send_event(next,LV_EVENT_CLICKED,NULL);nav_wait(500);assert(screen_current()==SCR_LIBRARY&&library_test_pivot()==2);
-            lv_obj_t *prev=ui_action_find("library.category.prev");assert(prev);lv_obj_send_event(prev,LV_EVENT_CLICKED,NULL);nav_wait(500);assert(library_test_pivot()==1);
-            prev=ui_action_find("library.category.prev");assert(prev);lv_obj_send_event(prev,LV_EVENT_CLICKED,NULL);nav_wait(500);assert(screen_current()==SCR_LIBRARY&&library_test_pivot()==0);lv_indev_delete(in);puts("PASS library: header swipe changes category without selection, adjacent category tap returns to library");
+            for(int target=1;target>=0;target--){
+                nav_pointer=(lv_indev_data_t){.point={130,65},.state=LV_INDEV_STATE_PRESSED};nav_wait(30);
+                for(int x=130;x<=225;x+=6){nav_pointer.point.x=x;nav_wait(15);}nav_pointer.state=LV_INDEV_STATE_RELEASED;nav_wait(500);assert(library_test_pivot()==target);
+            }
+            assert(screen_current()==SCR_LIBRARY);lv_indev_delete(in);puts("PASS library: header swipe changes category without selection, adjacent category tap returns to library");
         }
         if(getenv("QS_EDITOR"))disco_qs_menu_open();
         if(getenv("QS_SETTINGS")){

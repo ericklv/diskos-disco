@@ -88,3 +88,6 @@ diskos-update/
 shelf.conf
 
 /ui/vendor/smb-build/
+
+# Generated Zune font instances (source lives in ui/fonts/zune).
+.fontcache/

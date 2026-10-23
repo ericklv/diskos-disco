@@ -510,8 +510,8 @@ void albumwall_refresh(void){
     lv_obj_set_style_bg_color(g_root, TC(CANVAS), 0);
     lv_obj_set_style_bg_opa(g_root, LV_OPA_COVER, 0);
     g_zpos = NULL;
-    if(th_zune())zune_pivot(g_root,"albums",aw_back_cb);else ui_header_cb(g_root,"Albums",aw_back_cb);
-    void library_category_nav(lv_obj_t *,int);library_category_nav(g_root,1);
+    lv_obj_t *heading=th_zune()?zune_pivot(g_root,"albums",aw_back_cb):ui_header_cb(g_root,"Albums",aw_back_cb);
+    void library_category_nav(lv_obj_t *,int,lv_obj_t *);library_category_nav(g_root,1,heading);
     if(th_zune())zune_status(g_root,SCR_ALBUMWALL);
 
     g_nalb = g_names ? mdb_albums(g_names, g_artists, g_counts, g_names_cap) : 0;

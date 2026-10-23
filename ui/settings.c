@@ -860,7 +860,7 @@ static const setting_t TABLE[] = {
       "Vinyl: spinning grooves. CD: spinning disc with a fixed rainbow sheen. Cover: spinning artwork, without a disc overlay.", NULL },
     { "Text & Layout",  "Immersive Lyrics", ST_TOGGLE, "imm_lyrics", 0,1,1, NULL, 0, NULL, apply_imm, 1,
       "Show synced lyrics over a darkened part of Immersive. Off shows artwork only.", NULL },
-    {"Immersive","Circular control",ST_TOGGLE,"imm_scrub",0,1,1,NULL,0,NULL,apply_imm_control,0,"Drag the artwork clockwise or counterclockwise. Tap no longer exits; use Back.",NULL},
+    {"Immersive","Circular control",ST_TOGGLE,"imm_scrub",0,1,1,NULL,0,NULL,apply_imm_control,0,"Drag the artwork clockwise or counterclockwise. Tap shows playback controls; swipe from the left edge to go Back.",NULL},
     {"Immersive","Control action",ST_CYCLER,"imm_scrub_action",0,0,1,OPT_IMM_CONTROL,2,NULL,apply_imm_control,0,"Duration seeks on release and holds lyrics during the drag. Volume adjusts live.",NULL},
     { "Text & Layout",  "Disc Colour", ST_CYCLER, "disc_colour", 0,0,0, OPT_DISCCOLOUR, 3, NULL, NULL, 0,
       "The colour of the Disc drawn on the startup screen. Set it to match yours.", NULL },
@@ -1415,7 +1415,7 @@ static void zsetlist(lv_obj_t *root){
     for(int ri = 0; ri < count; ri++){
         int i = indices[ri]; const setting_t *s = &TABLE[i];
         lv_obj_t *row = lv_obj_create(list); lv_obj_remove_style_all(row); kit_keep(row);
-        lv_obj_set_size(row, 300, 50); lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE); lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_size(row, 300, 54); lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE); lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
         int onoff = zis_onoff(s);
         if(onoff) ui_on(row, zrow_toggle_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)i, "settings.zrow", UI_CORE);
         else ui_on(row, row_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)i, "settings.row", UI_CORE);
@@ -1903,7 +1903,7 @@ static void howto_body(lv_obj_t *root){
     snprintf(more,sizeof more,"%s EQ: tap a band; drag or use +/-. Tap gain/frequency to switch. Power button: pocket lock.",onboarding_gesture_text(HINT_SHORTCUTS));
     {   /* Immersive: with Circular control on, taps don't close it (2.5.4) */
         int circ=simple_cfg_get_int("imm_scrub",0), vol=simple_cfg_get_int("imm_scrub_action",0)==1;
-        const char *imm=circ?(vol?"Full-screen artwork: turn it for volume; swipe from the edge to return.":"Full-screen artwork: turn it to seek; swipe from the edge to return."):"Tap full-screen artwork to return.";
+        const char *imm=circ?(vol?"Full-screen artwork: turn it for volume; swipe from the edge to return.":"Full-screen artwork: turn it to seek; swipe from the edge to return."):"Tap full-screen artwork for playback controls; swipe from the left edge to return.";
         snprintf(seek,sizeof seek,"%s %s Back swipe closes the track popup.",th_null()?"Tap or drag progress to seek; hold for a big time preview, let go to jump.":"Tap / drag progress to seek; hold for a big time preview, let go to jump.",imm);
     }
     const char *bodies[]={disco_mirror()?"Swipe left from the right edge: back. Swipe up from the bottom on other screens: Music. Pull down from the top: QS.":"Swipe right from the left edge: back. Swipe up from the bottom on other screens: Music. Pull down from the top: QS.",nav,music,seek,quick,"Hold an item for actions. Tap A-Z, then a letter. Drag the rim to scroll. Cover flow: drag to browse; tap for tracks; hold to play.","Swipe across songs, albums, artists or folders to pick several. Queue: add songs, then Play on the Queue screen, even with nothing playing.","Clock: tap for Weather; hold the top strip to hide/show. Drag volume to adjust; tap outside to dismiss.",more,"Hold Volume Up at power-on: the other interface, once. Always: Controls > Default UI. Battery: hold the line under the bar to reset totals.","Open Disc Shelf. In Server, choose Navidrome or SMB3. Swipe rows to select, then Download. Nothing syncs with it closed. SMB3 is experimental.","Set Navigation > Gestures > Menu hold to Shuffle! Hold the open menu control to shuffle all songs, return to Music and see Happy listening!"};

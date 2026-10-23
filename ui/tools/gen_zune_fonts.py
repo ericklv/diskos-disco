@@ -15,17 +15,24 @@ CUTS = {  # weight name -> (wght, [(px, range)])
     'semibold': (600, [(10, TEXT), (11, TEXT), (12, TEXT), (22, TEXT), (24, TEXT)]),
 }
 def main():
-    p = argparse.ArgumentParser(); p.add_argument('--src', type=Path, required=True)
+    p = argparse.ArgumentParser(); p.add_argument('--src', type=Path, default=UI / 'fonts/zune/OpenSans-VF.ttf')
     p.add_argument('--converter', type=Path, default=UI.parent / 'node_modules/lv_font_conv/lv_font_conv.js'); a = p.parse_args()
     from fontTools.ttLib import TTFont; from fontTools.varLib import instancer
     tmp = UI.parent / '.fontcache'; tmp.mkdir(exist_ok=True)
+    # Existing symbol names are nominal slots. Enlarge their raster cuts, keeping all
+    # callers and fallback chains intact. No bitmap scaling or extra runtime font cache.
     for name, (w, sizes) in CUTS.items():
-        ttf = tmp / f'OpenSans-{name}.ttf'
-        if not ttf.exists(): instancer.instantiateVariableFont(TTFont(a.src), {'wght': w, 'wdth': 100}).save(ttf)
         for px, rng in sizes:
+            if name == 'light' and px == 64: continue  # drawn logo, not interface text
+            actual = px + (1 if px <= 17 else 2 if px <= 50 else 3)
+            weight = (350 if px <= 28 else 325) if name == 'light' else 425 if name == 'regular' else w
+            ttf = tmp / f'OpenSans-{name}-{weight}.ttf'
+            instancer.instantiateVariableFont(TTFont(a.src), {'wght': weight, 'wdth': 100}).save(ttf)
             fn = f'font_zune_{name}_{px}'
-            subprocess.run(['node', str(a.converter), '--font', str(ttf), '--size', str(px), '--bpp', '4', '--format', 'lvgl',
+            dest = UI / f'{fn}.c'
+            subprocess.run(['node', str(a.converter), '--font', str(ttf), '--size', str(actual), '--bpp', '4', '--format', 'lvgl',
                             '--range', rng, '--no-compress', '--force-fast-kern-format', '--lv-font-name', fn,
-                            '-o', str(UI / f'{fn}.c')], check=True)
-            print('made', fn)
+                            '-o', str(dest)], check=True)
+            dest.write_text(dest.read_text().replace(str(ttf), f'fonts/zune/OpenSans-VF.ttf@wght={weight}').replace(str(dest), dest.name).rstrip()+'\n')
+            print(f'made {fn}: {actual}px / weight {weight}', flush=True)
 if __name__ == '__main__': main()

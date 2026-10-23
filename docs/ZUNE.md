@@ -10,6 +10,14 @@ Home, music, immersive playback, library, album/artist views, selection, letter 
 
 The theme uses lowercase Open Sans, magenta accents, curved lists and a dark canvas. Appearance is fixed dark with an explanation in settings. Menu hold uses the existing configurable actions, including Shuffle!. Row swipes retain multiselect; library category swipes are restricted to the header.
 
+## Local legibility preview (not published)
+
+Zune raster fonts increase by 1px for the smallest text, 2px for body/headline cuts, and 3px for large numerals. Light text gains a little weight; the drawn logo stays unchanged. The source font and generator are included for reproducibility. No runtime bitmap scaling or polling is added. Settings rows gain 4px to fit their larger label/value pairs.
+
+The library header returns to the original fork’s pivot presentation: a large category with the next title peeking from the right, switching with the original 220/260ms list/header slide. The same presentation now uses Disco, Squash and Null’s own type and colours. Header swipes stay separate from row-selection swipes; Back and the album-view preference remain available. This supersedes the separate previous/next arrow row in the shared-controls pass below.
+
+34 host checks/render cases passed in this preview, covering category switching in all four modern themes and album modes, Zune screens and QS/immersive actions, and text-row selection in all four themes. Awaiting visual review and device testing; no branch push or binary packaging yet.
+
 ## Shared library and controls update
 
 All work remains on `integration/zune-theme`; main and release tags are untouched.
@@ -47,3 +55,9 @@ Host tests do not establish hardware stability. Before release: test long librar
 ## Credit
 
 Adapted from namastecoconut-imagined/diskos-disco-zune, commit `13821d6d024d6dfc90d6ac505ca7e4af94f4e256`. Open Sans retains its bundled SIL Open Font License. This is an unofficial fan theme and is not affiliated with Microsoft, FiiO or Snowsky.
+
+## Shared Immersive playback overlay (preview)
+
+Immersive includes the same tap-to-show controls in every theme. The heading, separate horizontally scrolling title and artist, white transport buttons and subtle accent shading follow the active theme. The existing dark scrim remains. Tap again to hide; swipe from the left edge to return, with cancellable gesture feedback. Circular scrubbing hides the controls while adjusting position or volume. Long metadata gets additional reading time before auto-hide.
+
+The overlay uses the existing Immersive timer, updates metadata only while visible, and inherits its screen-off/idle gate. No separate polling timer or worker is added. Host renders and edge-gesture checks cover all seven available presets; device testing remains necessary.
