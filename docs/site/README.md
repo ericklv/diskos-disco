@@ -16,7 +16,7 @@ Installation links include the macOS guide and external Apple Silicon flash tool
 
 ## 3.0.0 Zune walkthrough
 
-The original main-branch site remains the design baseline. Zune leads with seven interactive screens, four accents, full-size image viewing and keyboard-accessible screen selection. No external JavaScript or tracking is added. Reduced-motion readers retain normal page flow. The download panel explicitly distinguishes this 3.0.0 branch preview from the latest published installer.
+The original main-branch site remains the design baseline. Zune leads with seven interactive screens, four accents, full-size image viewing and keyboard-accessible screen selection. No external JavaScript or tracking is added. Reduced-motion readers retain normal page flow. The download panel links to the 3.0.0 release and the latest published installer.
 
 Regenerate the 28 actual LVGL screenshots in a disposable Linux host container:
 

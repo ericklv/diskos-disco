@@ -1,6 +1,6 @@
-# 3.0.0 release preparation
+# 3.0.0 validation notes
 
-Prepared on `integration/zune-theme`. Main, tags and the published GitHub Pages site are unchanged. Publishing a release is a separate step after device acceptance.
+Disco! 3.0.0 release validation record. The host checks below are complete; the listed hardware checks remain unverified.
 
 ## Prepared in this branch
 
@@ -26,4 +26,4 @@ Host validation does not establish physical compatibility or battery life. The W
 - [ ] Long library Wall/Coverflow sessions; real playback/downloads together; Wi-Fi and Bluetooth reconnects; memory and battery observation.
 - [ ] SMB3 transfers against a real NAS remain experimental until device tested.
 
-After acceptance, run `python3 tools/check-release.py --tag v3.0.0` and `python3 tools/package-release.py` from a clean checkout. Change the website’s explicit preview/coming-soon wording only when the corresponding download exists. Review the prepared notes before creating the tag. No tag or release is created by these scripts.
+To verify or reproduce the package, run `python3 tools/check-release.py --tag v3.0.0` and `python3 tools/package-release.py` from a clean checkout. No tag or release is created by these scripts.

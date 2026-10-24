@@ -6,7 +6,7 @@ Entries follow the Keep a Changelog format, with Added, Changed, and Fixed categ
 diskOS remains beta software; version numbers do not imply broad hardware or feature validation.
 
 
-## 3.0.0 — release candidate
+## 3.0.0
 
 Zune theme by [namastecoconut-imagined](https://github.com/namastecoconut-imagined/diskos-disco-zune), with Disco integration and legibility polish by zmd22. [Release notes](docs/releases/v3.0.0.md) and [validation checklist](docs/RELEASE_3.0.0.md).
 

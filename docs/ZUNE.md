@@ -1,6 +1,6 @@
 # Zune integration — Disco! 3.0.0
 
-The Zune integration is prepared on `integration/zune-theme`. Main and release tags remain unchanged. The visible version is 3.0.0; this branch is a release candidate, not a published release.
+The Zune integration is included in Disco! 3.0.0. See [the release](https://github.com/zmd22/diskos-disco/releases/tag/v3.0.0) for downloads.
 
 - [Theme guide and acknowledgements](themes/zune.md)
 - [3.0.0 release notes](releases/v3.0.0.md)

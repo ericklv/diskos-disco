@@ -1,6 +1,6 @@
 <h1 align="center">diskOS Disco!</h1>
 
-**3.0.0 release candidate:** [Meet Zune](docs/themes/zune.md) · [Release notes](docs/releases/v3.0.0.md) · [Remaining device checks](docs/RELEASE_3.0.0.md). Prepared on the Zune branch; not yet published.
+**Disco! 3.0.0:** [Meet Zune](docs/themes/zune.md) · [Release notes](docs/releases/v3.0.0.md) · [Validation notes](docs/RELEASE_3.0.0.md).
 
 <p align="center">
   <b>Your music. Your kind of Disco.</b><br>
@@ -41,7 +41,7 @@
 
 ## New in 3.0.0 — hello, Zune.
 
-**Zune by [namastecoconut-imagined](https://github.com/namastecoconut-imagined/diskos-disco-zune/commits?author=namastecoconut-imagined).** Bold type, deep black and an accent you choose. The original theme’s design and implementation are the foundation; zmd22 gave it a little Disco integration and polish for old, tired eyes. Thank you for sharing this lovely new way to enjoy the Disc.
+**Zune by [namastecoconut-imagined](https://github.com/namastecoconut-imagined/diskos-disco-zune/commits?author=namastecoconut-imagined).** Bold type, deep black and an accent you choose. The original theme’s design and implementation are the foundation; zmd22 gave it a little Disco integration and polish. Thank you for sharing this lovely new way to enjoy the Disc.
 
 **Immersive 3.0** brings Zune the shared spinning-disc transition and transport overlay. Larger small text, balanced settings, configurable tap/double-tap/hold shortcuts, a modal accent volume dial and shared Wall/Coverflow album views round out the update. The website adds an interactive seven-screen Zune walkthrough in four accents, including Immersive with its transport controls open.
 
@@ -393,6 +393,10 @@ usual surprises: [Flashing and switching interfaces](docs/SWITCHING.md).
 | [UI choices](docs/UI_CHOICES.md) | Why things look and work the way they do |
 | [Changelog](CHANGELOG.md) | Every Disco! release, newest first |
 | [All docs](docs/README.md) | Optional apps, hardware notes, developer workflow, legal |
+
+## A note from zmd22
+
+I’m out. Peace, and happy listening. Thank you to everyone who built, tested, shared and listened. Enjoy the music.
 
 ## Thanks
 
