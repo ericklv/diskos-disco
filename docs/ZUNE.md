@@ -6,7 +6,7 @@ Optional Zune-inspired styling on the 2.7.0 codebase, including the tested Disc 
 
 ## Scope
 
-Home, music, immersive playback, library, album/artist views, selection, letter pickers, search, queue, settings, Quick Settings, Wi-Fi, Bluetooth, modes, battery, screensaver, equalizer and apps use Zune styling. Disc Shelf retains its landing screen, download handling and music controls. The five existing working modes remain unchanged.
+Home, music, immersive playback, library, album/artist views, selection, letter pickers, search, queue, settings, Quick Settings, Wi-Fi, Bluetooth, modes, battery, screensaver, equalizer and apps use Zune styling. Disc Shelf retains its landing screen, download handling and music controls. The five existing source modes remain; a sixth USB-C output tile is described below.
 
 The theme uses lowercase Open Sans, magenta accents, curved lists and a dark canvas. Appearance is fixed dark with an explanation in settings. Menu hold uses the existing configurable actions, including Shuffle!. Row swipes retain multiselect; library category swipes are restricted to the header.
 
@@ -31,7 +31,7 @@ No new periodic timer is added. Header watching runs only during a held header t
 
 ## Preserve the working firmware
 
-The fork’s USB-C audio routing, power-button changes, framebuffer recovery, boot workarounds, automatic shutdown policy and global compiler optimization changes are excluded. Bluetooth and Wi-Fi backend behavior remains on the current base. No release version, tag, device binary or website release claim changes here.
+The original fork’s USB-C implementation was excluded; the guarded replacement below supersedes it. The fork’s power-button changes, framebuffer recovery, boot workarounds, automatic shutdown policy and global compiler optimization changes are excluded. Bluetooth and Wi-Fi backend behavior remains on the current base. No release version, tag, device binary or website release claim changes here.
 
 Thumbnail loading is limited to relevant visible pages, with a 24-entry cache and a sleeping worker off-page or with the display off. Visible clock/rim updates use the existing UI loop rather than extra periodic timers. This reduces unnecessary work; battery life and peak RAM still require device measurement.
 
@@ -124,3 +124,15 @@ Single-line marquee labels in Listening Stats, SongSphere and Tune use content h
 The selected volume design is A (Rim): a 328 px dial with 4 px track / 8 px accent level, Light 96 number, volume caption, gain label and square accent underline. Both accent elements use the current theme accent at every show. Entry fades in over 100 ms when Animations is enabled; drag updates remain direct. Immersive entry/exit reuses the shared spinning-disc transition for all three artwork styles; early exits cancel entry and reopening cancels exit.
 
 Home returns focus to Now Playing. Zune bottom-edge upward swipes take precedence over list rim scrolling and work from Music, Quick Settings and the main menu; modal overlays and saver wake touches keep their ownership. The Now Playing caption uses 16 px text in a wider, padded line box, with unchanged 64 px menu row pitch.
+
+### USB-C audio output
+
+Working modes > **usb-c out** sends local music to a USB DAC or active USB-C headphones. **usb dac** remains the opposite direction: computer audio into the Disc. Choose **playback** to return to the headphone jack. Return to Playback before changing to another source or Bluetooth output.
+
+The switch pauses a playing track, requires 500 ms of quiet PCM, requests USB host mode, then waits up to 8 seconds for a valid USB identity and playback PCM on `card1`, matching the existing route assumption; hardware validation must confirm that numbering. It requires 500 ms of stable readiness and rebinds the USB sink after enumeration (the first route request can select the player's silent placeholder). Only then does it mark USB active and resume the same track and player session. Previously paused playback remains paused.
+
+A timeout restores the complete internal route and drops the USB host request. Failed restoration stays in recovery, blocks conflicting playback/source/route commands, and retries until the sequence succeeds or a new player generation takes ownership. Disconnect handling uses the existing 3-second status poll and retries after busy or blocked periods; a failed request never clears the USB route cache or claims headphones have been restored.
+
+Host validation: `python3 ui/tests/usb_output_test.py` exercises the production state machine with simulated ALSA and IPC, including every entry/rebind command failure, rollback retry, delayed/intermittent enumeration, disconnect while busy, blocked fallback, malformed/input-only devices, stale tracks and restarts. Storage and Bluetooth regression tests cover the new route admission guards. Native UI checks cover the sixth tile and selection state.
+
+This is development-branch source, not a device compatibility claim. Real hardware must still verify card numbering, host-role switching, actual DAC startup, supported file formats/rates, USB-C cables/power, unplug/replug and output restoration. Passive analog USB-C adapters are not USB audio devices. USB output is not persisted as a boot preference; the existing player startup initializes the internal route.

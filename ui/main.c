@@ -174,6 +174,7 @@ void ui_clock_refresh(void){ clock_tick(NULL); }
  * device exposes no sysfs connection indicator and the HCI ioctl layout is fragile. */
 static void status_poll_cb(lv_timer_t *t){
     (void)t;
+    modes_usb_poll();
     /* Runs on the fast (3s) timer so charging/battery/wifi track plug/unplug promptly. */
     int batt = -1, charging = 0, wifi = 0, bt;
 
@@ -415,6 +416,7 @@ void ui_route_forget(const char *why){
     ui_bt_codec_upgrade_cancel(); ui_route_hold_cancel(); ui_resume_guard_cancel();
 }
 int ui_route_bt(const char *mac){
+    if(modes_output_route()==OUT_USB)return -1; /* leave USB through the guarded headphone transition first */
     if(modes_output_busy()) return -1;                  /* an output switch is in flight or recovering: the auto-route poll retries */
     if(!ui_local_playback_allowed()) return -1;
     if(ui_get_source_mode() != 0) return -1;            /* B02: only while the source is Playback (not USB DAC, receiving...) */
@@ -651,6 +653,10 @@ static void storage_unknown(const char *why){
 int ui_set_source_mode(int mode){
     if(modes_output_busy()){ ui_toast("Switching output - try again"); return -1; }
     if(mode < 0 || mode > 5) return -1;                 /* 0 Playback, 1 USB DAC, 2 BT DAC, 3 USB storage, 4 BT streaming, 5 AirPlay */
+    if(modes_output_route()==OUT_USB){
+        if(mode==0)return modes_output_mode_switch(OUT_INTERNAL);
+        ui_toast("Return to playback before changing USB mode");return -1;
+    }
     if(mode != 5) ma_mode_leaving();                    /* MA Sendspin rides on AirPlay: another mode turns it off */
     if(ui_source_switch_pending()){ ui_toast("Storage is switching"); return -1; }
     if(g_sd_phase == SD_UNKNOWN || g_sd_hold || !sd_io_healthy()){ ui_toast("SD access is held this boot"); return -1; }

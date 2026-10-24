@@ -8,6 +8,9 @@ diskOS remains beta software; version numbers do not imply broad hardware or fea
 
 ## Unreleased
 
+- Zune USB-C audio output: add a distinct output tile, pause and prove quiet before host switching, wait for a stable USB playback device, rebind the real sink, then resume only the same track/session.
+- USB recovery: restore headphones on enumeration timeout; retry busy/blocked unplug fallback without losing it; retain recovery state after failed restoration. Block source/Bluetooth routing around an active USB route until Playback restores headphones. Added production-state-machine failure tests; real DAC compatibility still needs device validation.
+
 - Zune Home: enlarge the Now Playing caption from 14 to 16 px with a wider, padded line box while preserving 64 px menu spacing. Home focuses Now Playing; bottom-edge Home swipes also work from Music and take priority over list-rim scrolling.
 
 - Zune volume A: thin accent rim, oversized number, quiet gain label and square accent marker; 100 ms entry fade with direct touch adjustment and modal seek protection.

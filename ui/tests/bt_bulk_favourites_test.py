@@ -135,6 +135,9 @@ int bt_codec_upgrade_pending(void){return pending;}
 static int audio_run=-1; int ui_audio_running(void){return audio_run;}
 void ui_bt_codec_upgrade_cancel(void){pending=0;cancels++;}
 static int arms;
+enum { OUT_INTERNAL=0, OUT_USB=2 };
+static int test_output_route;
+static int modes_output_route(void){return test_output_route;}
 static int modes_output_busy(void){return 0;}
 int ui_local_playback_allowed(void){return 1;}
 int ui_get_source_mode(void){return 0;}
@@ -164,6 +167,7 @@ int main(void){
  g_playing=0;
  /* P02 (delayed-pause report): no route while a song is still starting - its codec switch would land mid-song, unheld */
  g_route_mac[0]=0;pending=0;arms=0;sends=0;now=200000;g_playing=0;g_play_pending=now;
+ test_output_route=OUT_USB;assert(ui_route_bt("11:22:33:44:55:66")==-1&&sends==0);test_output_route=OUT_INTERNAL;
  assert(ui_route_bt("11:22:33:44:55:66")==-2 && sends==0 && arms==0 && !g_hold_since);   /* deferred: nothing sent */
  g_play_pending=0;g_playing=1;now=210000;
  assert(ui_route_bt("11:22:33:44:55:66")==0 && arms==1 && g_hold_since);   /* the song plays: routed, held for the codec */

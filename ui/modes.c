@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <glob.h>
 #include <math.h>
+#include <ctype.h>
 
 /* Working Mode (audio source) picker - mirrors stock's "Working mode" list. Tapping a mode replays
  * the captured V2.28 switch sequence via ui_set_source_mode() and marks it selected.
@@ -36,10 +37,10 @@ static const modeinfo_t MODES[] = {
     { "USB",     "storage",   LV_SYMBOL_DRIVE,      3 },
 };
 #define N_MODES ((int)(sizeof(MODES)/sizeof(MODES[0])))
-#define ROW_USB_AUDIO 100 /* only present in DISKOS_TEST_OUTPUTS builds; not 4 (= BT streaming's mode) */
+#define ROW_USB_AUDIO 100 /* legacy test-only route ID; not 4 (= BT streaming's mode) */
 
 /* OUTPUT-ROUTE-BEGIN */
-/* Output route: Internal DAC / SPDIF / USB Audio (SPDIF row + USB Audio picker row: -DDISKOS_TEST_OUTPUTS builds only).
+/* Output route: Internal DAC / SPDIF / USB Audio (USB output is exposed by Zune; SPDIF remains test-only).
  * Stock V2.57 (mq_ui_257.dis):
  *   Settings SPDIF toggle (0x480510 -> 0x464f0c):  0666 <6|4>, 0657 8                       (no 0642, no sleep)
  *   Working Mode callback 0x46bbac (200 ms one-shot): internal/SPDIF (0x46bd28): 0666 <6|4>, usleep 65 ms, 0642 0, 0657 8
@@ -50,14 +51,14 @@ static const modeinfo_t MODES[] = {
  * diskOS does (0666 into a live stream killed mq_player, scratch/device-runs/sacd-hang-0929): a switch is pause ->
  * PCM proven quiet for OUT_QUIET_MS -> route -> work mode -> resume. Leaving USB audio always uses the full sequence
  * (0642 0 drops the host request). USB_HOST needs the USB DAC card (else the player uses a silent USB_HOST_NULL
- * sink, 0x47c040), so diskOS re-checks it right before the frames and refuses instead.
+ * sink, 0x47c040), so diskOS waits for enumeration, then rebinds the real sink before resuming.
  * If a send fails after the route moved, the internal sequence is retried until it fully lands on a live player
  * connection (recovery-pending: every play/route/source command is refused meanwhile). */
 #ifndef OUT_PCM_GLOB
 #define OUT_PCM_GLOB "/proc/asound/card*/pcm*p/sub*/status"
 #endif
 #ifndef OUT_USB_CARD
-#define OUT_USB_CARD "/proc/asound/card1"   /* the USB DAC card; its usbid node exists for USB audio cards only (UNVERIFIED on this kernel) */
+#define OUT_USB_CARD "/proc/asound/card1"   /* existing player USB_HOST routing expects card1; device validation is still required */
 #endif
 #define OUT_QUIET_MS 500
 #define OUT_WAIT_MS  3000
@@ -70,10 +71,12 @@ static const out_seq_t OUT_SEQ[3] = {
     { "0666000C0003", "0642000C0005", 0 },       /* OUT_USB */
 };
 static void modes_ui_refresh(void);
+static void osw_tick(lv_timer_t *t);
+static void out_resume(int moved);
 static int g_out_route = OUT_INTERNAL;
 static unsigned g_out_gen = 0;
-static struct { int target, was_playing, full; unsigned gen; char path[256]; long pos; uint32_t t0, quiet0; lv_timer_t *tm; } g_osw;
-static int g_rec = 0; static unsigned g_rec_gen = 0; static lv_timer_t *g_rec_tm = NULL;
+static struct { int target, was_playing, full, usb_wait; unsigned gen; char path[256]; long pos; uint32_t t0, quiet0; lv_timer_t *tm; } g_osw;
+static int g_rec = 0; static unsigned g_rec_gen = 0; static uint32_t g_rec_quiet0; static lv_timer_t *g_rec_tm = NULL;
 
 static void out_set_state(int r){
     g_out_route = r; g_out_gen = ipc_generation();
@@ -98,21 +101,39 @@ int modes_local_init(int with_gadget){
 }
 /* 1 only when every playback PCM node is readable and none is RUNNING or DRAINING; unreadable / no nodes = not proven */
 static int out_pcm_quiet(void){
-    glob_t g; int quiet = 1;
-    if(glob(OUT_PCM_GLOB, 0, NULL, &g) != 0) return 0;
+    glob_t g={0}; int quiet = 1;
+    if(glob(OUT_PCM_GLOB, 0, NULL, &g) != 0){globfree(&g);return 0;}
     for(size_t i = 0; i < g.gl_pathc && quiet; i++){
         FILE *f = fopen(g.gl_pathv[i], "r"); char l[96] = "";
         if(!f){ quiet = 0; break; }
         if(!fgets(l, sizeof l, f)) l[0] = 0;
         fclose(f);
-        if(!l[0] || strstr(l, "RUNNING") || strstr(l, "DRAINING")) quiet = 0;
+        l[strcspn(l,"\r\n")]=0;
+        static const char *const safe[]={"closed","state: OPEN","state: SETUP","state: PREPARED","state: XRUN","state: PAUSED","state: SUSPENDED","state: DISCONNECTED"};
+        int known=0;for(unsigned k=0;k<sizeof safe/sizeof *safe;k++)if(!strcmp(l,safe[k]))known=1;
+        if(!known)quiet=0;
     }
     globfree(&g);
     return quiet;
 }
+/* Keep the existing card1 routing assumption; hardware validation must confirm it.
+ * Require a USB identity AND a playback PCM there;
+ * an input-only USB microphone, stale directory or another card is not proof this route can play. */
 static int out_usb_card_ok(void){
-    char p[96]; snprintf(p, sizeof p, "%s/usbid", OUT_USB_CARD);
-    return access(p, F_OK) == 0;
+    char p[512],id[32];snprintf(p,sizeof p,"%s/usbid",OUT_USB_CARD);
+    FILE*f=fopen(p,"r");if(!f)return 0;
+    int read=fgets(id,sizeof id,f)!=NULL;fclose(f);if(!read)return 0;
+    id[strcspn(id,"\r\n")]=0;if(strlen(id)!=9||id[4]!=':')return 0;
+    for(int i=0;i<9;i++)if(i!=4&&!isxdigit((unsigned char)id[i]))return 0;
+    snprintf(p,sizeof p,"%s/pcm*p/sub*/status",OUT_USB_CARD);glob_t g={0};int found=0;
+    if(glob(p,0,NULL,&g)==0)for(size_t i=0;i<g.gl_pathc&&!found;i++){
+        char status[96]="";FILE*pcm=fopen(g.gl_pathv[i],"r");if(!pcm)continue;
+        int read_status=fgets(status,sizeof status,pcm)!=NULL;fclose(pcm);if(!read_status)continue;
+        status[strcspn(status,"\r\n")]=0;
+        static const char *const ready[]={"closed","state: OPEN","state: SETUP","state: PREPARED","state: RUNNING","state: DRAINING","state: XRUN","state: PAUSED","state: SUSPENDED"};
+        for(unsigned k=0;k<sizeof ready/sizeof *ready;k++)if(!strcmp(status,ready[k]))found=1;
+    }
+    globfree(&g);return found;
 }
 /* 0 = whole sequence sent; -1 = the 0666 was refused (nothing changed); -2 = the route moved but the tail failed */
 static int out_seq_send(int t, int full){
@@ -125,35 +146,46 @@ static int out_seq_send(int t, int full){
     return 0;
 }
 /* recovery-pending: retry the full internal sequence until it lands on the same live player connection */
-static void out_rec_clear(void){ if(g_rec_tm){ lv_timer_del(g_rec_tm); g_rec_tm = NULL; } g_rec = 0; }
+static void out_rec_clear(void){ if(g_rec_tm){ lv_timer_del(g_rec_tm); g_rec_tm = NULL; } g_rec = 0;g_rec_quiet0=0; }
 static void out_recover_tick(lv_timer_t *t){
     (void)t;
     if(ipc_generation() != g_rec_gen){ out_rec_clear(); out_set_state(OUT_INTERNAL); modes_ui_refresh(); return; }   /* a new player initialises itself */
-    if(!ipc_is_ready()) return;
+    if(!ipc_is_ready()||ui_is_playing()||!out_pcm_quiet()){g_rec_quiet0=0;return;}
+    if(!g_rec_quiet0){g_rec_quiet0=lv_tick_get()?lv_tick_get():1;return;}
+    if(lv_tick_elaps(g_rec_quiet0)<OUT_QUIET_MS)return;
+    g_rec_quiet0=0;
     if(out_seq_send(OUT_INTERNAL, 1) == 0){
         out_rec_clear(); out_set_state(OUT_INTERNAL);
-        ui_toast("Internal DAC restored"); modes_ui_refresh();
+        ui_toast("Internal DAC restored");out_resume(1);modes_ui_refresh();
     }
 }
 static void out_rec_enter(void){
-    out_set_state(OUT_INTERNAL);
+    /* Keep the last confirmed route; busy/recovery is explicit until the restore sequence succeeds. */
     if(g_rec) return;
-    g_rec = 1; g_rec_gen = ipc_generation();
+    g_rec = 1; g_rec_gen = ipc_generation();g_rec_quiet0=0;
     g_rec_tm = lv_timer_create(out_recover_tick, 500, NULL);
 }
 /* resume only the same track, and only if the seek and the play toggle were accepted */
 static void out_resume(int moved){
     if(!g_osw.was_playing) return;
     track_state_t st; ipc_get_state(&st);
-    if(moved && (ipc_generation() != g_osw.gen || !st.have_track || strcmp(st.path, g_osw.path) != 0)){ ui_toast("Output switched - press play"); return; }
+    if(ipc_generation() != g_osw.gen || !st.have_track || strcmp(st.path, g_osw.path) != 0){ ui_toast("Output switched - press play"); return; }
     if(moved && g_osw.pos > 0 && ui_seek_to(g_osw.pos) < 0){ ui_toast("Couldn't resume - press play"); return; }
-    if(ipc_send_cmd(OUT_PAUSE) < 0) ui_toast("Couldn't resume - press play");   /* toggle: plays again */
+    if(!ui_is_playing() && ipc_send_cmd(OUT_PAUSE) < 0) ui_toast("Couldn't resume - press play");   /* toggle: plays again */
 }
 static int out_run(void){
     int target = g_osw.target;
     int rc = out_seq_send(target, g_osw.full);
     if(rc == -1){ out_set_state(modes_output_route()); ui_toast("Couldn't switch output"); out_resume(0); modes_ui_refresh(); return -1; }
-    if(rc == 0){ out_set_state(target); out_resume(1); modes_ui_refresh(); return 0; }
+    if(rc == 0){
+        if(target==OUT_USB){
+            /* Host mode must be requested before the DAC can enumerate. Do not resume or
+             * show USB active until its playback PCM has stayed present for 500 ms. */
+            g_osw.usb_wait=1;g_osw.t0=lv_tick_get();g_osw.quiet0=0;
+            g_osw.tm=lv_timer_create(osw_tick,100,NULL);modes_ui_refresh();return 0;
+        }
+        out_set_state(target); out_resume(1); modes_ui_refresh(); return 0;
+    }
     /* the route moved but the tail failed: back to the internal DAC; never end without 0657 8 landing */
     if(out_seq_send(OUT_INTERNAL, 1) == 0){
         out_set_state(OUT_INTERNAL);
@@ -176,6 +208,28 @@ static void osw_stop(const char *why, int resume){
 static void osw_tick(lv_timer_t *t){
     (void)t;
     track_state_t st; ipc_get_state(&st);
+    if(g_osw.usb_wait){
+        if(ipc_generation()!=g_osw.gen){osw_stop("Player restarted - try again",0);return;}
+        if(lv_tick_elaps(g_osw.t0)>=8000){
+            lv_timer_del(g_osw.tm);g_osw.tm=NULL;
+            /* A late/misbehaving device may have changed PCM state. Restoration
+             * must prove silence again instead of reinitialising a live stream. */
+            out_rec_enter();ui_toast("USB audio not ready - restoring headphones");
+            modes_ui_refresh();return;
+        }
+        if(!out_usb_card_ok()||!out_pcm_quiet()){g_osw.quiet0=0;return;}
+        if(!g_osw.quiet0){g_osw.quiet0=lv_tick_get()?lv_tick_get():1;return;}
+        if(lv_tick_elaps(g_osw.quiet0)<OUT_QUIET_MS)return;
+        lv_timer_del(g_osw.tm);g_osw.tm=NULL;
+        /* The first 0666 may have selected USB_HOST_NULL before enumeration. Rebind
+         * the proven PCM without re-requesting the host port, then resume. */
+        if(out_seq_send(OUT_USB,0)!=0){
+            if(out_seq_send(OUT_INTERNAL,1)==0){out_set_state(OUT_INTERNAL);ui_toast("USB audio failed - headphones restored");out_resume(1);}
+            else{out_rec_enter();ui_toast("USB audio failed - recovering output");}
+            modes_ui_refresh();return;
+        }
+        out_set_state(OUT_USB);ui_toast("USB-C audio connected");out_resume(1);modes_ui_refresh();return;
+    }
     if(ipc_generation() != g_osw.gen){ osw_stop("Player restarted - try again", 0); return; }
     if(strcmp(st.path, g_osw.path) != 0){ osw_stop("Track changed - try again", 0); return; }
     if(lv_tick_elaps(g_osw.t0) >= OUT_WAIT_MS){ osw_stop("Player is busy - try again", 0); return; }   /* deadline first: a late tick never routes, even with the hold complete */
@@ -186,7 +240,7 @@ static void osw_tick(lv_timer_t *t){
     }
     const char *why = ui_output_blocked();
     if(why){ osw_stop(why, g_osw.was_playing); return; }
-    if(g_osw.target == OUT_USB && !out_usb_card_ok()){ osw_stop("USB DAC not found", g_osw.was_playing); return; }   /* re-checked right before 0666 3 */
+    /* USB enumeration is checked after requesting host mode, never as a precondition. */
     lv_timer_del(g_osw.tm); g_osw.tm = NULL;
     out_run();
 }
@@ -195,7 +249,6 @@ static int out_switch(int target, int via_mode){
     if(modes_output_busy()){ ui_toast("Switching..."); return -1; }
     const char *why = ui_output_blocked();
     if(why){ out_set_state(modes_output_route()); ui_toast(why); return -1; }
-    if(target == OUT_USB && !out_usb_card_ok()){ out_set_state(modes_output_route()); ui_toast("Connect a USB DAC first"); return -1; }
     int was_playing = ui_is_playing();
     if(!was_playing && !out_pcm_quiet()){ out_set_state(modes_output_route()); ui_toast("Player is busy - try again"); return -1; }   /* PCM live but not "playing": a pause toggle would START it */
     track_state_t st; ipc_get_state(&st);
@@ -206,11 +259,17 @@ static int out_switch(int target, int via_mode){
     snprintf(g_osw.path, sizeof g_osw.path, "%s", st.have_track ? st.path : "");
     if(was_playing && ipc_send_cmd(OUT_PAUSE) < 0){ out_set_state(modes_output_route()); ui_toast("Player is busy - try again"); return -1; }
     g_osw.t0 = lv_tick_get();
-    g_osw.tm = lv_timer_create(osw_tick, 100, NULL);
+    g_osw.tm = lv_timer_create(osw_tick, 100, NULL);modes_ui_refresh();
     return 0;
 }
 int modes_output_switch(int target){ return out_switch(target, 0); }
 int modes_output_mode_switch(int target){ return out_switch(target, 1); }
+/* Level-triggered: a missed disconnect during busy/blocked work is retried on a later poll.
+ * Never rewrite the route cache or announce success when starting restoration failed. */
+void modes_usb_poll(void){
+    if(modes_output_route()!=OUT_USB||modes_output_busy()||out_usb_card_ok())return;
+    if(modes_output_mode_switch(OUT_INTERNAL)==0)ui_toast("USB audio disconnected - restoring headphones");
+}
 /* OUTPUT-ROUTE-END */
 static orbit_t g_orb;                /* six modes orbiting a hub; the hub's ring shows the state */
 static int slot_of_mode(int m){ for(int i=0;i<N_MODES;i++) if(MODES[i].mode == m) return i; return -1; }
@@ -360,20 +419,29 @@ static void squash_modes_create(lv_obj_t *root){
 }
 LV_FONT_DECLARE(font_zune_light_32) LV_FONT_DECLARE(font_zune_light_24) LV_FONT_DECLARE(font_zune_regular_14)
 #include "zune_dial.h"
-#define ZM_N 5
-static const int ZM_SLOT[ZM_N]={0,1,5,4,2};
-static const char *const ZM_NAME[ZM_N]={"playback","usb dac","storage","airplay","bt receiver"};
-static const char *const ZM_SUB[ZM_N]={"local files","computer audio","SD card access","wireless audio","phone audio"};
+#define ZM_N 6
+static const int ZM_SLOT[ZM_N]={0,1,5,4,2,-1};
+static const char *const ZM_NAME[ZM_N]={"playback","usb dac","storage","airplay","bt receiver","usb-c out"};
+static const char *const ZM_SUB[ZM_N]={"local files","computer audio","SD card access","wireless audio","phone audio","external DAC"};
 static lv_obj_t *g_zm_mark[ZM_N],*g_zm_label[ZM_N],*g_zm_sub[ZM_N];
 static void zmodes_paint(int slot,int pending){
- for(int k=0;k<ZM_N;k++){if(!g_zm_label[k])continue;int active=slot==ZM_SLOT[k];
+ for(int k=0;k<ZM_N;k++){if(!g_zm_label[k])continue;int usb=modes_output_route()==OUT_USB;
+ int target=g_rec?OUT_INTERNAL:g_osw.target;
+ int output_pending=modes_output_busy()&&(usb||target==OUT_USB||g_rec);
+ int active=output_pending?(k==(target==OUT_USB?5:0)):(k==5?usb:(slot==ZM_SLOT[k]&&!(k==0&&usb)));
+ if(output_pending)pending=1;
  lv_color_t ink=active?TC(ACCENT_PRIMARY):TC(TEXT_PRIMARY),mark=active?TC(ACCENT_PRIMARY):TC(CONTROL_TRACK);
  if(!lv_color_eq(lv_obj_get_style_text_color(g_zm_label[k],0),ink))lv_obj_set_style_text_color(g_zm_label[k],ink,0);
  if(!lv_color_eq(lv_obj_get_style_bg_color(g_zm_mark[k],0),mark))lv_obj_set_style_bg_color(g_zm_mark[k],mark,0);
  const char *sub=active?(pending?"switching...":"active"):ZM_SUB[k];if(strcmp(lv_label_get_text(g_zm_sub[k]),sub))lv_label_set_text(g_zm_sub[k],sub);
  }
 }
-static void zm_tap(lv_event_t *e){int k=(int)(intptr_t)lv_event_get_user_data(e);if(k>=0&&k<ZM_N)row_cb(ZM_SLOT[k]);}
+static void zm_tap(lv_event_t *e){
+ int k=(int)(intptr_t)lv_event_get_user_data(e);if(k<0||k>=ZM_N)return;
+ if(k==5){if(g_settle){ui_toast("Working mode is switching");return;}if(modes_output_route()==OUT_USB&&!modes_output_busy())return;if(modes_output_mode_switch(OUT_USB)==0)ui_toast("Connecting USB-C audio...");return;}
+ if(k==0&&modes_output_route()==OUT_USB){modes_output_mode_switch(OUT_INTERNAL);return;}
+ row_cb(ZM_SLOT[k]);
+}
 static void zmodes_create(lv_obj_t *root){
  lv_obj_remove_flag(root,LV_OBJ_FLAG_SCROLLABLE);zune_status(root,SCR_WORKMODE);
  lv_obj_t*title=lv_label_create(root);kit_keep(title);lv_label_set_text(title,"working modes");lv_obj_set_style_text_font(title,zune_font(&font_zune_light_32),0);lv_obj_set_style_text_color(title,TC(TEXT_PRIMARY),0);lv_obj_set_pos(title,44,49);lv_obj_set_size(title,272,57);lv_label_set_long_mode(title,LV_LABEL_LONG_DOT);
@@ -620,3 +688,6 @@ void modeinfo_create(lv_obj_t *root){
     mi_pill(root, "Modes", 0, 0, mi_modes_cb);                       /* back to Playback: from the Modes list */
     g_mi_timer = lv_timer_create(mi_tick, 1000, NULL);
 }
+
+/* Native preview seam; discarded from device builds when unused. */
+void modes_test_output_route(int route){out_set_state(route);modes_ui_refresh();}

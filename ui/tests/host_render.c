@@ -1290,6 +1290,15 @@ int main(int argc, char **argv){
         if(th_zune())zune_status_refresh();
         if(getenv("FB_FIXTURE")){folderbrowser_open();nav_wait(500);if(getenv("FB_SCROLL")){lv_obj_t *list=NULL;lv_obj_t*r=screen_get_root(SCR_FOLDER);for(uint32_t i=0;i<lv_obj_get_child_count(r);i++){lv_obj_t*c=lv_obj_get_child(r,i);if(lv_obj_get_scroll_dir(c)==LV_DIR_VER&&lv_obj_get_y(c)==124){list=c;break;}}assert(list);lv_obj_scroll_to_y(list,atoi(getenv("FB_SCROLL")),LV_ANIM_OFF);nav_wait(500);}}
         if(getenv("ZUNE_CONFIRM")){void system_preview_confirmation(int);system_preview_confirmation(atoi(getenv("ZUNE_CONFIRM")));nav_wait(150);}
+        if(getenv("REVIEW_ZUNE_USB")){
+            void modes_test_output_route(int);screen_show(SCR_WORKMODE);nav_wait(100);lv_obj_t*root=screen_get_root(SCR_WORKMODE);
+            lv_obj_t*usb=find_visible_text(root,"usb-c out"),*input=find_visible_text(root,"usb dac");assert(usb&&input);
+            lv_area_t a;lv_obj_get_coords(lv_obj_get_parent(usb),&a);assert(a.x1==190&&a.y1==233&&a.x2==333&&a.y2==288);
+            const lv_font_t*f=lv_obj_get_style_text_font(usb,0);lv_point_t sz;lv_text_get_size(&sz,"usb-c out",f,0,0,LV_COORD_MAX,LV_TEXT_FLAG_NONE);assert(sz.x<=lv_obj_get_width(usb));
+            modes_test_output_route(2);nav_wait(50);assert(find_visible_text(lv_obj_get_parent(usb),"active"));assert(find_visible_text(lv_obj_get_parent(find_visible_text(root,"playback")),"local files"));
+            modes_test_output_route(0);nav_wait(50);assert(find_visible_text(lv_obj_get_parent(usb),"external DAC"));
+            puts("PASS Zune USB-C: sixth tile fits, distinct input/output labels, confirmed USB selection replaces Playback and clears on return");
+        }
         if(getenv("REVIEW_ZUNE_HOME")){
             void zhome_test_focus(int);screen_home();nav_wait(100);
             lv_obj_t*row=ui_action_find("home.zune.nowplaying");assert(row);lv_obj_t*zhome_test_subtext(void);lv_obj_t*heading=lv_obj_get_child(row,0),*caption=zhome_test_subtext();
@@ -1358,9 +1367,9 @@ int main(int argc, char **argv){
             screen_show(SCR_QUICK);nav_wait(100);int n=qs_wifi_taps;nav_touch_object(quicksettings_test_button(0),80);assert(qs_wifi_taps==n+1);
             screen_back();assert(screen_current()==SCR_NOWPLAYING);
             zune_confirm("test?","body","cancel","yes",NULL);assert(zune_confirm_open());screen_back();assert(!zune_confirm_open()&&screen_current()==SCR_NOWPLAYING);
-            zune_confirm("test?","body","cancel","yes",NULL);screen_show(SCR_WORKMODE);assert(!zune_confirm_open());assert(!find_visible_text(screen_get_root(SCR_WORKMODE),"usb-c audio"));
+            zune_confirm("test?","body","cancel","yes",NULL);screen_show(SCR_WORKMODE);assert(!zune_confirm_open());assert(find_visible_text(screen_get_root(SCR_WORKMODE),"usb-c out"));
             screen_home();lv_indev_delete(in);
-            puts("PASS Zune: menu pointer navigation, configured hold Shuffle!, shared prev/next, QS radio toggle and return, existing working modes only");return 0;
+            puts("PASS Zune: menu pointer navigation, configured hold Shuffle!, shared prev/next, QS radio toggle and return, distinct USB DAC input and USB-C output entries");return 0;
         }
         if(getenv("ZMDIR")){ void fileops_action(const char*,const char*,int,void(*)(void),int); nav_wait(50); fileops_action(getenv("ZMDIR"),"t0.png",0,NULL,1); nav_wait(100); }
         if(getenv("ZART")){ void ui_zune_art_sync(void); cfg_set_int("zune_accent_art",1); ui_zune_art_sync(); ui_art_retry(); nav_wait(400); }
@@ -1864,8 +1873,8 @@ int main(int argc, char **argv){
             }
             lv_obj_send_event(find_visible_text(lv_layer_top(),"cancel"),LV_EVENT_CLICKED,NULL);nav_wait(50);assert(!strcmp(zfollow_saved,"CANCEL"));
             kbinput_open("search","",zfollow_done);nav_wait(30);lv_obj_t*label=find_visible_text(lv_layer_top(),"a");assert(label);lv_obj_t*key=lv_obj_get_parent(label);lv_obj_t*hit=lv_obj_get_child(lv_obj_get_parent(key),lv_obj_get_index(key)+1);lv_obj_send_event(hit,LV_EVENT_SHORT_CLICKED,NULL);lv_obj_send_event(ui_action_find("kb.zune.done"),LV_EVENT_CLICKED,NULL);nav_wait(40);assert(!strcmp(zfollow_saved,"a"));
-            screen_show(SCR_WORKMODE);nav_wait(50);const char*names[]={"playback","usb dac","storage","airplay","bt receiver"};for(int i=0;i<5;i++){lv_obj_t*l=find_visible_text(screen_get_root(SCR_WORKMODE),names[i]);assert(l);lv_obj_t*b=lv_obj_get_parent(l);assert(lv_obj_get_width(b)==144&&lv_obj_get_height(b)==56);lv_area_t a;lv_obj_get_coords(b,&a);assert(a.x1>=38&&a.x2<=333&&a.y1>=113&&a.y2<=288);}
-            screen_show(SCR_QUICK);nav_wait(50);puts("PASS Zune follow-up: keyboard sector targets on all pages, cancel, typed submission, five visible mode targets");
+            screen_show(SCR_WORKMODE);nav_wait(50);const char*names[]={"playback","usb dac","storage","airplay","bt receiver","usb-c out"};for(int i=0;i<6;i++){lv_obj_t*l=find_visible_text(screen_get_root(SCR_WORKMODE),names[i]);assert(l);lv_obj_t*b=lv_obj_get_parent(l);assert(lv_obj_get_width(b)==144&&lv_obj_get_height(b)==56);lv_area_t a;lv_obj_get_coords(b,&a);assert(a.x1>=38&&a.x2<=333&&a.y1>=113&&a.y2<=288);}
+            screen_show(SCR_QUICK);nav_wait(50);puts("PASS Zune follow-up: keyboard sector targets on all pages, cancel, typed submission, six visible mode targets");
         }
         if(getenv("REVIEW_ZQS_BANNER")){
             screen_show(SCR_QUICK);nav_wait(100);send_result=0;

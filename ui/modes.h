@@ -3,11 +3,12 @@
 #ifndef DISKOS_MODES_H
 #define DISKOS_MODES_H
 
-/* Output route (stock: Settings > SPDIF, Working Mode > USB AUDIO). See modes.c. The SPDIF row and the USB Audio
- * picker row exist only in builds made with -DDISKOS_TEST_OUTPUTS (device-unverified); the code below is always
- * built and is a no-op equivalent of the old preamble while the route is the internal DAC. */
+/* Output route (stock: Settings > SPDIF, Working Mode > USB AUDIO). See modes.c. USB Audio output is available in Zune; SPDIF remains test-only.
+ * USB waits for a stable playback device and rebinds it before resuming. Hardware compatibility remains
+ * device-unverified; the internal route keeps the original playback preamble. */
 enum { OUT_INTERNAL = 0, OUT_SPDIF = 1, OUT_USB = 2 };
 
+void modes_usb_poll(void);             /* retry disconnected USB output fallback on the status poll */
 int  modes_output_route(void);          /* the route diskOS last set THIS player generation (else OUT_INTERNAL) */
 int  modes_output_switch(int target);   /* Settings SPDIF toggle: pause -> silent -> 0666 -> 0657 8 -> resume; 0 = started, -1 = refused */
 int  modes_output_mode_switch(int target); /* Working Mode entry (adds 0642 + stock's 65 ms) */

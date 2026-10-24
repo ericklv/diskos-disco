@@ -57,7 +57,15 @@ static _Atomic int g_source_mode;
 static uint32_t lv_tick_get(void){ return test_clock; }
 static void ui_toast(const char *s){ (void)s; }
 static void art_cancel(void){}
+static void discshelf_stop(void){}
+static void ui_route_forget(const char*why){(void)why;}
+void bt_autoroute_reset(void){}
+static void ma_mode_leaving(void){}
 static void modes_output_reset(void){}   /* output routing is not under test here */
+enum { OUT_INTERNAL=0, OUT_USB=2 };
+static int test_output_route, test_restores;
+static int modes_output_route(void){return test_output_route;}
+static int modes_output_mode_switch(int target){assert(target==OUT_INTERNAL);test_restores++;return 0;}
 static int modes_output_busy(void){ return 0; }
 static int scanner_active(void){ return test_scan; }
 static int scanner_start(void){ return 0; }
@@ -185,6 +193,8 @@ int main(void){
     assert(ui_set_source_mode(3)<0 && test_export_sends==1);
     puts("PASS repeated requests cannot queue a late export behind return");
 
+    reset();test_output_route=OUT_USB;assert(ui_set_source_mode(3)<0&&test_export_sends==0);assert(ui_set_source_mode(0)==0&&test_restores==1);test_output_route=OUT_INTERNAL;
+    puts("PASS USB output must restore headphones before another source or SD export");
     reset(); FILE *f=fopen(SD_EXPORT_MARKER,"w"); assert(f); fclose(f);
     storage_init(); assert(g_sd_phase==SD_UNKNOWN && !sd_io_allowed());
     puts("PASS old or malformed handoff marker remains held");
