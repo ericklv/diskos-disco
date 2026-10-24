@@ -11,7 +11,7 @@ fall out of those three facts.
 ## Themes
 
 ### One theme = the whole interface
-A theme is not a colour scheme. Picking **Disco**, **Squash**, **Null**, **Ring** or **Braun** changes Home, Now Playing, the screensaver,
+A theme is not a colour scheme. Picking **Zune**, **Disco**, **Squash**, **Null**, **Ring** or **Braun** changes Home, Now Playing, the screensaver,
 popups, toasts, the equalizer and every list together. Switching restarts the UI; that's deliberate —
 it keeps the running interface simple and fast instead of re-skinning live.
 
@@ -19,6 +19,12 @@ it keeps the running interface simple and fast instead of re-skinning live.
 Since 2.5.4 every theme has the same Display menu in the same order. A setting that doesn't apply to the current
 theme stays visible but dimmed, and tapping it says why. That way a page never looks different from the how-to,
 and switching themes never loses a choice: each theme keeps its own saved preferences.
+
+### Zune (3.0.0)
+
+The original theme is by [namastecoconut-imagined](https://github.com/namastecoconut-imagined/diskos-disco-zune). Its type-led home menu, deep black and personal accent bring a different personality to the same circular display. zmd22’s pass balances large headings against readable detail, gives track/artist text more space and integrates shared controls. The fixed four-square shortcut avoids font-dependent missing glyphs; its three gestures remain independently configurable. The unused Now Playing style selector is hidden in this theme.
+
+Immersive 3.0 shares the transport overlay and spinning-disc transition with the other modern themes. Volume captures touches above Music to prevent accidental seeking. [Theme guide](themes/zune.md).
 
 ### Disco (the default)
 - **The Disc looks like a CD, so the interface does too.** The playing album's cover fills the screen, sharp on

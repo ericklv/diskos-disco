@@ -672,6 +672,8 @@ int main(int argc, char **argv){
     if(getenv("NULL_QS_LAYOUT"))cfg_set_int_deferred("null_qs_layout",atoi(getenv("NULL_QS_LAYOUT")));
     if(getenv("NULL_FONTS"))cfg_set_int_deferred("null_music_fonts",atoi(getenv("NULL_FONTS")));
     if(getenv("NULL_CTRL"))cfg_set_int_deferred("null_controls",atoi(getenv("NULL_CTRL")));
+    /* Set before theme_init so website captures use the real Zune palette. */
+    if(getenv("SITE_ACCENT"))cfg_set_int_deferred("zune_accent",(int)strtoul(getenv("SITE_ACCENT"),NULL,16));
     theme_init();
     if(!strcmp(argv[3],"theme-retirement")){
         int requested=atoi(argv[1]),expected=theme_preset_available(requested)?requested:THEME_PRESET_DISCO;
@@ -2283,6 +2285,7 @@ int main(int argc, char **argv){
             int extra=atoi(page+5);
             for(int i=0;i<extra/10;i++){lv_tick_inc(10);lv_timer_handler();}
         }
+        if(getenv("SITE_IMM_CONTROLS")){void ui_zune_imm_preview(int,int);ui_zune_imm_preview(2,0);nav_wait(50);}
         if(getenv("SEEK_PREVIEW"))ui_seek_preview(59999000,59999000,1);
         goto render;
     }

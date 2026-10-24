@@ -77,3 +77,47 @@ requestLayout();
     btns.forEach((b, i) => b.classList.toggle('active', i === k && !v.paused || i === k && v.currentTime > 0));
   });
 })();
+
+/* Actual firmware captures, kept in the selected accent across the whole tour. */
+(() => {
+  const hero = document.querySelector('.zune-hero'); if (!hero) return;
+  const steps = [
+    ['menu','Main menu','Start with the music.','A bold, flowing menu keeps your collection close. Return Home and Now Playing is ready, with room for the track and artist underneath.','On the player: swipe up to return Home.'],
+    ['music','Now Playing','Room for the song.','Artwork slips off the edge to give the title and artist more space. Duration and audio details stay together; your main icon can have separate tap, double-tap and hold shortcuts.','On the player: set shortcuts in Display → Music screen → Zune.'],
+    ['coverflow','Library · Coverflow','Take your covers for a spin.','Browse a curved carousel of albums. Coverflow, Wall and List are shared library choices, each dressed in the current theme.','On the player: choose Coverflow in the Album View setting.'],
+    ['wall','Library · Wall','A record shop in miniature.','Let the artwork lead. A compact wall puts more albums in view, with a little colour from your collection against Zune’s quiet black canvas.','On the player: choose Wall in the Album View setting.'],
+    ['quick','Quick Settings','The little things, close by.','Six configurable actions put the controls you use within reach. The track banner keeps moving while visible, with clear, centred pause and resume feedback.','On the player: customise your Quick Settings items.'],
+    ['stats','Listening stats','See where the music takes you.','Your listening history, wearing the same theme. Explore your week, month and year, with clearer small text and a calmer balance between headings and detail.','Sample history is shown here; your Disc builds its own story.'],
+    ['immersive','Immersive 3.0','More music. Less in the way.','Immersive 3.0 brings the spinning album and a shared transport overlay to Zune too. Tap to reveal track details, previous, play/pause and next; a spinning-disc transition carries you in and out.','Shown with the transport overlay open. Tap the artwork on your Disc to reveal it.']
+  ];
+  const palette = {magenta:'#ec008c',cyan:'#00b7d8',orange:'#ff751f',lime:'#9bd238'};
+  let step = 0, accent = 'magenta';
+  const image = hero.querySelector('#zune-screen'), link = hero.querySelector('.zune-enlarge');
+  function render() {
+    const [file,name,title,copy,hint] = steps[step];
+    const src = `site/zune/${accent}-${file}.webp`;
+    image.src = src; image.alt = `Zune ${name}, ${accent} accent, sample music and artwork`;
+    link.href = src; link.setAttribute('aria-label',`Enlarge Zune ${name}`);
+    hero.style.setProperty('--zune-accent',palette[accent]);
+    hero.querySelector('#zune-color-name').textContent = accent[0].toUpperCase()+accent.slice(1);
+    hero.querySelector('#zune-counter').textContent = `${String(step+1).padStart(2,'0')} / 07 · ${name}`;
+    hero.querySelector('#zune-step-title').textContent = title;
+    hero.querySelector('#zune-step-copy').textContent = copy;
+    hero.querySelector('#zune-step-hint').textContent = hint;
+    hero.querySelectorAll('[data-step]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.step===step)));
+    hero.querySelectorAll('[data-accent]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.accent===accent)));
+  }
+  hero.querySelectorAll('[data-step]').forEach(b=>b.addEventListener('click',()=>{step=+b.dataset.step;render();}));
+  hero.querySelectorAll('[data-accent]').forEach(b=>b.addEventListener('click',()=>{accent=b.dataset.accent;render();}));
+  function advance(delta){step=(step+delta+steps.length)%steps.length;render();}
+  hero.querySelector('#zune-prev').addEventListener('click',()=>advance(-1));
+  hero.querySelector('#zune-next').addEventListener('click',()=>advance(1));
+  hero.querySelector('.zune-steps').addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();advance(e.key==='ArrowRight'?1:-1);hero.querySelector(`[data-step="${step}"]`).focus();}
+  });
+  link.addEventListener('click',e=>{
+    if(!dialog || typeof dialog.showModal!=='function')return;
+    e.preventDefault();dialog.querySelector('img').src=link.href;dialog.querySelector('img').alt=image.alt;
+    dialog.querySelector('p').textContent=`Zune · ${steps[step][1]} · ${accent}`;dialog.showModal();
+  });
+})();

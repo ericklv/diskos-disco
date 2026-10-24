@@ -6,7 +6,13 @@ Entries follow the Keep a Changelog format, with Added, Changed, and Fixed categ
 diskOS remains beta software; version numbers do not imply broad hardware or feature validation.
 
 
-## Unreleased
+## 3.0.0 — release candidate
+
+Zune theme by [namastecoconut-imagined](https://github.com/namastecoconut-imagined/diskos-disco-zune), with Disco integration and legibility polish by zmd22. [Release notes](docs/releases/v3.0.0.md) and [validation checklist](docs/RELEASE_3.0.0.md).
+
+- Website: Zune-first hero, detailed acknowledgements and an interactive seven-screen/four-accent walkthrough using real LVGL renders.
+- **Immersive 3.0:** shared transport overlay and spinning-disc entry/exit in Zune.
+
 
 - Zune main shortcut: use a fixed four-square outline for every action, with the upper-right outline in the current accent. Draw the icon as geometry to eliminate missing-font boxes; retain tap/double-tap/hold and edge positioning.
 

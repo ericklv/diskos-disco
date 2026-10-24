@@ -1,6 +1,6 @@
-# Display settings — 2.5.4
+# Display settings — 3.0.0
 
-2.5.4 builds on 2.5.3. Display uses the same order and names in every theme. Each theme keeps its own look and existing preferences. Dimmed settings say **Disabled**; tap one to learn why it does not apply. Switching themes does not reset saved values.
+Display uses the same order and names in every theme. Each theme keeps its own look and existing preferences. Dimmed settings say **Disabled**; tap one to learn why it does not apply. Switching themes does not reset saved values.
 
 | Under Display | What you can change |
 |---|---|
@@ -17,6 +17,12 @@ Music screen → Information → Track number changes the Music title. Layout & 
 Null keeps its dark appearance and right-side menu. Its Colour scheme option includes Matrix. Squash uses fixed gesture controls, navigation side and QS layout. Null and Squash use their own palettes instead of the custom accent. Disco, Ring and Braun support automatic light/dark changes. Themes with their own screensaver do not use the generic screensaver-style selector.
 
 Help still contains How to. Hint preferences and reset now live under Display → Navigation. Long setting names wrap within their rows instead of moving continuously.
+
+## Zune in 3.0.0
+
+Zune stays dark and uses its selected accent across Music, Quick Settings, settings and volume. **Music screen → Zune** contains **Main icon**, **Main icon double-tap** and **Main icon hold**. The unused Now Playing style choice is hidden for Zune. The icon keeps a four-square outline for every assigned action; its upper-right square takes the accent.
+
+**Layout & extras → Album View** selects List, Wall or Coverflow. Small/Medium/Large library text choices use different sizes; Medium matches the previous default. **Music screen → Immersive** controls Immersive 3.0, including in Zune. See the [theme guide](themes/zune.md).
 
 ## What changed for efficiency
 

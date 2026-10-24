@@ -15,6 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify tag, source and prepared firmware
+        run: python3 tools/check-release.py --tag "${{ github.ref_name }}"
+
       - name: Build the Windows app and its Linux environment
         run: |
           set -e

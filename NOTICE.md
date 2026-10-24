@@ -199,3 +199,9 @@ in `ui/vendor/libsmb2/`; the compile recipe is `ui/tools/build_smb.py`.
 The full tagged repository supplies the UI and library sources needed to rebuild
 and relink this static executable; use the repository toolchain/build guide.
 No SMB server, Kerberos or discovery utility is included in the firmware.
+
+## Zune theme (Disco 3.0.0)
+
+Original theme by **namastecoconut-imagined**: https://github.com/namastecoconut-imagined/diskos-disco-zune, integrated from commit `13821d6d024d6dfc90d6ac505ca7e4af94f4e256`. Credit covers the original Metro-inspired visual direction and implementation, including typography, home menu, music and library presentation. zmd22’s subsequent work adapts it to Disco and polishes legibility, spacing and shared controls. Existing file copyrights and licences are retained; the UI remains GPL-3.0-or-later.
+
+Open Sans font sources and SIL Open Font License are retained under `ui/fonts/zune/` and `licenses/OpenSans-OFL.txt`. Website walkthrough artwork is generated geometric demo artwork from `tools/render-zune-site.py`; sample artist/album names illustrate the UI and do not imply endorsement. This unofficial fan theme is not affiliated with Microsoft.

@@ -1,5 +1,12 @@
 # A tour of diskOS Disco!
 
+## New in 3.0.0: Zune and Immersive 3.0
+
+The [Zune theme](themes/zune.md), by [namastecoconut-imagined](https://github.com/namastecoconut-imagined/diskos-disco-zune), joins Disco, Null and Squash. Choose its accent, configure the main icon’s tap/double-tap/hold and browse shared List, Wall or Coverflow album views. zmd22’s polish pass improves small text, spacing and confirmations.
+
+**Immersive 3.0** includes the shared spinning-disc entrance/exit and transport overlay in Zune too: tap the artwork for track information and previous/play-pause/next. See the [release notes](releases/v3.0.0.md) and [Zune guide](themes/zune.md).
+
+
 diskOS Disco! is a touch interface for the FiiO Snowsky Disc's round 360×360 screen, built on top of
 [diskOS](https://github.com/b0hemia/diskos) by b0hemia. diskOS supplies the installer, the boot chain and the
 stock player underneath; Disco! replaces the interface on top. It is made for firmware **V2.57**. Some player

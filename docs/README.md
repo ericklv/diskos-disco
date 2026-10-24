@@ -4,6 +4,8 @@
 
 ## Themes
 
+- **[Zune](themes/zune.md)**: by namastecoconut-imagined, with bold type, deep black, a personal accent and Immersive 3.0. [3.0.0 notes](releases/v3.0.0.md) · [release checks](RELEASE_3.0.0.md).
+
 - **Disco** (the default): the album cover, a navigation circle and a rainbow CD rim. See the [tour](DISCO_TOUR.md).
 - **[Squash](themes/squash.md)**: big bold text, touch playback, a rising launcher and a bottom volume arc.
 - **[Null](NULL_THEME.md)**: pixel fonts, a dithered cover and colour palettes, including Matrix.
@@ -21,7 +23,7 @@ Switched to Disco from upstream diskOS or another build, and something looks or 
   upstream diskOS, and fixes for the usual surprises.
 - [How-to](HOWTO.md) - short answers for everyday tasks, including the Display menu at a glance.
 - [Display settings](DISPLAY_SETTINGS.md) - what's under each Display page and why some are dimmed.
-- [Immersive controls](IMMERSIVE_CONTROLS.md) - turning the cover to seek or change volume.
+- [Immersive 3.0](IMMERSIVE_CONTROLS.md) - transport overlay, spinning-disc transitions and circular seeking/volume.
 - [Updating from the SD card](UPDATING.md) - keys, signing, flashing once, troubleshooting.
 - [macOS](MACOS.md) - installing from a Mac.
 - [diskOS Disco! for Windows](WINDOWS.md) - unsupported, but working as intended (confirmed by users). Start from FiiO's stock firmware.

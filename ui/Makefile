@@ -50,7 +50,7 @@ OBJS := $(LVGL_SRCS:.c=.o) $(APP_SRCS:.c=.o) $(APP)/sqlite3.o $(BOOM_OBJS) $(APP
 # computed-index pixel write, or an unrelated struct field named red/green/blue are not told apart.
 .DEFAULT_GOAL := mq_ui   # plain `make` builds the UI (check-theme runs inside it)
 THEME_SRCS := $(filter-out $(APP)/theme.c $(APP)/font_%,$(APP_SRCS))
-THEME_HDRS  = $(filter-out $(APP)/theme.h $(APP)/sqlite3%,$(shell find $(APP) -name '*.h' -not -path '$(APP)/lvgl/*' -not -name 'stb_image.h'))   # stb_image.h: vendored decoder, not UI
+THEME_HDRS  = $(filter-out $(APP)/theme.h $(APP)/sqlite3%,$(shell find $(APP) -name '*.h' -not -path '$(APP)/lvgl/*' -not -path '$(APP)/vendor/*' -not -name 'stb_image.h'))   # stb_image.h: vendored decoder, not UI
 THEME_COLOUR_RE := lv_color(32|16)?_(hex|hex3|make|white|black|mix|mix32|16_16_mix|lighten|darken|hsv_to_rgb|from_int|to_hsv|premultiply)[[:space:]]*\(|lv_color(32|16)_t[[:space:]]+[A-Za-z_0-9]+[[:space:]]*=[[:space:]]*\{|\(lv_color(32|16)_t\)[[:space:]]*\{|lv_palette_[a-z]+[[:space:]]*\(|LV_COLOR_MAKE[[:space:]]*\(|theme_(color|accent)_from_(rgb|hsv)[[:space:]]*\([[:space:]]*(0x|[0-9])|\(lv_color_t\)[[:space:]]*\{|lv_color_t[[:space:]]+[A-Za-z_0-9]+[[:space:]]*=[[:space:]]*\{|(\.|->)(red|green|blue)[[:space:]]*=[^=]|\[[0-2]\][[:space:]]*=[[:space:]]*0x[0-9A-Fa-f]{2}
 check-theme:
 	@if grep -n -E '$(THEME_COLOUR_RE)' $(THEME_SRCS) $(THEME_HDRS); then \

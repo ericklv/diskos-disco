@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Package verified UI and independent apps, source, licenses and instructions."""
 from pathlib import Path
-import argparse,hashlib,json,re,shutil,tarfile,zipfile
+import argparse,hashlib,json,re,shutil,subprocess,sys,tarfile,zipfile
 root=Path(__file__).resolve().parents[1]
 p=argparse.ArgumentParser();p.add_argument('--output',type=Path,default=root/'dist');a=p.parse_args()
+subprocess.run([sys.executable,str(root/'tools/check-release.py')],check=True)
 out=a.output.resolve();out.mkdir(parents=True,exist_ok=True)
 version=re.search(r'#define DISCO_VERSION\s+"([^"]+)"',(root/'ui/version.h').read_text()).group(1)
 meta=json.loads((root/'payload/mq_ui.build.json').read_text())
@@ -46,7 +47,7 @@ complete=out/f'diskos-disco-{version}-complete.zip'
 with zipfile.ZipFile(complete,'w',zipfile.ZIP_DEFLATED) as z:
     z.write(out/'mq_ui','mq_ui');z.write(out/'mq_ui.build.json','mq_ui.build.json')
     z.write(root/'RELEASE_INSTALL.md','INSTALL.md');z.write(root/f'docs/releases/v{version}.md','RELEASE-NOTES.md')
-    for name in ['UPDATING.md','WINDOWS.md','MACOS.md','DISC_SHELF_INSTALL.md']:z.write(root/'docs'/name,'docs/'+name)
+    for name in ['UPDATING.md','WINDOWS.md','MACOS.md','DISC_SHELF_INSTALL.md','ZUNE.md','RELEASE_3.0.0.md','themes/zune.md','IMMERSIVE_CONTROLS.md']:z.write(root/'docs'/name,'docs/'+name)
     for name in ['LICENSE','NOTICE.md']:z.write(root/name,name)
     # Disc Shelf is native now; its standalone archive remains available for older builds.
     # Do not duplicate the executable in the complete firmware ZIP.

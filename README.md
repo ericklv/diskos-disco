@@ -1,6 +1,6 @@
 <h1 align="center">diskOS Disco!</h1>
 
-Development branch preview: [Zune theme and validation notes](docs/ZUNE.md).
+**3.0.0 release candidate:** [Meet Zune](docs/themes/zune.md) · [Release notes](docs/releases/v3.0.0.md) · [Remaining device checks](docs/RELEASE_3.0.0.md). Prepared on the Zune branch; not yet published.
 
 <p align="center">
   <b>Your music. Your kind of Disco.</b><br>
@@ -9,7 +9,7 @@ Development branch preview: [Zune theme and validation notes](docs/ZUNE.md).
 </p>
 
 <p align="center">
-  <img src="docs/site/hero-251.jpg" width="1000" alt="Disco, Null and Squash: three ways to make your Snowsky Disc your own">
+  <img src="docs/site/zune-300.jpg" width="1000" alt="Zune theme by namastecoconut-imagined: Menu, Now Playing and Immersive 3.0">
 </p>
 
 <p align="center">
@@ -39,7 +39,15 @@ Development branch preview: [Zune theme and validation notes](docs/ZUNE.md).
 > a power cut, a bad cable or an interrupted flash can leave it unbootable. Back up your music and keep the
 > saved stock image somewhere safe before you start. Not affiliated with FiiO, Snowsky or Ingenic.
 
-## New in 2.7.0
+## New in 3.0.0 — hello, Zune.
+
+**Zune by [namastecoconut-imagined](https://github.com/namastecoconut-imagined/diskos-disco-zune/commits?author=namastecoconut-imagined).** Bold type, deep black and an accent you choose. The original theme’s design and implementation are the foundation; zmd22 gave it a little Disco integration and polish for old, tired eyes. Thank you for sharing this lovely new way to enjoy the Disc.
+
+**Immersive 3.0** brings Zune the shared spinning-disc transition and transport overlay. Larger small text, balanced settings, configurable tap/double-tap/hold shortcuts, a modal accent volume dial and shared Wall/Coverflow album views round out the update. The website adds an interactive seven-screen Zune walkthrough in four accents, including Immersive with its transport controls open.
+
+[Zune guide](docs/themes/zune.md) · [3.0.0 notes](docs/releases/v3.0.0.md) · [Release checklist](docs/RELEASE_3.0.0.md)
+
+## Also included from 2.7.0
 
 **Your music, to go.** Disc Shelf is now built in. Browse a Navidrome library or an SMB3 share, select what you want and download original files to the card. It follows Disco, Null and Squash, with familiar swipe selection and both letter pickers. Nothing syncs while the app is closed. New Navidrome files use `Artist/YYYY - Album/NN. Track name.ext`.
 
@@ -387,6 +395,8 @@ usual surprises: [Flashing and switching interfaces](docs/SWITCHING.md).
 | [All docs](docs/README.md) | Optional apps, hardware notes, developer workflow, legal |
 
 ## Thanks
+
+- **[namastecoconut-imagined](https://github.com/namastecoconut-imagined/diskos-disco-zune)**, for the original Zune theme: its Metro-inspired direction, typography, home menu, music screen and library presentation. The Disco adaptation builds on that design and implementation; zmd22’s follow-up focuses on integration, readability and controls. [Original author’s commits](https://github.com/namastecoconut-imagined/diskos-disco-zune/commits?author=namastecoconut-imagined).
 
 - **[b0hemia](https://github.com/b0hemia/diskos)**, for diskOS itself: the reverse engineering, the installer,
   the boot and recovery chain, the signed-update design and the whole UI this project grew from. None of this
