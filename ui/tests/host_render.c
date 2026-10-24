@@ -592,6 +592,53 @@ static void stats_seed_demo(void){
 }
 static char zfollow_saved[160];
 static void zfollow_done(const char *s){snprintf(zfollow_saved,sizeof zfollow_saved,"%s",s?s:"CANCEL");}
+/* Host-only deterministic scroll frames: compare these hashes with the 3.0.0 baseline. */
+static void zune_scroll_audit(void){
+    assert(th_zune());
+    for(int y=-400;y<=400;y++){
+        int d=abs(y);if(d>179)d=179;
+        float span=sqrtf(32400.0f-(float)(d*d));
+        assert(zune_curve_inset(y,0)==180-(int)span);
+        assert(zune_curve_inset(y,1)==(int)lroundf(180.0f-span));
+    }
+    for(int scene=0;scene<2;scene++){
+        lv_obj_t *dial;
+        if(!scene){screen_home();nav_wait(250);dial=lv_obj_get_parent(ui_action_find("home.zune.nowplaying"));}
+        else{
+            lv_obj_t *r=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(r);lv_obj_set_size(r,360,360);
+            lv_obj_set_style_bg_color(r,TC(CANVAS),0);lv_obj_set_style_bg_opa(r,LV_OPA_COVER,0);
+            static const char *labels[]={"repeat","a much longer menu action to fit","shuffle","playback"};
+            zdial_wrap_next();zdial_build(r,labels,4,0,NULL,38,"perf.zune");
+            zdial_set_sub(0,"all tracks");zdial_set_icon(2,LV_SYMBOL_SHUFFLE,"1");
+            dial=lv_obj_get_parent(ui_action_find("perf.zune.0"));
+        }
+        assert(dial);int origin=lv_obj_get_scroll_y(dial);
+        for(int delta=-180;delta<=180;delta+=6){
+            lv_obj_scroll_to_y(dial,origin+delta,LV_ANIM_OFF);lv_obj_update_layout(dial);lv_refr_now(NULL);
+            char sum[33];md5_hex(pixels,sizeof pixels,sum);printf("FRAME %d %d %s\n",scene,delta,sum);
+        }
+        /* Repeated callbacks at a settled position must not re-resolve any styles. */
+        watch_styles(dial);test_style_events=0;
+        struct timespec a,b;clock_gettime(CLOCK_MONOTONIC,&a);
+        for(int i=0;i<1000;i++)lv_obj_send_event(dial,LV_EVENT_SCROLL,NULL);
+        clock_gettime(CLOCK_MONOTONIC,&b);
+        printf("SETTLED %d styles=%d us=%lld\n",scene,test_style_events,(b.tv_sec-a.tv_sec)*1000000LL+(b.tv_nsec-a.tv_nsec)/1000);
+        assert(test_style_events==0);
+        if(scene){
+            lv_obj_scroll_to_y(dial,origin,LV_ANIM_OFF);lv_obj_update_layout(dial);
+            lv_obj_t *label=lv_obj_get_child(ui_action_find("perf.zune.0"),0);
+            zdial_set_text(0,"an exceptionally long replacement action that needs the smallest face");
+            assert(lv_obj_get_style_text_font(label,0)==TF(UI_24));
+            zdial_set_text(0,"repeat");assert(lv_obj_get_style_text_font(label,0)==TF(UI_32));
+            lv_obj_scroll_to_y(dial,origin+180,LV_ANIM_OFF);lv_obj_update_layout(dial);
+            label=lv_obj_get_child(ui_action_find("perf.zune.3"),0);
+            assert(lv_obj_get_style_text_font(label,0)==TF(UI_46));
+            zdial_set_sub(3,"new detail");assert(lv_obj_get_style_text_font(label,0)==TF(UI_32));
+            puts("PASS: fitted fonts refresh on replacement text and a newly added subline");
+        }
+    }
+}
+
 int main(int argc, char **argv){
     if(argc != 6){ fprintf(stderr,"usage: host-render PRESET VARIANT home|np|actions UP_NEXT OUT.ppm\n"); return 2; }
     setenv("TZ","UTC",1); tzset();
@@ -2383,6 +2430,7 @@ int main(int argc, char **argv){
         puts("PASS: real bounded decoder feeds 364px immersive image and async timed lyrics; close/reopen works");
     }
 render:
+    if(getenv("REVIEW_ZUNE_SCROLL_PERF")){zune_scroll_audit();return 0;}
     if(getenv("ZVOL_CONCEPT"))volume_proposal(atoi(getenv("ZVOL_CONCEPT")));
     if(getenv("AUDIT_VERTICAL")){for(int i=0;i<12;i++){nav_wait(137);audit_vertical(lv_screen_active());audit_vertical(lv_layer_top());}}
     if(getenv("REVIEW_ZUNE_VOLUME")){

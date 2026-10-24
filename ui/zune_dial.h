@@ -10,6 +10,8 @@
 /* labels: n items (lower case); focus: the item on the focus line at start; pick(i): a tap on item i.
  * top: rows above this screen y are hidden (room for a header); action: ui_on name prefix, e.g. "npmenu.zune" */
 void zdial_build(lv_obj_t *parent, const char *const *labels, int n, int focus, void (*pick)(int), int top, const char *action);
+/* Cached original circle geometry: distance from centre, nearest vs inward integer rounding. */
+int zune_curve_inset(int distance, int nearest);
 void zdial_wrap_next(void);   /* the next zdial_build loops: past the last item comes the first again */
 void zdial_set_color(int i, lv_color_t c);   /* e.g. the accent for the current choice */
 void zdial_set_text(int i, const char *t);

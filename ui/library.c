@@ -1288,7 +1288,7 @@ static void zcurve_rows(void){
         lv_area_t a; lv_obj_get_coords(r, &a);
         if(a.y2 < -40 || a.y1 > 400) continue;
         int d = abs((a.y1 + a.y2) / 2 - 180); if(d > 178) d = 178;
-        int in = 180 - (int)sqrtf((float)(32400 - d * d));
+        int in = zune_curve_inset(d,0);
         int x = in + 40, right = 360 - in - 24;
         if(azon && right > 296) right = 296;
         int w = right - x; if(w < 90) w = 90;

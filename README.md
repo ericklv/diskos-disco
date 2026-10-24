@@ -1,5 +1,7 @@
 <h1 align="center">diskOS Disco!</h1>
 
+> **dev — EXPERIMENTAL / IN TESTING.** Development continues from Disco! 3.0.0 (`721e07e`). Changes here are under test; the published release remains separate. [Development notes](docs/DEV.md).
+
 **Disco! 3.0.0:** [Meet Zune](docs/themes/zune.md) · [Release notes](docs/releases/v3.0.0.md) · [Validation notes](docs/RELEASE_3.0.0.md).
 
 <p align="center">
@@ -15,7 +17,7 @@
 <p align="center">
   <a href="https://github.com/zmd22/diskos-disco/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/zmd22/diskos-disco?label=Disco!&color=B36BFF&style=flat-square"></a>
   <img alt="Firmware V2.57" src="https://img.shields.io/badge/firmware-V2.57-4AD8FF?style=flat-square">
-  <img alt="Status: testing" src="https://img.shields.io/badge/status-testing-FFB45A?style=flat-square">
+  <img alt="Status: experimental / in testing" src="https://img.shields.io/badge/status-experimental%20%2F%20in%20testing-FFB45A?style=flat-square">
   <a href="ui/COPYING"><img alt="UI GPL-3.0-or-later" src="https://img.shields.io/badge/UI-GPL--3.0--or--later-62F28C?style=flat-square"></a>
 </p>
 

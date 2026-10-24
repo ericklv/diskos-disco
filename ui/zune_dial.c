@@ -21,6 +21,7 @@ LV_FONT_DECLARE(font_zune_regular_13)
 
 static struct {
     lv_obj_t *dial, *tick, *row[ZDIAL_ROWS], *lbl[ZDIAL_ROWS], *icon[ZDIAL_ROWS], *badge[ZDIAL_ROWS], *sub[ZDIAL_ROWS];
+    signed char face[ZDIAL_ROWS][3]; /* fitted font per row/distance band; -1 until measured */
     int n, ln, copies, recentring, size[ZDIAL_ROWS], top, bottom;   /* n: rows built; ln: items (n = ln * copies) */
     void (*pick)(int);
     char action[ZDIAL_ROWS][40];
@@ -37,10 +38,24 @@ static inline void zg_align(lv_obj_t *o, int x, int y){
     lv_obj_align(o, LV_ALIGN_LEFT_MID, x, y);
 }
 static const lv_font_t *step_font(int s){ return s == 0 ? TF(UI_46) : s == 1 ? TF(UI_32) : TF(UI_24); }
-static int edge_x(int y){
-    int d = y - 180; if(d > 179) d = 179; if(d < -179) d = -179;
-    return (int)lroundf(180.0f - sqrtf(32400.0f - (float)(d * d))) + ZD_INSET;
+/* Scroll positions are integer pixels. Keep the exact old float rounding, but calculate
+ * it once per distance rather than doing square roots in every animation callback.
+ * Shared by Home, action dials and the library; 360 bytes, no heap or extra timer. */
+int zune_curve_inset(int distance, int nearest){
+    static uint8_t inset[2][180];static int ready;
+    if(!ready){
+        for(int d=0;d<180;d++){
+            float span=sqrtf(32400.0f-(float)(d*d));
+            inset[0][d]=(uint8_t)(180-(int)span);
+            inset[1][d]=(uint8_t)lroundf(180.0f-span);
+        }
+        ready=1;
+    }
+    if(distance<-179||distance>179)distance=179;
+    else if(distance<0)distance=-distance;
+    return inset[!!nearest][distance];
 }
+static int edge_x(int y){return zune_curve_inset(y-180,1)+ZD_INSET;}
 static void layout(void){
     if(!Z.dial) return;
     lv_area_t da; lv_obj_get_coords(Z.dial, &da);
@@ -54,9 +69,14 @@ static void layout(void){
         if(off) continue;
         int s = d < ZD_PITCH / 2 ? 0 : d < ZD_PITCH * 3 / 2 ? 1 : 2;
         if(s != Z.size[i]){
-            Z.size[i]=s;int face=Z.sub[i]&&s==0?1:s;lv_point_t text;
-            while(face<2){lv_text_get_size(&text,lv_label_get_text(Z.lbl[i]),step_font(face),0,0,LV_COORD_MAX,LV_TEXT_FLAG_NONE);if(text.x<=286)break;face++;}
-            lv_obj_set_style_text_font(Z.lbl[i],step_font(face),0);
+            Z.size[i]=s;int face=Z.face[i][s];
+            if(face<0){
+                face=Z.sub[i]&&s==0?1:s;lv_point_t text;
+                while(face<2){lv_text_get_size(&text,lv_label_get_text(Z.lbl[i]),step_font(face),0,0,LV_COORD_MAX,LV_TEXT_FLAG_NONE);if(text.x<=286)break;face++;}
+                Z.face[i][s]=(signed char)face;
+            }
+            const lv_font_t *font=step_font(face);
+            if(lv_obj_get_style_text_font(Z.lbl[i],0)!=font)lv_obj_set_style_text_font(Z.lbl[i],font,0);
         }
         float o = 1.0f - (float)d / ZD_PITCH * 0.4f; if(o < 0.3f) o = 0.3f;
         zg_opa(Z.lbl[i], (lv_opa_t)(o * 255));
@@ -93,6 +113,7 @@ static void item_cb(lv_event_t *e){ int i = (int)(intptr_t)lv_event_get_user_dat
 void zdial_build(lv_obj_t *parent, const char *const *labels, int n, int focus, void (*pick)(int), int top, const char *action){
     if(n > ZDIAL_MAX) n = ZDIAL_MAX;
     memset(&Z, 0, sizeof Z);
+    memset(Z.face,-1,sizeof Z.face);
     Z.copies = (g_wrap_next && n >= 3) ? 3 : 1; g_wrap_next = 0;
     Z.ln = n; Z.n = n * Z.copies; Z.pick = pick; Z.top = top;
     Z.dial = lv_obj_create(parent);
@@ -178,6 +199,7 @@ static void zdial_set_sub1(int i, const char *t){
                    lv_obj_set_style_text_font(Z.sub[i], zune_font(&font_zune_regular_16), 0); lv_obj_set_style_text_color(Z.sub[i], TC(TEXT_MUTED), 0);
                    lv_obj_remove_flag(Z.sub[i], LV_OBJ_FLAG_CLICKABLE); lv_obj_add_flag(Z.sub[i], LV_OBJ_FLAG_IGNORE_LAYOUT); }
     lv_label_set_text(Z.sub[i], t);
+    memset(Z.face[i],-1,sizeof Z.face[i]);
     Z.size[i] = -1; layout();
 }
 int zdial_focus(void){                                    /* the item on the focus line now */
@@ -186,7 +208,16 @@ int zdial_focus(void){                                    /* the item on the foc
     i = i < 0 ? 0 : i >= Z.n ? Z.n - 1 : i;
     return i % Z.ln;
 }
-void zdial_set_text(int i, const char *t){ if(Z.dial && i >= 0 && i < Z.ln && t) for(int c = 0; c < Z.copies; c++) lv_label_set_text(Z.lbl[i + c * Z.ln], t); }
+void zdial_set_text(int i, const char *t){
+    if(!Z.dial||i<0||i>=Z.ln||!t)return;
+    int changed=0;
+    for(int c=0;c<Z.copies;c++){
+        int row=i+c*Z.ln;
+        if(!strcmp(lv_label_get_text(Z.lbl[row]),t))continue;
+        lv_label_set_text(Z.lbl[row],t);memset(Z.face[row],-1,sizeof Z.face[row]);Z.size[row]=-1;changed=1;
+    }
+    if(changed)layout();
+}
 
 /* ---- shared Zune pieces ---- */
 #include "ipc.h"

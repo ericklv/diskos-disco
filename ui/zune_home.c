@@ -78,10 +78,7 @@ static inline void zg_align(lv_obj_t *o, int x, int y){
 static const lv_font_t *step_font(int s){ return s == 0 ? TF(UI_46) : s == 1 ? TF(UI_32) : zune_font(&font_zune_semibold_24); }
 
 /* the bezel's left edge at screen y, plus the inset */
-static int edge_x(int y){
-    int d = y - 180; if(d > 179) d = 179; if(d < -179) d = -179;
-    return (int)lroundf(180.0f - sqrtf(32400.0f - (float)(d * d))) + ZH_INSET;
-}
+static int edge_x(int y){return zune_curve_inset(y-180,1)+ZH_INSET;}
 
 static void dial_layout(void){
     if(!g_dial) return;
