@@ -1,7 +1,8 @@
 # A-Z wheel design studies
 
-Three host-only LVGL previews. No production wheel or device behaviour is changed.
-The selected design is to be integrated after user review.
+Three host-only LVGL design studies. Focus (design 2) was selected and integrated
+for 3.0.1, with the heading above the centre letter removed. The alternatives
+remain preview-only; the production implementation lives in ui/azjump.c.
 
 1. Halo: fixed full alphabet, softly feathered annulus, faint upper rim highlight,
    theme-native centre button.
