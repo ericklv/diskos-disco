@@ -1,8 +1,8 @@
 <h1 align="center">diskOS Disco!</h1>
 
-> **dev — EXPERIMENTAL / IN TESTING.** Development continues from Disco! 3.0.0 (`721e07e`). Changes here are under test; the published release remains separate. [Development notes](docs/DEV.md).
+> **Development builds on `dev` are experimental / in testing.** Use tagged releases for the published downloads. [Development notes](docs/DEV.md).
 
-**Disco! 3.0.0:** [Meet Zune](docs/themes/zune.md) · [Release notes](docs/releases/v3.0.0.md) · [Validation notes](docs/RELEASE_3.0.0.md).
+**Disco! 3.0.1:** Focus A–Z wheel, unified settings and idle-shutdown fixes. [Release notes](docs/releases/v3.0.1.md) · [Validation notes](docs/RELEASE_3.0.1.md).
 
 <p align="center">
   <b>Your music. Your kind of Disco.</b><br>
@@ -41,7 +41,13 @@
 > a power cut, a bad cable or an interrupted flash can leave it unbootable. Back up your music and keep the
 > saved stock image somewhere safe before you start. Not affiliated with FiiO, Snowsky or Ingenic.
 
-## New in 3.0.0 — hello, Zune.
+## New in 3.0.1
+
+A clearer Focus A–Z wheel, with theme-native typography, a fixed top selection and subtle fades. Settings now share one hierarchy across every theme, with dedicated theme settings and Battery & power controls. Idle shutdown retries failed requests and cancels stale requests before handoff.
+
+[3.0.1 release notes](docs/releases/v3.0.1.md)
+
+## Introduced in 3.0.0 — hello, Zune.
 
 **Zune by [namastecoconut-imagined](https://github.com/namastecoconut-imagined/diskos-disco-zune/commits?author=namastecoconut-imagined).** Bold type, deep black and an accent you choose. The original theme’s design and implementation are the foundation; zmd22 gave it a little Disco integration and polish. Thank you for sharing this lovely new way to enjoy the Disc.
 

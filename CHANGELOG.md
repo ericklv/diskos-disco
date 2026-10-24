@@ -6,7 +6,13 @@ Entries follow the Keep a Changelog format, with Added, Changed, and Fixed categ
 diskOS remains beta software; version numbers do not imply broad hardware or feature validation.
 
 
-## Unreleased — dev (experimental / in testing)
+## 3.0.1
+
+- Replace the A–Z wheel with Focus: the selected letter stays at twelve o’clock, neighbouring letters fade with distance, and subtle accent highlights soften the ring. Use each theme’s fonts and colours; omit the heading above the centre letter.
+- Unify Playback, Audio, Display, Connectivity, System, Battery & power and Help across themes. Separate theme-owned controls from common settings; put power timers, charging protection and battery Details together.
+- Remove the old Equalizer shortcut, rename Custom EQ to Equalizer, move read-only DSD information to Audio, and remove the unused startup disc-colour setting.
+- Preserve saved setting keys, values and handlers, with explicit anchors followed by alphabetical rows and On/Off controls last.
+
 
 - Fix idle shutdown remaining latched after asynchronous card-drain, flush or command failures; retry after a fresh full idle period.
 - Cancel pending idle shutdown on renewed activity before the player handoff, recheck audio before handoff, and invalidate timer takeover immediately on player reconnect. Explicit manual/sleep shutdown and protected-card handling remain separate.

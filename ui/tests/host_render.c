@@ -188,6 +188,8 @@ static lv_obj_t *find_text(lv_obj_t *o,const char *text){
     }
     return NULL;
 }
+#include "az_wheel_designs.h"
+
 static lv_obj_t *find_heading(lv_obj_t *root,const char *text){
     lv_obj_t *label=find_text(root,text);if(label)return label;
     char upper[160];theme_upper(upper,sizeof upper,text);return find_text(root,upper);
@@ -2612,16 +2614,30 @@ render:
         cfg_set_int_deferred("library_seeking",0);azjump_show(&picker,1);
         lv_obj_send_event(picker.btn,LV_EVENT_SHORT_CLICKED,NULL);assert(!azjump_active()&&!lv_obj_has_flag(picker.grid,LV_OBJ_FLAG_HIDDEN));azjump_show(&picker,0);
         cfg_set_int_deferred("library_seeking",1);azjump_show(&picker,1);azjump_position(&picker,'M',30,180);
-        assert(!strcmp(lv_label_get_text(lv_obj_get_child(picker.btn,0)),"M"));
+        assert(!strcmp(lv_label_get_text(lv_obj_get_child(picker.btn,0)),th_zune()?"m":"M"));
         lv_indev_t*in=lv_indev_create();lv_indev_set_type(in,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(in,nav_read);lv_timer_set_period(lv_indev_get_read_timer(in),10);
         lv_obj_update_layout(parent);
         nav_touch((lv_point_t){30,180},700);nav_wait(40);assert(azjump_active());
         lv_obj_t *backing=lv_obj_get_child(picker.wheel,0);assert(lv_obj_check_type(backing,&lv_arc_class));
-        assert(lv_obj_get_style_arc_opa(backing,LV_PART_MAIN)==LV_OPA_COVER);
-        assert(lv_obj_get_style_bg_opa(picker.wheel,0)==LV_OPA_50);
+        assert(lv_obj_get_style_arc_opa(backing,LV_PART_MAIN)==110);
+        assert(lv_obj_get_style_bg_opa(picker.wheel,0)==246);
+        assert(!find_text(picker.wheel,"JUMP TO LETTER")&&!find_text(picker.wheel,"JUMP TO")&&!find_text(picker.wheel,"jump to"));
+        lv_obj_update_layout(picker.wheel);
+        assert(lv_obj_get_x(picker.letter[12])==166&&lv_obj_get_y(picker.letter[12])==32);
+        assert(lv_obj_get_x(picker.focus)==163&&lv_obj_get_y(picker.focus)==29);
+        for(int size=0;size<2;size++)for(int i=0;i<27;i++){
+            uint32_t ch="ABCDEFGHIJKLMNOPQRSTUVWXYZ#"[i];if(th_zune()&&ch!='#')ch+=32;
+            lv_font_glyph_dsc_t glyph;
+            assert(lv_font_get_glyph_dsc(lv_obj_get_style_text_font(size?picker.selected:picker.letter[0],0),&glyph,ch,0));
+        }
         nav_pointer=(lv_indev_data_t){.point={180,50},.state=LV_INDEV_STATE_PRESSED};nav_wait(30);
         for(int degrees=-90;degrees<=-30;degrees+=3){float a=degrees*3.14159265f/180;nav_pointer.point=(lv_point_t){180+(int)lround(130*cos(a)),180+(int)lround(130*sin(a))};nav_wait(20);}
         assert(picker.current==16); /* M + four clockwise sectors = Q. */
+        lv_obj_update_layout(picker.wheel);
+        assert(lv_obj_get_x(picker.letter[16])==166&&lv_obj_get_y(picker.letter[16])==32);
+        assert(lv_obj_get_style_text_opa(picker.letter[16],0)==255);
+        assert(lv_obj_get_style_text_opa(picker.letter[2],0)==110);
+        assert(!strcmp(lv_label_get_text(picker.selected),th_zune()?"q":"Q"));
         nav_pointer.state=LV_INDEV_STATE_RELEASED;nav_wait(100);assert(azjump_active());
         nav_touch((lv_point_t){180,180},50);nav_wait(30);assert(!azjump_active()&&wheel_test_letter=='Q'&&wheel_test_commits==1&&!picker.timeout);
         azjump_position(&picker,'Z',30,180);nav_touch((lv_point_t){30,180},700);nav_wait(20);assert(azjump_active());
@@ -2636,7 +2652,7 @@ render:
             lv_obj_send_event(picker.btn,LV_EVENT_SHORT_CLICKED,NULL);assert(azjump_active());screen_back();assert(!azjump_active()&&!picker.wheel&&!picker.timeout);
         }
         assert(wheel_test_commits==2);
-        cfg_set_int_deferred("library_seeking",0);azjump_show(&picker,1);assert(!strcmp(lv_label_get_text(lv_obj_get_child(picker.btn,0)),th_disco_family()||th_null()?"A - Z":"A-Z"));
+        cfg_set_int_deferred("library_seeking",0);azjump_show(&picker,1);if(th_zune())azjump_letter(&picker,'Z');assert(!strcmp(lv_label_get_text(lv_obj_get_child(picker.btn,0)),th_zune()?"z":th_disco_family()||th_null()?"A - Z":"A-Z"));
         lv_obj_delete(parent);lv_indev_delete(in);
         puts("PASS: legacy picker, clockwise/reverse, Z/#/A wrap, tap/timeout confirmation, held touch, repeated cancel and option restore");return 0;
     }
@@ -2656,7 +2672,8 @@ render:
             lv_obj_t *mark=lv_obj_create(ov);lv_obj_remove_style_all(mark);lv_obj_set_size(mark,28,28);lv_obj_set_pos(mark,16,166);lv_obj_set_style_radius(mark,th_null()?0:LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_color(mark,TC(ACCENT_PRIMARY),0);lv_obj_set_style_bg_opa(mark,LV_OPA_COVER,0);kit_keep(mark);
             lv_obj_t *ml=lv_label_create(mark);lv_label_set_text(ml,"M");lv_obj_set_style_text_font(ml,TF(UI_18),0);lv_obj_set_style_text_color(ml,TC(ON_ACCENT),0);lv_obj_center(ml);kit_keep(ml);
         }
-        if(strcmp(getenv("LETTER_WHEEL_PREVIEW"),"marker")){
+        if(getenv("AZ_DESIGN")){azd_preview(ov,atoi(getenv("AZ_DESIGN")));}
+        else if(strcmp(getenv("LETTER_WHEEL_PREVIEW"),"marker")){
             static azjump_t preview;azjump_create(&preview,ov,NULL,"library");cfg_set_int_deferred("library_seeking",1);azjump_show(&preview,1);azjump_position(&preview,'M',30,180);
             lv_obj_send_event(preview.btn,LV_EVENT_SHORT_CLICKED,NULL);
         }

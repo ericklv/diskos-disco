@@ -1,10 +1,13 @@
-# Publishes a GitHub Release for every version tag (v1.0, v1.1, ...): the ready-built interface (payload/mq_ui)
+# Publishes verified prepared firmware for a version tag or a version bump on main.
+# The matching tag is created only after packaging succeeds. The ready-built interface (payload/mq_ui)
 # plus the standalone apps, the Windows app, complete ZIP and checksums as downloads, with the notes from docs/releases/<tag>.md. Push a tag and the release appears.
 name: Release
 
 on:
   push:
     tags: ["v*"]
+    branches: ["main"]
+    paths: ["ui/version.h"]
 
 permissions:
   contents: write
@@ -14,9 +17,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve the release tag
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG=$(python3 -c 'import re; from pathlib import Path; print("v" + re.search(r"#define DISCO_VERSION\s+\"([^\"]+)\"", Path("ui/version.h").read_text())[1])')
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "$TAG" ]; then
+            echo "Tag and visible version disagree" >&2
+            exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/$TAG^{commit}" >/dev/null; then
+            test "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$GITHUB_SHA" || {
+              echo "Refusing to replace an existing release tag" >&2
+              exit 1
+            }
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Verify tag, source and prepared firmware
-        run: python3 tools/check-release.py --tag "${{ github.ref_name }}"
+        run: python3 tools/check-release.py --tag "${{ steps.version.outputs.tag }}"
 
       - name: Build the Windows app and its Linux environment
         run: |
@@ -36,9 +59,13 @@ jobs:
       - name: Create or update the release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
           set -e
+          if ! git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            git tag "$TAG" "$GITHUB_SHA"
+            git push origin "refs/tags/$TAG"
+          fi
           NOTES="docs/releases/${TAG}.md"
           [ -f "$NOTES" ] || NOTES="CHANGELOG.md"
           if gh release view "$TAG" >/dev/null 2>&1; then
