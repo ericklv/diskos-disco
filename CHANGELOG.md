@@ -8,6 +8,8 @@ diskOS remains beta software; version numbers do not imply broad hardware or fea
 
 ## Unreleased
 
+- Zune main shortcut: use a fixed four-square outline for every action, with the upper-right outline in the current accent. Draw the icon as geometry to eliminate missing-font boxes; retain tap/double-tap/hold and edge positioning.
+
 - Zune USB-C audio output: add a distinct output tile, pause and prove quiet before host switching, wait for a stable USB playback device, rebind the real sink, then resume only the same track/session.
 - USB recovery: restore headphones on enumeration timeout; retry busy/blocked unplug fallback without losing it; retain recovery state after failed restoration. Block source/Bluetooth routing around an active USB route until Playback restores headphones. Added production-state-machine failure tests; real DAC compatibility still needs device validation.
 

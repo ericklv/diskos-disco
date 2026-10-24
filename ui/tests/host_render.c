@@ -1332,7 +1332,16 @@ int main(int argc, char **argv){
             nav_touch((lv_point_t){346,180},60);nav_wait(400);assert(screen_current()==SCR_UPNEXT);
             screen_home();nav_wait(250);nav_touch((lv_point_t){346,180},40);nav_wait(60);nav_touch((lv_point_t){346,180},40);nav_wait(400);assert(screen_current()==SCR_SEARCH);cancel=find_visible_text(lv_layer_top(),"cancel");if(cancel){cancel=lv_obj_get_parent(cancel);lv_obj_send_event(cancel,LV_EVENT_PRESSED,NULL);lv_obj_send_event(cancel,LV_EVENT_CLICKED,NULL);nav_wait(100);}
             screen_home();nav_wait(250);nav_touch((lv_point_t){346,180},650);nav_wait(400);assert(screen_current()==SCR_LIBRARY);lv_indev_delete(pointer);
-            cfg_set_int_deferred("zune_main",ZMAIN_EQ);home_shortcuts_refresh();assert(!strcmp(lv_label_get_text(l),LV_SYMBOL_BARS));
+            cfg_set_int_deferred("zune_main",ZMAIN_EQ);home_shortcuts_refresh();assert(lv_obj_get_child_count(l)==4);
+            for(int action=0;action<ZMAIN_COUNT;action++){
+                cfg_set_int_deferred("zune_main",action);home_shortcuts_refresh();assert(lv_obj_get_child(b,0)==l);
+                for(int tile=0;tile<4;tile++){
+                    lv_obj_t*t=lv_obj_get_child(l,tile);assert(!lv_obj_check_type(t,&lv_label_class));assert(lv_obj_get_width(t)==8&&lv_obj_get_height(t)==8);
+                    assert(lv_obj_get_x(t)==(tile%2)*11&&lv_obj_get_y(t)==(tile/2)*11);assert(lv_obj_get_style_border_width(t,0)==1);
+                    assert(lv_color_eq(lv_obj_get_style_border_color(t,0),tile==1?ui_current_accent():TC(TEXT_PRIMARY)));
+                    assert(!lv_obj_has_flag(t,LV_OBJ_FLAG_CLICKABLE));
+                }
+            }
             cfg_set_int_deferred("zune_main",ZMAIN_NONE);home_shortcuts_refresh();assert(lv_obj_has_flag(b,LV_OBJ_FLAG_HIDDEN));
             cfg_set_int_deferred("zune_main",ZMAIN_UPNEXT);home_shortcuts_refresh();
             setlist_open("Display");void settings_open_group(const char*);settings_open_group("Music screen");nav_wait(100);assert(find_visible_text(screen_get_root(SCR_SETLIST),"zune"));assert(!find_text(screen_get_root(SCR_SETLIST),"now playing style"));
@@ -1340,7 +1349,7 @@ int main(int argc, char **argv){
             const char*keys[]={"zune_main","zune_double","zune_hold"};void settings_test_open_key(const char*);
             for(int k=0;k<3;k++){settings_test_open_key(keys[k]);nav_wait(80);lv_obj_t*choice=ui_action_find("settings.zdetail.25");assert(choice);lv_obj_send_event(choice,LV_EVENT_CLICKED,NULL);nav_wait(100);assert(cfg_get_int(keys[k],-1)==ZMAIN_WIFI);}
             cfg_set_int_deferred("zune_main",ZMAIN_UPNEXT);cfg_set_int_deferred("zune_double",ZMAIN_SEARCH);cfg_set_int_deferred("zune_hold",ZMAIN_MUSIC);home_shortcuts_refresh();screen_home();nav_wait(100);
-            puts("PASS Zune main icon: edge geometry, tap/double/hold isolation, pending cancel, glyph changes, 27 choices saved for all gestures, submenu and style removal");
+            puts("PASS Zune main icon: edge geometry, tap/double/hold isolation, pending cancel, fixed four-square outline with accent upper-right for all 27 choices saved for all gestures, submenu and style removal");
         }
         if(getenv("REVIEW_ZUNE_CONFIRM")){
             void system_preview_confirmation(int);for(int kind=0;kind<3;kind++){

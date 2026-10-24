@@ -391,7 +391,8 @@ void home_set_now_playing(const char *title, const char *artist,
  * Home tracks the same colour as Now Playing - static or album-dynamic). */
 void home_set_accent(lv_color_t accent)
 {
-    if(th_braun() || th_zune()) return;                      /* Braun: orange only; Zune: its one accent */
+    if(th_zune()){home_shortcuts_refresh();return;}
+    if(th_braun()) return;                                  /* Braun: orange only */
     if(th_disco_family()){ dhome_set_accent(accent); return; }
     g_accent = accent;
     if (g_ring) lv_obj_set_style_arc_color(g_ring, accent, LV_PART_INDICATOR);

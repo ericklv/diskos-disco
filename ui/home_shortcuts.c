@@ -10,7 +10,6 @@
 #include <stdlib.h>
 
 const char *const zune_main_names[ZMAIN_COUNT]={"Up Next","Queue","Music screen","Library","Search","Shortcuts","Quick Settings","Weather","Equalizer","Folders","Immersive","Lyrics","Song Info","Audiobooks","Battery","Last.fm","All apps","Settings","Working modes","Volume","Screen off","Play/Pause","Next track","Shuffle!","Nothing","Wi-Fi","Bluetooth"};
-static const char *const main_glyphs[ZMAIN_COUNT]={LV_SYMBOL_LIST,LV_SYMBOL_LIST,LV_SYMBOL_AUDIO,LV_SYMBOL_DIRECTORY,"\xEF\x80\x82",LV_SYMBOL_DRIVE,LV_SYMBOL_SETTINGS,"\xEF\x86\x85",LV_SYMBOL_BARS,LV_SYMBOL_DIRECTORY,LV_SYMBOL_IMAGE,LV_SYMBOL_AUDIO,LV_SYMBOL_EYE_OPEN,LV_SYMBOL_AUDIO,LV_SYMBOL_BATTERY_3,"\xEF\x88\x82",LV_SYMBOL_DRIVE,LV_SYMBOL_SETTINGS,LV_SYMBOL_USB,LV_SYMBOL_VOLUME_MAX,LV_SYMBOL_POWER,LV_SYMBOL_PLAY,LV_SYMBOL_NEXT,LV_SYMBOL_SHUFFLE,"",LV_SYMBOL_WIFI,LV_SYMBOL_BLUETOOTH};
 void zune_main_run(int action){
     if(action<0||action>=ZMAIN_COUNT)return;
     static const char *const key[ZMAIN_COUNT]={[ZMAIN_WEATHER]="weather",[ZMAIN_EQ]="eq",[ZMAIN_FOLDERS]="folders",[ZMAIN_IMMERSIVE]="immersive",[ZMAIN_LYRICS]="lyrics",[ZMAIN_INFO]="info",[ZMAIN_BOOKS]="books",[ZMAIN_BATTERY]="battery",[ZMAIN_LASTFM]="lastfm",[ZMAIN_APPS]="allapps"};
@@ -40,7 +39,7 @@ static lv_timer_t *g_main_tap;
 static int g_main_held;
 static void main_cancel(void){if(g_main_tap){lv_timer_delete(g_main_tap);g_main_tap=NULL;}}
 static void main_tap_done(lv_timer_t *t){(void)t;main_cancel();if(screen_current()==SCR_HOME)zune_main_run(main_choice("zune_main",ZMAIN_UPNEXT));}
-static lv_obj_t *g_upnext;
+static lv_obj_t *g_upnext,*g_main_tiles[4];
 
 static lv_point_t g_press;
 static int g_press_valid;
@@ -96,7 +95,11 @@ static lv_obj_t *shortcut(lv_obj_t *root, int cy, const char *glyph, const lv_fo
 void home_shortcuts_refresh(void){
     if(!g_upnext) return;
     if(th_zune()){
-        int a=main_choice("zune_main",ZMAIN_UPNEXT);lv_obj_t*l=lv_obj_get_child(g_upnext,0);lv_label_set_text(l,main_glyphs[a]);
+        int a=main_choice("zune_main",ZMAIN_UPNEXT);
+        for(int i=0;i<4;i++)if(g_main_tiles[i]){
+            lv_color_t ink=i==1?ui_current_accent():TC(TEXT_PRIMARY);
+            if(!lv_color_eq(lv_obj_get_style_border_color(g_main_tiles[i],0),ink))lv_obj_set_style_border_color(g_main_tiles[i],ink,0);
+        }
         if(a==ZMAIN_NONE)lv_obj_add_flag(g_upnext,LV_OBJ_FLAG_HIDDEN);else lv_obj_remove_flag(g_upnext,LV_OBJ_FLAG_HIDDEN);
         return;
     }
@@ -108,7 +111,16 @@ void home_shortcuts_create(lv_obj_t *root){
     if(th_zune()){
         kit_keep(g_upnext);lv_obj_set_pos(g_upnext,316,158);lv_obj_set_size(g_upnext,44,44);
         lv_obj_set_style_pad_all(g_upnext,0,0);lv_obj_set_style_bg_opa(g_upnext,LV_OPA_TRANSP,0);
-        lv_obj_t*l=lv_obj_get_child(g_upnext,0);kit_keep(l);lv_obj_set_style_text_font(l,TF(ICON_20),0);lv_obj_align(l,LV_ALIGN_RIGHT_MID,-2,0);
+        lv_obj_delete(lv_obj_get_child(g_upnext,0)); /* geometry avoids missing icon-font glyphs */
+        lv_obj_t*icon=lv_obj_create(g_upnext);lv_obj_remove_style_all(icon);kit_keep(icon);
+        lv_obj_set_size(icon,19,19);lv_obj_align(icon,LV_ALIGN_RIGHT_MID,-2,0);
+        lv_obj_clear_flag(icon,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
+        for(int i=0;i<4;i++){
+            lv_obj_t*tile=lv_obj_create(icon);lv_obj_remove_style_all(tile);kit_keep(tile);g_main_tiles[i]=tile;
+            lv_obj_set_pos(tile,(i%2)*11,(i/2)*11);lv_obj_set_size(tile,8,8);
+            lv_obj_set_style_border_width(tile,1,0);lv_obj_set_style_border_opa(tile,LV_OPA_COVER,0);
+            lv_obj_set_style_radius(tile,0,0);lv_obj_clear_flag(tile,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
+        }
         lv_obj_add_event_cb(g_upnext,main_hold,LV_EVENT_LONG_PRESSED,NULL);
         lv_obj_add_event_cb(g_upnext,main_lost,LV_EVENT_PRESS_LOST,NULL);
     }
