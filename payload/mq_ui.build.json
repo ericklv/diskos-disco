@@ -1,17 +1,17 @@
 {
-  "version": "2.7.0",
-  "revision": "Disco 2.7.0: clean Artist/YYYY - Album/NN. Title filenames, native Disc Shelf, scoped copy PM guard, app guards and Shuffle!",
+  "version": "3.0.0",
+  "revision": "Zune integration and Immersive 3.0 release candidate",
   "baseline": "v2.6.2",
-  "source_commit": "cc6d29241618351970b6fc9431798c815c1cb69d",
-  "ui_source_sha256": "125b6c0f86802e8b3544ece94650ff00e5e74609e961ba5d581de5fbc7cf3631",
+  "source_commit": "ca4b834150459f29a41e2b83a6109b9280cd448a",
+  "ui_source_sha256": "4b7b78d785ef537a6fe1f360f11acea32ec0f9d8d6cc8517d50d4f728aac3c60",
   "ui_source_hash_recipe": "sorted tracked ui paths: path + NUL + file bytes + NUL",
-  "compiler": "Repository prebuilt toolchain-gcc11.2: GCC 11.2.0, musl 1.2.6",
+  "compiler": "musl-cross-make GCC 11.2.0, musl 1.2.6; mipsel-linux-musl, -ffp-contract=off",
   "abi": "static little-endian MIPS32r2, o32, FP64, NaN2008",
-  "status": "2.7.0 stable-channel release package. Naming/collision/legacy-path/cover-placement, Navidrome/SQLite, SMB3 wire, PM policy and LVGL tests passed. Physical PM restore, independent NAS compatibility and power/peak memory remain device-validation items.",
+  "status": "Release candidate. Static MIPS32r2/o32/FP64/NaN2008 ABI verified. Focused LVGL Home, main-icon gestures, USB-C mode, modal volume and Immersive tests passed; production USB routing failure tests and storage tests passed. Physical USB-C DAC/cable acceptance, extended device, battery and real NAS testing remain pending. See docs/RELEASE_3.0.0.md.",
   "binary": {
-    "sha256": "1a7e84dd9db1401129e4ff401e997bd507f418750260fc32a0d311659fe0882d",
-    "md5": "432bd6dea238c48120c5bc846dfcb88a",
-    "bytes": 6377756
+    "sha256": "ad6ae436ee7f4bda8882b88294df5bf94605f0b4ab14ed39e099cdcf7aadc6ca",
+    "md5": "b06fe80763fc96803d0084109d2a0a4c",
+    "bytes": 7153172
   },
   "artwork_helper": {
     "bytes": 119424,
