@@ -973,7 +973,7 @@ static const setting_t TABLE[] = {
     { "Power",   "When Sleep Ends", ST_CYCLER, "sleep_action", 0,0,0, OPT_SLEEP_ACT, 2, NULL, NULL, POWER_SLEEP_PAUSE,
       "At timer end: pause or shut down. Shutdown safely closes the card first.", NULL },
     { "Power",   "Idle Power-off", ST_CYCLER, "idle_off_idx", 0,0,0, OPT_IDLE_OFF, POWER_IDLE_N, NULL, NULL, 0,
-      "Shut down after this long with no playback or input. Safely closes the card first.", NULL },
+      "Shut down after no playback or input. Disabled on external power, in other working modes, or during Disc Shelf work. Closes the card safely.", NULL },
     { "Power",   "Charging Limit", ST_TOGGLE, "charge_protect", 0,1,1, NULL, 0, NULL, apply_charge_protect, 0,
       "The player's Charging optimization: stops charging at about 80% to slow battery wear.", NULL },
     { "Power",   "Shut down player", ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_POWER, apply_shutdown, 0,

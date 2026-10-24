@@ -140,7 +140,16 @@ void power_shutdown_new_generation(void){
     g_pw.ops.quiesce_end(g_pw.ops.ctx);
     g_pw.phase = PW_OFF;
 }
+/* Only pre-handoff work can be cancelled safely. Once 0806 is queued, keep the
+ * existing protected-card contract: neither input nor playback reopens the card. */
+static int pw_guard(int handoff){
+    if(!g_pw.ops.allow_shutdown || g_pw.ops.allow_shutdown(g_pw.ops.ctx, handoff)) return 1;
+    if(g_pw.phase == PW_SYNC) g_pw.ops.sync_kill(g_pw.ops.ctx);
+    pw_fail("Idle shutdown cancelled");
+    return 0;
+}
 pw_phase_t power_shutdown_tick(void){
+    if((g_pw.phase == PW_DRAIN || g_pw.phase == PW_SYNC) && !pw_guard(0)) return g_pw.phase;
     switch(g_pw.phase){
     case PW_OFF: break;
     case PW_DRAIN:
@@ -153,6 +162,7 @@ pw_phase_t power_shutdown_tick(void){
         int r = g_pw.ops.sync_poll(g_pw.ops.ctx);
         if(r < 0){ pw_fail("Couldn't shut down - card flush failed"); break; }
         if(r == 1){
+            if(!pw_guard(1)) break;   /* fresh audio evidence immediately before handoff */
             /* 0806 is the stock sleep timer: 1 s should make the player run its own power-off routine within about 2 s.
              * UNVERIFIED: the player resets that counter every second while a separate state word equals 1
              * (mq_player_257.dis 0x4f4558-0x4f4560, 0x4f46a4); its meaning is not identified. The hand-off timeout below
@@ -195,27 +205,47 @@ int power_apply_charge(int on){ return power_supported() ? power_apply_charge_vi
 
 static uint32_t g_key_ms; static int g_have_key;   /* physical-key input the main loop's touch timestamp misses */
 static pw_take_t g_take; static int g_take_ok; static unsigned g_take_gen; static int g_take_gen_set;
+static int g_idle_active, g_idle_busy, g_idle_launch;
+static uint32_t g_idle_input, g_idle_request_input;
+static int idle_allow_shutdown(void *ctx, int handoff){
+    (void)ctx;
+    int ui_audio_running(void);
+    if(g_idle_busy || g_idle_input != g_idle_request_input || !g_take_ok ||
+       ipc_generation() != g_take_gen || power_idle_secs(cfg_get_int("idle_off_idx", 0)) <= 0) return 0;
+    return !handoff || ui_audio_running() != 1;
+}
 static int take_read(void){ return power_read_sysconfig(POWER_SYSCONFIG, "POWER_SAVE"); }
 /* diskOS owns idle power-off (see power.h): the player's own must be off, CONFIRMED by a POWER_SAVE re-read, before
  * diskOS's idle timer may run. Retried by power_tick until confirmed, and redone after every player reconnect (new ipc
  * generation). Stock's value is only recorded (cfg stock_power_save, for a restore); it never becomes the diskOS setting. */
 static void idle_takeover(void){
+    static uint32_t waiting; static int warned;
     unsigned gen = ipc_generation();
-    if(!g_take_gen_set || gen != g_take_gen){ g_take_gen = gen; g_take_gen_set = 1; power_takeover_reset(&g_take); g_take_ok = 0; }
+    if(!g_take_gen_set || gen != g_take_gen){ g_take_gen = gen; g_take_gen_set = 1; power_takeover_reset(&g_take); g_take_ok = 0; waiting = lv_tick_get(); warned = 0; power_idle_reset(); }
     if(g_take_ok) return;
     int sps = cfg_get_int("stock_power_save", 0), was = sps;
     /* quiet: this runs from boot on, often before the player has created its mailbox, and retries itself until the
-     * player confirms - a failed attempt is not the user's business ("Player didn't respond" at every boot) */
+     * player confirms. Only a prolonged failure with idle power-off enabled warns the user. */
     int r = power_takeover_step(&g_take, take_read, ipc_send_quiet, &sps);
     if(sps != was) cfg_set_int("stock_power_save", sps);
-    if(r == 1) g_take_ok = 1;
+    if(r == 1){
+        g_take_ok = 1;
+        if(warned) ui_toast("Idle power-off is ready");
+    } else if(cfg_get_int("idle_off_idx", 0) > 0 && !warned && lv_tick_get() - waiting >= 30000u){
+        warned = 1;
+        fprintf(stderr, "idle power-off blocked: stock timer disable not confirmed (result=%d, generation=%u)\n", r, gen);
+        ui_toast("Idle power-off unavailable - player setup not confirmed");
+    }
 }
 /* Idle power-off fires only when no sound is going out either: Disco's "nothing playing" is a guess from the song
  * position, and a guess must never switch the Disc off under running music. Refused: the idle period starts again. */
 static int idle_request(void){
     int ui_audio_running(void);
     if(ui_audio_running() == 1){ fprintf(stderr, "idle power-off postponed: audio is running\n"); fflush(stderr); return -1; }
-    return power_shutdown_request();
+    g_idle_launch = 1; g_idle_request_input = g_idle_input;
+    int r = power_shutdown_request();
+    g_idle_launch = 0; g_idle_active = r == 0;
+    return r;
 }
 void power_note_input(void){ g_key_ms = lv_tick_get(); g_have_key = 1; }
 void power_startup_mirror(void){
@@ -254,6 +284,7 @@ static void real_toast(void *c, const char *m){
     (void)c;
     /* The full-screen overlay already reports startup. Failures must restore the UI
      * before presenting the state machine's error, including a protected card. */
+    fprintf(stderr, "power shutdown: %s\n", m);
     if(!strcmp(m, "Shutting down...")) return;
     ui_shutdown_hide();
     ui_toast(m);
@@ -264,7 +295,7 @@ int power_shutdown_request(void){
     if(power_shutdown_phase() == PW_PROTECTED){ ui_toast("Shutdown didn't complete - restart the Disc to use the card"); return -1; }
     if(power_shutdown_phase() != PW_OFF) return -1;
     power_ops_t o = { real_quiesce_begin, real_drained, real_quiesce_end, real_sync_start, real_sync_poll, real_sync_kill,
-                      real_send, real_now, real_toast, NULL };
+                      real_send, real_now, real_toast, NULL, g_idle_launch ? idle_allow_shutdown : NULL };
     /* Manual, idle and sleep-timer shutdown all enter here. Flush the themed screen
      * to the panel before saving usage or stopping card work. */
     ui_shutdown_screen();
@@ -285,15 +316,26 @@ static int read_temp_tenths(int *out){
 }
 void power_tick(uint32_t last_input_ms, int playing){
     static uint32_t last; static int have_last, temp_state;
-    power_shutdown_tick();
+    uint32_t now = lv_tick_get();
+    if(g_have_key && (int32_t)(g_key_ms - last_input_ms) > 0) last_input_ms = g_key_ms;
+    g_idle_input = last_input_ms; g_idle_busy = playing;
     { static unsigned pg; static int pg_set; unsigned g = ipc_generation();
       if(pg_set && g != pg) power_shutdown_new_generation();   /* the player restarted: a pending stock power-off is gone */
       pg = g; pg_set = 1; }
-    uint32_t now = lv_tick_get();
+    /* Invalidate takeover on reconnect before any idle decision, even between
+     * the five-second database polls. A pending idle request's guard sees it too. */
+    if(g_take_gen_set && ipc_generation() != g_take_gen) g_take_ok = 0;
+    power_shutdown_tick();
+    if(g_idle_active && power_shutdown_phase() == PW_OFF){
+        g_idle_active = 0;
+        power_idle_reset();   /* asynchronous failure/cancellation gets a fresh full idle period */
+    }
     if(power_supported()){
-        if(g_have_key && (int32_t)(g_key_ms - last_input_ms) > 0) last_input_ms = g_key_ms;
         if(power_shutdown_phase() == PW_OFF && g_take_ok)   /* never before the player's own idle power-off is confirmed off */
-            power_idle_tick(now, (uint32_t)power_idle_secs(cfg_get_int("idle_off_idx", 0)), playing, last_input_ms, idle_request);
+        {
+            int secs = power_idle_secs(cfg_get_int("idle_off_idx", 0));
+            power_idle_tick(now, secs > 0 ? (uint32_t)secs : 0, playing, last_input_ms, idle_request);
+        }
     }
     if(have_last && now - last < 5000u) return;
     last = now; have_last = 1;

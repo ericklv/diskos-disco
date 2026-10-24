@@ -27,6 +27,9 @@ harness = r'''
 #include <string.h>
 static int supported=1, order, shown, saves, hidden, reopened, sync_fail, sends;
 static unsigned now;
+static int g_idle_launch;
+static int idle_allow_shutdown(void *c, int handoff){(void)c;(void)handoff;return 1;}
+void stats_flush(void){}
 static char message[128];
 int power_supported(void){return supported;}
 void ui_shutdown_screen(void){assert(order==0);order=1;shown++;}

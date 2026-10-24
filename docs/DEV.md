@@ -54,3 +54,32 @@ Validation:
 - Theme source gate and diff whitespace checks.
 
 Build first with `make -C ui CROSS= host-render -j1`. The frame baseline was captured against unchanged production sources from dev `0eb90ca`, using the same host diagnostic. These checks establish host regressions and unchanged sampled rendering; they do not establish physical frame-rate, battery life or complete hardware stability. The tracked 3.0.0 release binary remains unchanged.
+
+
+## Idle shutdown fixes (2.7.0 / 3.0.0 audit)
+
+The released versions share the affected power logic. Development source now rearms
+idle power-off after a shutdown accepted by the state machine subsequently fails
+before handoff. It waits a fresh full idle interval rather than retrying in a loop.
+Pending idle shutdown cancels on input, playback/busy state, disabling the setting,
+or player reconnect. A final audio check runs after sync and before the stock
+power-off command. Manual and explicit sleep-timer shutdown have no idle guard.
+After handoff, the existing protected-card policy still applies; activity cannot
+reopen the card while a stock power-off might remain pending.
+
+Player-generation changes invalidate takeover before idle decisions. Prolonged
+unconfirmed takeover with idle power-off enabled produces one warning/log per
+player generation, then a recovery notification if confirmation arrives. The
+stock unsafe timer is never re-enabled as a fallback. Settings explain that
+external power, non-Playback modes and active Disc Shelf work suppress idle shutdown.
+Shutdown outcomes are logged so a failed attempt is diagnosable with the screen off.
+
+Validation: `python3 ui/tests/idle_shutdown_test.py` compiles production power
+functions with simulated time, IPC, audio and card/process boundaries. It covers
+retry after drain, sync-start, sync-exit and sync-timeout failures; input and busy
+cancellation during drain/sync; late audio; setting disable; player reconnect;
+blocked takeover/recovery; invalid settings; manual/explicit sleep shutdown during
+playback; and post-handoff card protection. Also run `shutdown_test.py`,
+`audio_running_test.py`, `power_plugged_test.py`, and build the host renderer.
+These are host regressions, not device power-off validation. The tracked release
+binary remains unchanged; a target build and physical checks are still required.

@@ -8,6 +8,10 @@ diskOS remains beta software; version numbers do not imply broad hardware or fea
 
 ## Unreleased — dev (experimental / in testing)
 
+- Fix idle shutdown remaining latched after asynchronous card-drain, flush or command failures; retry after a fresh full idle period.
+- Cancel pending idle shutdown on renewed activity before the player handoff, recheck audio before handoff, and invalidate timer takeover immediately on player reconnect. Explicit manual/sleep shutdown and protected-card handling remain separate.
+- Warn when stock idle-timer takeover stays unconfirmed, log shutdown outcomes, and clarify external-power/working-mode/Disc Shelf exclusions in settings.
+
 - Preserve theme visuals and interactions while caching shared list-circle calculations and Zune font fitting.
 - Avoid redundant Null menu colour writes while retaining its existing motion and timing.
 - Safely retire Null menu timers on parent teardown and handle timer-allocation failure.

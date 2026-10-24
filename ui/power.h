@@ -74,6 +74,9 @@ typedef struct power_ops {
     uint32_t (*now_ms)(void *ctx);
     void     (*toast)(void *ctx, const char *msg);
     void     *ctx;
+    /* Optional idle-only cancellation check: handoff=1 immediately before 0806.
+     * NULL retains explicit/manual/sleep shutdown semantics. Never called after handoff. */
+    int      (*allow_shutdown)(void *ctx, int handoff);
 } power_ops_t;
 #define POWER_DRAIN_MS   8000u    /* writers get this long to finish */
 #define POWER_SYNC_MS   15000u
