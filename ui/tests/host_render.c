@@ -3,6 +3,8 @@
 /* Render actual LVGL screens without starting diskOS's hardware main loop. */
 #include "md5.h"
 #include "zune_dial.h"
+#include "curvelist.h"
+#include "null_menu.h"
 #include "azjump.h"
 #include "discshelf.h"
 #include "discshelf/shelf.h"
@@ -38,6 +40,13 @@ lv_obj_t *quicksettings_test_button(int slot);
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+/* Count color property writes, which do not all emit LV_EVENT_STYLE_CHANGED. */
+static int audit_count_colors,audit_color_writes;
+void __real_lv_obj_set_local_style_prop(lv_obj_t*,lv_style_prop_t,lv_style_value_t,lv_style_selector_t);
+void __wrap_lv_obj_set_local_style_prop(lv_obj_t*o,lv_style_prop_t p,lv_style_value_t v,lv_style_selector_t s){
+    if(audit_count_colors&&(p==LV_STYLE_TEXT_COLOR||p==LV_STYLE_BG_COLOR))audit_color_writes++;
+    __real_lv_obj_set_local_style_prop(o,p,v,s);
+}
 static int shuffle_test_active,shuffle_test_count=7,shuffle_test_calls,shuffle_test_ok=1,shuffle_test_pos;
 int __real_mdb_song_count(void);
 int __real_ui_play_list(int,const char*,int);
@@ -636,6 +645,58 @@ static void zune_scroll_audit(void){
             zdial_set_sub(3,"new detail");assert(lv_obj_get_style_text_font(label,0)==TF(UI_32));
             puts("PASS: fitted fonts refresh on replacement text and a newly added subline");
         }
+    }
+}
+
+static int audit_timer_count(void){int n=0;for(lv_timer_t*t=lv_timer_get_next(NULL);t;t=lv_timer_get_next(t))n++;return n;}
+static void theme_stability_audit(void){
+    static const char *labels[]={"music","settings","search","queue"};
+    for(int i=0;i<100;i++){
+        int before=audit_timer_count();lv_obj_t *parent=lv_obj_create(lv_screen_active());
+        null_menu_t*m=null_menu_create(parent,labels,4,TC(TEXT_PRIMARY),TC(ACCENT_PRIMARY),NULL,NULL);assert(m);
+        assert(audit_timer_count()==before+1);
+        if(i%2){lv_obj_delete(parent);assert(audit_timer_count()==before);null_menu_set_active(m,1);null_menu_destroy(m);}
+        else{null_menu_destroy(m);lv_obj_delete(parent);}
+        assert(audit_timer_count()==before);nav_wait(20);
+    }
+    puts("PASS: 100 Null menu rebuilds, parent-first and owner-first teardown; no orphan timers");
+}
+static void theme_scroll_audit(void){
+    lv_obj_t *root=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(root);lv_obj_set_size(root,360,360);
+    lv_obj_set_style_bg_color(root,TC(CANVAS),0);lv_obj_set_style_bg_opa(root,LV_OPA_COVER,0);
+    lv_obj_t *list=lv_obj_create(root);lv_obj_remove_style_all(list);lv_obj_set_size(list,320,300);lv_obj_set_pos(list,20,30);
+    lv_obj_set_flex_flow(list,LV_FLEX_FLOW_COLUMN);lv_obj_set_scrollbar_mode(list,LV_SCROLLBAR_MODE_OFF);
+    for(int i=0;i<12;i++){
+        lv_obj_t*r=lv_obj_create(list);lv_obj_remove_style_all(r);lv_obj_set_size(r,300,56);lv_obj_add_flag(r,LV_OBJ_FLAG_USER_1);
+        lv_obj_t*l=lv_label_create(r);lv_label_set_text_fmt(l,"Album %02d",i);lv_obj_set_style_text_font(l,TF(UI_18),0);lv_obj_set_style_text_color(l,TC(TEXT_PRIMARY),0);lv_obj_set_pos(l,8,8);
+    }
+    curvelist_t c={0};curvelist_attach(&c,list,root,300);
+    for(int mode=0;mode<3;mode++){
+        simple_cfg_set_int_deferred(th_null()?"null_scroll":"disco_scroll",mode);
+        for(int y=0;y<=280;y+=14){
+            lv_obj_scroll_to_y(list,y,LV_ANIM_OFF);curvelist_update(&c);lv_refr_now(NULL);
+            char sum[33];md5_hex(pixels,sizeof pixels,sum);printf("THEME_FRAME %d %d %s\n",mode,y,sum);
+        }
+    }
+    lv_obj_delete(root);
+    if(th_null()){
+        root=lv_obj_create(lv_layer_top());lv_obj_remove_style_all(root);lv_obj_set_size(root,360,360);
+        lv_obj_set_style_bg_color(root,TC(CANVAS),0);lv_obj_set_style_bg_opa(root,LV_OPA_COVER,0);
+        static const char *labels[]={"music","settings","search","queue","modes","albums"};
+        null_menu_t*m=null_menu_create(root,labels,6,TC(TEXT_PRIMARY),TC(ACCENT_PRIMARY),NULL,NULL);assert(m);
+        lv_indev_t*in=lv_indev_create();lv_indev_set_type(in,LV_INDEV_TYPE_POINTER);lv_indev_set_read_cb(in,nav_read);lv_timer_set_period(lv_indev_get_read_timer(in),10);
+        lv_obj_update_layout(root);lv_refr_now(NULL);
+        watch_styles(root);test_style_events=0;audit_color_writes=0;audit_count_colors=1;
+        nav_pointer=(lv_indev_data_t){.point={230,30},.state=LV_INDEV_STATE_PRESSED};nav_wait(30);
+        float peak=0;
+        for(int i=0;i<60;i++){
+            if(i<30)nav_pointer.point.x=230-i*5;else nav_pointer.state=LV_INDEV_STATE_RELEASED;
+            nav_wait(20);if(null_menu_position(m)>peak)peak=null_menu_position(m);lv_refr_now(NULL);char sum[33];md5_hex(pixels,sizeof pixels,sum);printf("NULL_FRAME %d %s\n",i,sum);
+        }
+        fprintf(stderr,"NULL_MENU_PEAK %.1f\n",peak);assert(peak>20);
+        audit_count_colors=0;
+        printf("NULL_MENU_STYLES %d\nNULL_MENU_COLORS %d\n",test_style_events,audit_color_writes);
+        lv_indev_delete(in);null_menu_destroy(m);lv_obj_delete(root);
     }
 }
 
@@ -2430,6 +2491,8 @@ int main(int argc, char **argv){
         puts("PASS: real bounded decoder feeds 364px immersive image and async timed lyrics; close/reopen works");
     }
 render:
+    if(getenv("REVIEW_THEME_SCROLL")){theme_scroll_audit();return 0;}
+    if(getenv("REVIEW_THEME_STABILITY")){theme_stability_audit();return 0;}
     if(getenv("REVIEW_ZUNE_SCROLL_PERF")){zune_scroll_audit();return 0;}
     if(getenv("ZVOL_CONCEPT"))volume_proposal(atoi(getenv("ZVOL_CONCEPT")));
     if(getenv("AUDIT_VERTICAL")){for(int i=0;i<12;i++){nav_wait(137);audit_vertical(lv_screen_active());audit_vertical(lv_layer_top());}}

@@ -34,7 +34,7 @@ static const int STDF[10]={32,64,125,250,500,1000,2000,4000,8000,16000};
 static char dbpath[1024];
 #define DB_PATH dbpath
 static sqlite3 *database;
-static sqlite3 *db(void){return database;}
+static sqlite3 *db_read(void){return database;}
 static int cached_rate=44100,live_rate=44100;
 int eq_rate_cached(void){return cached_rate;}
 int eq_player_rate(void){return live_rate;}
@@ -46,8 +46,8 @@ int fw_os_ver(void){return version;}
 static int sd_io_begin(void){return 1;}
 static void sd_io_end(void){}
 static int ui_eq_select(int p){assert(p==11);send_count++;return send_ok?0:-1;}
-static int cfg_get_int(const char *k,int def){(void)k;(void)def;return selected;}
-static void cfg_set_int_deferred(const char *k,int v){(void)k;(void)v;mirror_count++;}
+static int simple_cfg_get_int(const char *k,int def){(void)k;(void)def;return selected;}
+static void simple_cfg_set_int_deferred(const char *k,int v){(void)k;(void)v;mirror_count++;}
 static void cfg_flush(void){}
 static int g_sel=-1,g_dirty_draw,g_drag_ok;
 static char toast[100];

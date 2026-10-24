@@ -34,3 +34,23 @@ The golden scroll hashes in `ui/tests/fixtures/zune-scroll-3.0.0.txt` were captu
 These are host checks, not measured device frame-rate or battery improvements. On the Disc, check long scrolling sessions, cold and warm settings menus, library font sizes, touch response while music plays and Immersive entry/exit.
 
 The tracked `payload/mq_ui` and its metadata remain the original 3.0.0 release artifact. They do **not** contain these source changes. A new target build and device validation are required before distributing a development firmware; the release preflight correctly rejects changed UI sources against the older artifact.
+
+## Shared themes efficiency and stability pass
+
+Reviewed the shared rendering paths used by Stone, Ring, Braun, Disco, Null and Squash, alongside the existing Zune changes. Kept animation durations, easing, momentum, controls, list dimensions, colours and text unchanged.
+
+- Shared lists and library rows reuse the exact original floored circle spans for their three radii. This removes repeated square roots during scrolling, using a fixed 540-byte lookup plus initialization flags; no heap allocation or new timer.
+- Null’s menu keeps its existing motion and sampling cadence, but writes text/thumb colours only when they change. The pointer drag/settle fixture reduces colour-property writes from 287 to 4 in each of its three palettes; all captured pixels remain identical.
+- Null menu teardown now retires its timer when a parent deletes the widgets first. Later owner cleanup remains safe. Constructor failure to allocate a timer also cleans up the menu rather than leaving a partial handle.
+- Updated stale EQ/config stubs in the stability diagnostic so it exercises the current production function names; no EQ production behavior changed.
+
+Validation:
+
+- `python3 ui/tests/theme_efficiency_test.py`: 1,062 animated frames and 56 static Home/Music/Quick Settings/Settings renders match the pre-change dev baseline across 14 theme/appearance/palette combinations. The Null drag test verifies actual movement and counts colour writes separately from layout/style events.
+- 100 Null menu rebuilds alternate parent-first and owner-first cleanup; no orphan timers remain.
+- `python3 ui/tests/curve_geometry_test.py`: exact cold/warm circle spans, boundary positions and the uncached-radius fallback.
+- Focused Null gestures/volume, Squash interaction/performance and Disco navigation checks; the earlier Zune scroll regression remains available.
+- `python3 ui/tests/stability_test.py`: EQ validation, asynchronous database saves, failed-apply handling, busy database behavior, single-instance locking, command timeout and descriptor cleanup.
+- Theme source gate and diff whitespace checks.
+
+Build first with `make -C ui CROSS= host-render -j1`. The frame baseline was captured against unchanged production sources from dev `0eb90ca`, using the same host diagnostic. These checks establish host regressions and unchanged sampled rendering; they do not establish physical frame-rate, battery life or complete hardware stability. The tracked 3.0.0 release binary remains unchanged.

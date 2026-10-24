@@ -42,13 +42,16 @@ static void paint(null_menu_t *m)
     if(m->painted && m->pos==m->painted_pos && pressed==m->painted_pressed && m->down==m->painted_down)return;
     m->painted=1;m->painted_pos=m->pos;m->painted_pressed=pressed;m->painted_down=m->down;
     for (int i = 0; i < m->count; i++) {
-        lv_obj_set_x(m->labels[i], (int)roundf(i * CELL - m->pos));
-        lv_obj_set_style_text_color(
-            m->labels[i], m->down && !m->drag && !m->handle && m->pressed == i ? m->on : m->idle, 0);
+        int x=(int)roundf(i*CELL-m->pos);
+        lv_obj_set_x(m->labels[i],x);
+        lv_color_t color=pressed==i?m->on:m->idle;
+        if(!lv_color_eq(lv_obj_get_style_text_color(m->labels[i],0),color))lv_obj_set_style_text_color(m->labels[i],color,0);
     }
     float max = maxpos(m);
-    lv_obj_set_x(m->thumb, (int)roundf(max > 0 ? (RAIL_W - THUMB_W) * m->pos / max : 0));
-    lv_obj_set_style_bg_color(m->thumb, m->down ? m->on : m->idle, 0);
+    int x=(int)roundf(max>0?(RAIL_W-THUMB_W)*m->pos/max:0);
+    lv_obj_set_x(m->thumb,x);
+    lv_color_t color=m->down?m->on:m->idle;
+    if(!lv_color_eq(lv_obj_get_style_bg_color(m->thumb,0),color))lv_obj_set_style_bg_color(m->thumb,color,0);
 }
 static void snap(null_menu_t *m)
 {
@@ -169,6 +172,14 @@ static void pointer(lv_event_t *e)
         paint(m);
     }
 }
+/* Parent teardown must retire the timer before its next callback touches widgets.
+ * The owner may still call destroy on the handle afterwards. */
+static void root_deleted(lv_event_t *e){
+    null_menu_t *m=lv_event_get_user_data(e);
+    if(lv_event_get_target(e)!=m->root)return;
+    m->root=NULL;m->down=m->drag=m->coasting=m->settling=0;
+    if(m->timer){lv_timer_delete(m->timer);m->timer=NULL;}
+}
 null_menu_t *null_menu_create(lv_obj_t *p, const char *const *labels, int n, lv_color_t idle, lv_color_t on,
                               null_menu_action_t action, void *user)
 {
@@ -190,6 +201,7 @@ null_menu_t *null_menu_create(lv_obj_t *p, const char *const *labels, int n, lv_
     m->pressed = -1;
     m->last_tick = lv_tick_get();
     m->root = plain(p, 0, 0, 360, 90);
+    lv_obj_add_event_cb(m->root,root_deleted,LV_EVENT_DELETE,m);
     m->viewport = plain(m->root, 42, 19, VIEW, 30);
     for (int i = 0; i < n; i++) {
         lv_obj_t *l = lv_label_create(m->viewport);
@@ -212,6 +224,7 @@ null_menu_t *null_menu_create(lv_obj_t *p, const char *const *labels, int n, lv_
     lv_obj_add_flag(m->input, LV_OBJ_FLAG_PRESS_LOCK);
     lv_obj_add_event_cb(m->input, pointer, LV_EVENT_ALL, m);
     m->timer = lv_timer_create(tick, 16, m);
+    if(!m->timer){lv_obj_delete(m->root);free(m->labels);free(m);return NULL;}
     paint(m);
     return m;
 }
@@ -219,8 +232,8 @@ void null_menu_destroy(null_menu_t *m)
 {
     if (!m)
         return;
-    lv_timer_delete(m->timer);
-    lv_obj_delete(m->root);
+    if(m->timer){lv_timer_delete(m->timer);m->timer=NULL;}
+    if(m->root)lv_obj_delete(m->root);
     free(m->labels);
     free(m);
 }
@@ -230,7 +243,7 @@ int null_menu_dragging(const null_menu_t *m) { return m && m->drag; }
 void null_menu_set_shortcut(null_menu_t *m,void (*callback)(int)){if(m)m->shortcut=callback;}
 void null_menu_set_active(null_menu_t *m, int on)
 {
-    if (!m)
+    if (!m || !m->root || !m->timer)
         return;
     if (on) {
         m->last_tick = lv_tick_get();

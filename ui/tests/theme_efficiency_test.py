@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""Actual LVGL list/menu animation pixels and Null timer lifecycle regression checks.
+Build the host renderer first. --record-baseline is for an explicitly restored
+pre-change implementation, not a way to accept new rendering differences.
+"""
+from pathlib import Path
+import argparse, hashlib, json, os, subprocess, tempfile
+from artdec_test import png
+app=Path(__file__).resolve().parents[1]
+p=argparse.ArgumentParser();p.add_argument('--record-baseline',action='store_true');p.add_argument('--renderer',type=Path,default=app/'tests/host_build/host-render');a=p.parse_args()
+fixture=app/'tests/fixtures/theme-efficiency-baseline.json'
+cases=[(6,0,0),(6,1,0),(8,0,0),(8,1,0),(9,0,0),(9,1,0),(10,0,0),(10,1,0),(11,0,0),(11,0,1),(11,0,2),(12,0,0),(12,1,0),(13,0,0)]
+expected=None if a.record_baseline else json.loads(fixture.read_text())
+with tempfile.TemporaryDirectory(prefix='theme-efficiency-') as tmp:
+ art=Path(tmp)/'track.png';art.write_bytes(png(64,64,(209,57,12)));out=Path(tmp)/'frame.ppm'
+ results=[]
+ for index,(preset,variant,palette) in enumerate(cases):
+  env={**os.environ,'ZNP_PATH':str(art),'CFG_INT':'disco_hints=2','NULL_PALETTE':str(palette)}
+  def run(extra,page='home'):
+   (app/'tests/host_build/diskos.conf').unlink(missing_ok=True)
+   r=subprocess.run([str(a.renderer.resolve()),str(preset),str(variant),'preview-'+page,'0',str(out)],env={**env,**extra},capture_output=True,text=True,timeout=45)
+   assert r.returncode==0,r.stdout+r.stderr
+   return r.stdout
+  text=run({'REVIEW_THEME_SCROLL':'1'})
+  frames=[s for s in text.splitlines() if s.startswith(('THEME_FRAME','NULL_FRAME'))]
+  assert len(frames)==(123 if preset==11 else 63)
+  static={page:None for page in ['home','np','quick','settings']}
+  for page in static:
+   run({},page);static[page]=hashlib.sha256(out.read_bytes()).hexdigest()
+  styles=[int(s.split()[1]) for s in text.splitlines() if s.startswith('NULL_MENU_STYLES')]
+  colors=[int(s.split()[1]) for s in text.splitlines() if s.startswith('NULL_MENU_COLORS')]
+  result={'preset':preset,'variant':variant,'palette':palette,'frames':frames,'static':static,'menu_style_events':styles,'menu_color_writes':colors};results.append(result)
+  if expected:
+   old=expected['cases'][index];assert frames==old['frames'],(preset,variant,palette,'animation pixels differ');assert static==old['static'],(preset,variant,palette,'static pixels differ')
+   if styles:assert styles[0]<=old['menu_style_events'][0],(styles,old['menu_style_events'])
+   if colors:assert colors[0]<old['menu_color_writes'][0],(colors,old['menu_color_writes'])
+  print(f'PASS {preset}/{variant}/palette{palette}: {len(frames)} animation frames, four static screens'+(f', Null color writes {colors[0]}' if styles else ''),flush=True)
+ if a.record_baseline:
+  fixture.write_text(json.dumps({'baseline':'0eb90ca661fd5d8a51657dd35a28764ca9b7fdce','cases':results},indent=2)+'\n')
+ else:
+  print(run({'REVIEW_THEME_STABILITY':'1'}).strip())
+  print('PASS all theme frames match the pre-change dev baseline; Null timer cleanup verified')

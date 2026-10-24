@@ -264,7 +264,7 @@ static void curve_rows(void){
             lean_free_edge(a.y1, a.y2, &w, &shift);
         } else {
         int dy = abs((a.y1 + a.y2) / 2 - 180) + ROW_H / 2;          /* the row's far edge sets the limit */
-        int half = dy < 176 ? (int)sqrtf((float)(180 * 180 - dy * dy)) - 8 : 0;
+        int half = dy < 176 ? curvelist_circle_half(180,dy) - 8 : 0;
         w = 2 * half;
         if(w > ROW_W_FULL) w = ROW_W_FULL;
         if(w < 186) w = 186;

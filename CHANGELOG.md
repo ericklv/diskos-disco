@@ -6,6 +6,13 @@ Entries follow the Keep a Changelog format, with Added, Changed, and Fixed categ
 diskOS remains beta software; version numbers do not imply broad hardware or feature validation.
 
 
+## Unreleased — dev (experimental / in testing)
+
+- Preserve theme visuals and interactions while caching shared list-circle calculations and Zune font fitting.
+- Avoid redundant Null menu colour writes while retaining its existing motion and timing.
+- Safely retire Null menu timers on parent teardown and handle timer-allocation failure.
+- Add cross-theme animated/static render comparisons and repeated menu-lifecycle checks; refresh stability-test stubs for the current interfaces.
+
 ## 3.0.0
 
 Zune theme by [namastecoconut-imagined](https://github.com/namastecoconut-imagined/diskos-disco-zune), with Disco integration and legibility polish by zmd22. [Release notes](docs/releases/v3.0.0.md) and [validation checklist](docs/RELEASE_3.0.0.md).

@@ -96,6 +96,19 @@ void curvelist_braun_watch(lv_obj_t *list){
     lv_obj_add_event_cb(list, watch_del_cb, LV_EVENT_DELETE, NULL);
     if(!g_watch_tmr) g_watch_tmr = lv_timer_create(watch_cb, 250, NULL);
 }
+/* Integer row positions revisit the same circle spans throughout a scroll.
+ * Retain the original sqrtf/truncation exactly; 540 bytes and no per-frame heap. */
+int curvelist_circle_half(int radius, int distance){
+    static uint8_t spans[3][180];static unsigned ready;
+    if(distance<0||distance>=radius)return 0;
+    if(radius!=150&&radius!=172&&radius!=180)return (int)sqrtf((float)((int64_t)radius*radius-(int64_t)distance*distance));
+    int slot=radius==150?0:radius==172?1:2;
+    if(!(ready&(1u<<slot))){
+        for(int d=0;d<radius;d++)spans[slot][d]=(uint8_t)sqrtf((float)(radius*radius-d*d));
+        ready|=1u<<slot;
+    }
+    return spans[slot][distance];
+}
 /* Disco > Scroll: 0 Classic (the circle), 1 Straight (Braun-like, full width), 2 Disco (the rows' right ends
  * start on a circle round the navigation hub's centre, so they swing round that fixed point like spokes). */
 int curvelist_disco_scroll(void){ return th_null() ? simple_cfg_get_int("null_scroll", 0) : th_disco_family() ? simple_cfg_get_int("disco_scroll", 0) : 0; }
@@ -104,8 +117,8 @@ int curvelist_disco_geom(int mode, int y1, int y2, int full_w, int *w, int *shif
     int left = 180 - full_w / 2, right = 180 + full_w / 2;
     if(mode == 2){                                                   /* a CD's rim round the hub's centre (286,180), radius 150: */
         int cy = (y1 + y2) / 2, dy = abs(cy - 180), far = dy + (y2 - y1) / 2;   /* the middle row sits furthest out, */
-        int off = 150 - (dy < 150 ? (int)sqrtf((float)(150 * 150 - dy * dy)) : 150);   /* rows above and below swing in */
-        int edge = far < 172 ? (int)sqrtf((float)(172 * 172 - far * far)) : 0;    /* and stay inside the screen circle */
+        int off = 150 - (dy < 150 ? curvelist_circle_half(150,dy) : 150);   /* rows above and below swing in */
+        int edge = far < 172 ? curvelist_circle_half(172,far) : 0;    /* and stay inside the screen circle */
         left = 180 - full_w / 2 + 2 + off; right = 180 + full_w / 2 - 10;   /* times stay in one straight column; the list clips left of its own edge */
         if(left < 180 - edge + 8) left = 180 - edge + 8;
     }
@@ -142,7 +155,7 @@ static void curve(curvelist_t *c){
         int w, shift;
         if(!curvelist_disco_geom(mode, a.y1, a.y2, c->full_w, &w, &shift)){
         int dy = abs((a.y1 + a.y2) / 2 - 180) + lv_area_get_height(&a) / 2;
-        int half = dy < 176 ? (int)sqrtf((float)(180 * 180 - dy * dy)) - 10 : 0;
+        int half = dy < 176 ? curvelist_circle_half(180,dy) - 10 : 0;
         w = 2 * half;
         if(w > c->full_w) w = c->full_w;
         if(w < c->full_w - (NB - 1) * 20) w = c->full_w - (NB - 1) * 20;
