@@ -1,93 +1,92 @@
 /* Presentation only: TABLE retains saved keys, defaults and handlers. */
-typedef struct {const char *key;void (*apply)(int);const char *page,*label;int order;} display_entry_t;
+typedef struct {const char *key;void (*apply)(int);const char *page,*label;} display_entry_t;
 static const display_entry_t DISPLAY_ENTRIES[]={
-    {"imm_scrub",NULL,"Immersive","Circular control",30},
-    {"imm_scrub_action",NULL,"Immersive","Control action",40},
-    {"brightness",NULL,"Display","Brightness",1},
-    {"theme_preset",NULL,"Display","Theme",2},
-    {"theme_variant",NULL,"Appearance","Light / dark",10},
-    {"theme_auto",NULL,"Appearance","Automatic appearance",20},
-    {"outdoor",NULL,"Appearance","Outdoor mode",30},
-    {"null_palette",NULL,"Appearance","Colour scheme",40},
-    {"disco_sheen",NULL,"Appearance","Rim sheen",50},
-    {"disco_eq",NULL,"Appearance","Equalizer colours",60},
-    {"disco_vol",NULL,"Appearance","Volume colours",70},
-    {"null_drawer_state_colours",NULL,"Appearance","Menu colours",80},
-    {"simple_background",NULL,"Music screen","Background",10},
-    {"null_music_background",NULL,"Music screen","Background",20},
-    {"disco_controls",NULL,"Music screen","Controls",30},
-    {"null_controls",NULL,"Music screen","Controls",40},
-    {"np_style",NULL,"Music screen","Now Playing style",80},
-    {"np_font",NULL,"Music text","Track font",10},
-    {"null_music_fonts",NULL,"Music text","Track font",20},
-    {"disco_title_al",NULL,"Music text","Text alignment",30},
-    {"null_text_align",NULL,"Music text","Text alignment",40},
-    {"disco_clock",NULL,"Music info","Show clock",10},
-    {"null_clock",NULL,"Music info","Show clock",20},
-    {NULL,apply_grp_clockinfo,"Music info","Clock and info",25},
-    {"clock_batt_pct",NULL,"Clock and info","Battery percentage",10},
-    {"clock_weather",NULL,"Clock and info","Weather",20},
-    {"disco_times",NULL,"Music info","Track times",30},
-    {"null_music_album",NULL,"Music info","Show album",40},
-    {"disco_trackno",NULL,"Music info","Track number",50},
-    {"null_trackno",NULL,"Music info","Track number",60},
-    {"simple_play_state",NULL,"Music info","Playback state",70},
-    {"simple_play_mode",NULL,"Music info","Playback mode",80},
-    {"disco_progress",NULL,"Music progress","Progress colour",10},
-    {"disco_prog_shape",NULL,"Music progress","Progress shape",20},
-    {"imm_style",NULL,"Immersive","Immersive style",10},
-    {"imm_lyrics",NULL,"Immersive","Immersive lyrics",20},
-    {"saver_idx",NULL,"Standby","Screensaver delay",10},
-    {"screenoff_idx",NULL,"Standby","Screen-off delay",20},
-    {"saver_style",NULL,"Standby","Screensaver style",30},
-    {"disco_qs_style",NULL,"Quick settings","Layout",10},
-    {"null_qs_layout",NULL,"Quick settings","Layout",20},
-    {"disco_hints",NULL,"Navigation","Interaction hints",50},
-    {"disco_side_pick",NULL,"Navigation","Navigation side",60},
-    {"null_side",NULL,"Navigation","Navigation side",70},
-    {"null_autohide",NULL,"Navigation","Menu timeout",80},
-    {"disco_title_hold",NULL,"Gestures","Title hold",10},
-    {"null_title_hold",NULL,"Gestures","Title hold",20},
-    {"disco_nav_double",NULL,"Gestures","Menu double tap",30},
-    {"null_nav_double",NULL,"Gestures","Menu double tap",40},
-    {"disco_nav_hold",NULL,"Gestures","Menu hold",50},
-    {"null_nav_hold",NULL,"Gestures","Menu hold",60},
-    {"swipe_thresh",NULL,"Gestures","Back-swipe distance",70},
-    {"font_size",NULL,"Layout & extras","Text size",10},
-    {CTL_CFG_ROT,NULL,"Layout & extras","Screen rotation",20},
-    {"time_24h",NULL,"Layout & extras","24-hour time",30},
-    {"disco_scroll",NULL,"Layout & extras","List motion",40},
-    {"null_scroll",NULL,"Layout & extras","List motion",50},
-    {"anim",NULL,"Layout & extras","Screen transitions",60},
-    {"track_numbers",NULL,"Layout & extras","Album track numbers",70},
-    {"album_view",NULL,"Layout & extras","Album view",80},
-    {"disc_colour",NULL,"Layout & extras","Startup disc colour",90},
-    {"online_art",NULL,"Online & cache","Online album art",10},
-    {"online_lyrics",NULL,"Online & cache","Online lyrics",20},
-    {"artcache",NULL,"Online & cache","Artwork cache",30},
-    {"weather_on",NULL,"Online & cache","Weather",40},
-    {NULL,apply_grp_zune,"Music screen","Zune",45},
-    {NULL,apply_grp_musictext,"Music screen","Text",50},
-    {NULL,apply_grp_musicinfo,"Music screen","Information",60},
-    {NULL,apply_grp_musicprogress,"Music screen","Progress",70},
-    {NULL,apply_grp_immersive,"Music screen","Immersive",90},
-    {NULL,apply_grp_themecolours,"Display","Appearance",3},
-    {NULL,apply_disco_options,"Display","Music screen",4},
-    {NULL,apply_grp_screenstandby,"Display","Standby",5},
-    {NULL,apply_null_options,"Display","Navigation",6},
-    {NULL,apply_grp_textlayout,"Display","Layout & extras",7},
-    {NULL,apply_open_colorpick,"Appearance","Accent colour",40},
-    {NULL,apply_disco_menu,"Navigation","Menu items",10},
-    {NULL,apply_null_menu,NULL,"Menu items",10},
-    {NULL,apply_grp_discoqs,"Navigation","Quick settings",20},
-    {NULL,apply_null_qs,NULL,"Quick settings",20},
-    {NULL,apply_shortcuts,"Navigation","Shortcuts",30},
-    {NULL,apply_grp_discolayout,"Navigation","Gestures",40},
-    {NULL,apply_hints_reset,"Navigation","Show hints again",80},
-    {NULL,apply_disco_qs_items,"Quick settings","Items",30},
-    {NULL,apply_grp_onlineextras,"Layout & extras","Online & cache",1000},
-    {NULL,apply_grp_musicscreen,NULL,"Music screen",0},
-    {NULL,apply_grp_discocolours,NULL,"Colours",0},
+    {"imm_scrub",NULL,"Immersive","Circular control"},
+    {"imm_scrub_action",NULL,"Immersive","Control action"},
+    {"brightness",NULL,"Display","Brightness"},
+    {"theme_preset",NULL,"Display","Theme"},
+    {"theme_variant",NULL,"Appearance","Light / dark"},
+    {"theme_auto",NULL,"Appearance","Automatic appearance"},
+    {"outdoor",NULL,"Appearance","Outdoor mode"},
+    {"null_palette",NULL,"Appearance","Colour scheme"},
+    {"disco_sheen",NULL,"Appearance","Rim sheen"},
+    {"disco_eq",NULL,"Appearance","Equalizer colours"},
+    {"disco_vol",NULL,"Appearance","Volume colours"},
+    {"null_drawer_state_colours",NULL,"Appearance","Menu colours"},
+    {"simple_background",NULL,"Music screen","Background"},
+    {"null_music_background",NULL,"Music screen","Background"},
+    {"disco_controls",NULL,"Music screen","Controls"},
+    {"null_controls",NULL,"Music screen","Controls"},
+    {"np_style",NULL,"Music screen","Now Playing style"},
+    {"np_font",NULL,"Music text","Track font"},
+    {"null_music_fonts",NULL,"Music text","Track font"},
+    {"disco_title_al",NULL,"Music text","Text alignment"},
+    {"null_text_align",NULL,"Music text","Text alignment"},
+    {"disco_clock",NULL,"Music info","Show clock"},
+    {"null_clock",NULL,"Music info","Show clock"},
+    {NULL,apply_grp_clockinfo,"Music info","Clock and info"},
+    {"clock_batt_pct",NULL,"Clock and info","Battery percentage"},
+    {"clock_weather",NULL,"Clock and info","Weather"},
+    {"disco_times",NULL,"Music info","Track times"},
+    {"null_music_album",NULL,"Music info","Show album"},
+    {"disco_trackno",NULL,"Music info","Track number"},
+    {"null_trackno",NULL,"Music info","Track number"},
+    {"simple_play_state",NULL,"Music info","Playback state"},
+    {"simple_play_mode",NULL,"Music info","Playback mode"},
+    {"disco_progress",NULL,"Music progress","Progress colour"},
+    {"disco_prog_shape",NULL,"Music progress","Progress shape"},
+    {"imm_style",NULL,"Immersive","Immersive style"},
+    {"imm_lyrics",NULL,"Immersive","Immersive lyrics"},
+    {"saver_idx",NULL,"Standby","Screensaver delay"},
+    {"screenoff_idx",NULL,"Standby","Screen-off delay"},
+    {"saver_style",NULL,"Standby","Screensaver style"},
+    {"disco_qs_style",NULL,"Quick settings","Layout"},
+    {"null_qs_layout",NULL,"Quick settings","Layout"},
+    {"disco_hints",NULL,"Help","Interaction hints"},
+    {"disco_side_pick",NULL,"Navigation","Navigation side"},
+    {"null_side",NULL,"Navigation","Navigation side"},
+    {"null_autohide",NULL,"Navigation","Menu timeout"},
+    {"disco_title_hold",NULL,"Gestures","Title hold"},
+    {"null_title_hold",NULL,"Gestures","Title hold"},
+    {"disco_nav_double",NULL,"Gestures","Menu double tap"},
+    {"null_nav_double",NULL,"Gestures","Menu double tap"},
+    {"disco_nav_hold",NULL,"Gestures","Menu hold"},
+    {"null_nav_hold",NULL,"Gestures","Menu hold"},
+    {"swipe_thresh",NULL,"Gestures","Back-swipe distance"},
+    {"font_size",NULL,"Text & layout","Text size"},
+    {CTL_CFG_ROT,NULL,"Text & layout","Screen rotation"},
+    {"time_24h",NULL,"Text & layout","24-hour time"},
+    {"disco_scroll",NULL,"Text & layout","List motion"},
+    {"null_scroll",NULL,"Text & layout","List motion"},
+    {"anim",NULL,"Text & layout","Screen transitions"},
+    {"track_numbers",NULL,"Text & layout","Album track numbers"},
+    {"album_view",NULL,"Text & layout","Album view"},
+    {"online_art",NULL,"Online services","Online album art"},
+    {"online_lyrics",NULL,"Online services","Online lyrics"},
+    {"artcache",NULL,"Online services","Artwork cache"},
+    {"weather_on",NULL,"Online services","Weather"},
+    {NULL,apply_grp_zune,"Music screen","Zune"},
+    {NULL,apply_grp_musictext,"Music screen","Text"},
+    {NULL,apply_grp_musicinfo,"Music screen","Information"},
+    {NULL,apply_grp_musicprogress,"Music screen","Progress"},
+    {NULL,apply_grp_immersive,"Music screen","Immersive"},
+    {NULL,apply_grp_themecolours,"Display","Appearance"},
+    {NULL,apply_disco_options,"Display","Music screen"},
+    {NULL,apply_grp_screenstandby,"Display","Standby"},
+    {NULL,apply_null_options,"Display","Navigation"},
+    {NULL,apply_grp_textlayout,"Display","Text & layout"},
+    {NULL,apply_open_colorpick,"Appearance","Accent colour"},
+    {NULL,apply_disco_menu,"Navigation","Menu items"},
+    {NULL,apply_null_menu,NULL,"Menu items"},
+    {NULL,apply_grp_discoqs,"Navigation","Quick settings"},
+    {NULL,apply_null_qs,NULL,"Quick settings"},
+    {NULL,apply_shortcuts,"Navigation","Shortcuts"},
+    {NULL,apply_grp_discolayout,"Navigation","Gestures"},
+    {NULL,apply_hints_reset,"Help","Show hints again"},
+    {NULL,apply_disco_qs_items,"Quick settings","Items"},
+    {NULL,apply_grp_onlineextras,"Text & layout","Online services"},
+    {NULL,apply_grp_musicscreen,NULL,"Music screen"},
+    {NULL,apply_grp_discocolours,NULL,"Colours"},
 };
 
 static const display_entry_t *display_entry(const setting_t *s){
@@ -98,6 +97,7 @@ static const display_entry_t *display_entry(const setting_t *s){
     return NULL;
 }
 static int display_variant_hidden(const setting_t *s){
+    if(s->cfg_key&&th_zune()&&!strcmp(s->cfg_key,"saver_style"))return 1;
     if(s->apply==apply_grp_zune&&!th_zune())return 1;
     if(s->cfg_key&&th_zune()&&!strcmp(s->cfg_key,"np_style"))return 1;
     if(s->cfg_key&&!th_zune()&&!strncmp(s->cfg_key,"zune_",5))return 1;
@@ -114,7 +114,7 @@ static int display_variant_hidden(const setting_t *s){
     for(size_t i=0;i<sizeof pairs/sizeof pairs[0];i++)if(!strcmp(s->cfg_key,th_null()?pairs[i].common:pairs[i].null_key))return 1;
     return 0;
 }
-static const char *display_label(const setting_t *s){const display_entry_t *d=display_entry(s);return d?d->label:s->label;}
+static const char *display_original_label(const setting_t *s){const display_entry_t *d=display_entry(s);return d?d->label:s->label;}
 static const char *display_disabled_reason(const setting_t *s){
     const char *k=s->cfg_key?s->cfg_key:"";
     if(!strcmp(k,"zune_nav_hold")&&!th_zune())return "This action belongs to the Zune main menu.";
@@ -146,10 +146,69 @@ static const char *display_disabled_reason(const setting_t *s){
 static int display_blocked(const setting_t *s){const char *reason=display_disabled_reason(s);if(reason){ui_toast(reason);return 1;}return 0;}
 static const char *display_group_alias(const char *g){
     static const struct{const char *old,*page;} aliases[]={
-        {"Theme Colours","Appearance"},{"Text & Layout","Layout & extras"},{"Online & Extras","Online & cache"},
+        {"Network","Connectivity"},{"Power","Battery & power"},
+        {"Theme Colours","Appearance"},{"Text & Layout","Text & layout"},{"Online & Extras","Online services"},
         {"Disco Options","Music screen"},{"Null Options","Navigation"},{"Music Screen","Music screen"},
         {"Disco Colours","Appearance"},{"Disco Layout","Gestures"},{"Quick Settings","Quick settings"}
     };
     for(size_t i=0;i<sizeof aliases/sizeof aliases[0];i++)if(!strcmp(g,aliases[i].old))return aliases[i].page;
     return g;
+}
+
+/* Canonical ownership: presentation moves only; keys and apply handlers stay intact. */
+static const char *settings_page_title(const char *page){
+    if(!strcmp(page,"Theme navigation"))return "Navigation";
+    if(strcmp(page,"Theme settings"))return page;
+    if(th_disco())return "Disco settings";
+    if(th_simple())return "Squash settings";
+    if(th_null())return "Null settings";
+    if(th_zune())return "Zune settings";
+    if(th_braun())return "Braun settings";
+    if(theme_preset()==THEME_PRESET_RING)return "Ring settings";
+    return theme_custom_active()?"Custom settings":"Stone settings";
+}
+static const char *settings_page(const setting_t *s){
+    const char *k=s->cfg_key?s->cfg_key:"";
+    const display_entry_t *d=display_entry(s);
+    const char *page=d?d->page:s->group;
+    if(!strcmp(k,"screenoff_idx")||!strcmp(k,"saver_idx")||!strcmp(k,"clock_batt_pct"))return "Battery & power";
+    if(!strcmp(k,"sleep_idx")||!strcmp(k,"sleep_action"))return "Sleep timer";
+    if(s->apply==apply_restart)return "Battery & power";
+    if(!strcmp(k,"time_24h"))return "Date & Time";
+    if(!strcmp(k,"language"))return "System";
+    if(!strcmp(k,"bt_codec"))return "Bluetooth";
+    if(!strcmp(k,"disco_scroll")||!strcmp(k,"null_scroll")||!strcmp(k,"zune_nav_hold"))return "Theme navigation";
+    if(s->apply==apply_grp_about)return "Help";
+    if(s->apply==apply_grp_onlineextras)return "Connectivity";
+    if(s->apply==apply_grp_immersive)return "Display";
+    if(s->apply==apply_grp_screenstandby||s->apply==apply_grp_discocolours)return "Theme settings";
+    if(s->apply==apply_grp_musicscreen)return "Theme settings";
+    if(s->apply==apply_grp_themecolours)return NULL; /* old wrapper; Theme is now the picker */
+    if(s->apply==apply_disco_options||s->apply==apply_null_options)return NULL;
+    if(s->apply==apply_grp_discoqs)return "Theme settings";
+    if(s->apply==apply_grp_discolayout||s->apply==apply_grp_zune||s->apply==apply_disco_menu)return "Theme navigation";
+    if(s->apply==apply_disco_qs_items)return !strcmp(s->group,"Text & Layout")?"Navigation":NULL;
+    if(s->apply==apply_shortcuts)return "Navigation";
+    if(!strcmp(k,"swipe_thresh"))return "Navigation";
+    if(!strcmp(k,"album_view")||!strcmp(k,"track_numbers"))return "Library appearance";
+    if(s->apply==apply_shared_navigation)return "Display";
+    if(page&&!strcmp(page,"Navigation"))return "Theme navigation";
+    if(page&&!strcmp(page,"Appearance"))return "Appearance";
+    if(page&&!strcmp(page,"Zune"))return "Theme navigation";
+    return page;
+}
+static const char *display_label(const setting_t *s){
+    if(s->apply==apply_theme_settings)return settings_page_title("Theme settings");
+    if(s->apply==apply_grp_screenstandby)return "Screensaver";
+    if(s->apply==apply_grp_discocolours)return "Appearance";
+    if(s->apply==apply_grp_discoqs)return "Quick settings layout";
+    if(s->apply==apply_grp_discolayout)return "Gestures";
+    if(s->apply==apply_disco_qs_items)return "Quick settings items";
+    if(s->apply==apply_grp_onlineextras)return "Online services";
+    if(s->apply==apply_grp_textlayout)return "Text & layout";
+    if(s->apply==apply_grp_library)return "Library management";
+    if(s->apply==apply_grp_musictext)return "Text";
+    if(s->cfg_key&&!strcmp(s->cfg_key,"sleep_idx"))return "Duration";
+    if(s->cfg_key&&!strcmp(s->cfg_key,"imm_style"))return "Style";
+    return display_original_label(s);
 }

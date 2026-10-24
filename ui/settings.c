@@ -21,6 +21,7 @@
 #include "md5.h"
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -141,7 +142,6 @@ static void apply_swipe(int v){ ui_apply_swipe_thresh(v); }   /* live; persisted
 static void apply_anim(int v){ screen_set_anim(v); }
 static void apply_weather(int v){ weather_set_enabled(v); }
 static void apply_mode(int v){ if(ui_book_active()) return; ui_set_workmode(v); }   /* an active book stays in Single; cfg still updates for later music */
-static void apply_eq(int v){ ui_eq_select(v); }   /* central: also records eq_last so the drawer A/B stays in sync */
 /* audio cluster: v<0 = "System default" (unmanaged) -> ui_set_* no-ops, leaving the player's
  * own state untouched. A real value sends the live command; persistence is via cfg + the
  * player-ready re-apply in main.c (ui_reapply_audio). */
@@ -344,7 +344,6 @@ static void apply_import_m3u(int v){ (void)v;
     ui_toast(b);
 }
 static void apply_wifi(int v){ (void)v; wifi_open(); }   /* opens SCR_WIFI */
-static void apply_bt(int v){ (void)v; bt_open(); }       /* opens SCR_BT */
 static void apply_volkeys_group(int v);                   /* Settings > System > Volume Keys */
 static void apply_ma_group(int v);                        /* Settings > Network > Music Assistant */
 static void apply_ma_on(int v){ ma_set_on(v); }
@@ -353,7 +352,7 @@ static void apply_ma_name(int v){ (void)v; ma_edit_name(); }
 
 static void apply_workmode(int v){ (void)v; modes_open(); }
 #include "modes.h"
-static void apply_eq_custom(int v){ (void)v; screen_show(SCR_EQ); }  /* opens Custom EQ */
+static void apply_eq_custom(int v){ (void)v; screen_show(SCR_EQ); }  /* shared Equalizer screen, including user profiles */
 static void apply_disco_menu(int v){ (void)v; disco_menu_open(); }     /* fork: Disco theme only */
 /* Display > Disco Options: the "Disco" rows on the same list screen; back returns to Display (settings_back_consumed) */
 static void apply_disco_options(int v);
@@ -363,13 +362,19 @@ static void apply_null_qs_layout(int v){(void)v;null_qs_build();}
 static void apply_null_live(int v){(void)v;null_options_changed();}
 static void apply_null_menu(int v){(void)v;disco_menu_open();}
 static void apply_null_qs(int v){(void)v;disco_qs_menu_open();}
-static const char *OPT_LIBRARY_SEEK[]={"A-Z picker","Letter wheel"};
+static const char *OPT_LIBRARY_SEEK[]={"A-Z keys","A-Z wheel"};
 static const char *OPT_NULLFONTS[]={"Original","Jersey","Handjet","Matrix"};
 static const char *OPT_NULLQS[]={"Text","Icons"};
 static const char *OPT_NULLPAL[]={"Cyan / Yellow","Red / Lime","Matrix"};
 static const char *OPT_NULLTEXT[]={"Center","Left"};
 static const char *OPT_NULLBG[]={"Black","Dark cover","Pixel cover"};
 static const char *OPT_NULLAUTO[]={"Off","5 seconds","10 seconds","30 seconds"};
+static void apply_theme_settings(int v);
+static void apply_theme_navigation(int v);
+static void apply_library_appearance(int v);
+static void apply_sleep_settings(int v);
+static void apply_bluetooth_settings(int v);
+static void apply_bluetooth_connection(int v);
 static void apply_grp_musictext(int v);
 static void apply_grp_musicinfo(int v);
 static void apply_grp_clockinfo(int v);
@@ -387,7 +392,6 @@ static void apply_grp_discoqs(int v);
 static void apply_disco_qs(int v){(void)v;quicksettings_build();}
 static void apply_disco_qs_items(int v){(void)v;disco_qs_menu_open();}
 static const char *OPT_QS_STYLE[]={"List","Arc"};
-static void apply_grp_power(int v);
 static void apply_grp_datetime(int v);
 static void apply_grp_library(int v);
 static void apply_grp_controls(int v);
@@ -713,7 +717,6 @@ static const char *const OPT_SAVERSTYLE[] = { "Cover", "Analog", "Minimal", "Dig
 static const char *const OPT_ZLOCK[] = { "Album Art", "Clock Only" };                 /* Zune lock screen (Figma 78) */
 static const char *const OPT_ZLOCK_D[] = { "The cover, time and song while music plays.", "Always the big clock." };
 static const char *const OPT_ZTINT[] = { "White", "All Accent", "Minutes", "Colon", "Hours" };
-static const char *const OPT_DISCCOLOUR[] = { "Black", "Turquoise", "Pink" };
 static const char *const OPT_BOOTDEF[] = { "diskOS", "Stock" };
 static const char *const OPT_ARTCACHE[] = { "Covers only","When Idle","Idle & Charging" };
 
@@ -752,26 +755,34 @@ static const char *const D_NPSTYLE[] = {
     "Full-cover Poster with the existing immersive record and lyrics view.",
 };
 
+static void apply_battery(int v){ (void)v; screen_show(SCR_USAGE); }
+
+static void apply_shared_navigation(int v);
 static const setting_t TABLE[] = {
+    {"Display","Navigation",ST_ACTION,NULL,0,0,0,NULL,0,LV_SYMBOL_RIGHT,apply_shared_navigation,0,"Shared navigation preferences",NULL},
+    {"Bluetooth","Devices",ST_ACTION,NULL,0,0,0,NULL,0,LV_SYMBOL_RIGHT,apply_bluetooth_connection,0,"",NULL},
+    {"Battery & power","Sleep timer",ST_ACTION,NULL,0,0,0,NULL,0,LV_SYMBOL_RIGHT,apply_sleep_settings,0,"",NULL},
+    {"Theme settings","Navigation",ST_ACTION,NULL,0,0,0,NULL,0,LV_SYMBOL_RIGHT,apply_theme_navigation,0,"",NULL},
+    {"Display","Library appearance",ST_ACTION,NULL,0,0,0,NULL,0,LV_SYMBOL_RIGHT,apply_library_appearance,0,"",NULL},
+    {"Display","Theme settings",ST_ACTION,NULL,0,0,0,NULL,0,LV_SYMBOL_RIGHT,apply_theme_settings,0,"",NULL},
+    {"Battery & power","Details",ST_ACTION,NULL,0,0,0,NULL,0,LV_SYMBOL_RIGHT,apply_battery,0,"Charge level and recorded listening/screen usage.",NULL},
     {"Music screen","Zune",ST_ACTION,NULL,0,0,0,NULL,0,LV_SYMBOL_RIGHT,apply_grp_zune,0,"Set the main icon and its double-tap and hold actions.",NULL},
     {"Zune","Main icon",ST_CHOICE,"zune_main",0,0,0,zune_main_names,ZMAIN_COUNT,NULL,apply_zune_main,ZMAIN_UPNEXT,"Tap the edge icon on the main menu.",NULL},
     {"Zune","Main icon double-tap",ST_CHOICE,"zune_double",0,0,0,zune_main_names,ZMAIN_COUNT,NULL,NULL,ZMAIN_SEARCH,"Double-tap the main icon for this shortcut.",NULL},
     {"Zune","Main icon hold",ST_CHOICE,"zune_hold",0,0,0,zune_main_names,ZMAIN_COUNT,NULL,NULL,ZMAIN_MUSIC,"Hold the main icon for this shortcut.",NULL},
     {"Controls","Menu hold",ST_CYCLER,"zune_nav_hold",0,0,0,OPT_NAV_ACTION,DISCO_NAV_COUNT,NULL,NULL,DISCO_NAV_MUSIC,"Hold a row on the Zune main menu. Shuffle! starts the whole library.",NULL},
-    { "Playback", "Library seeking", ST_CYCLER,"library_seeking",0,0,0,OPT_LIBRARY_SEEK,2,NULL,NULL,0,
-      "A-Z picker uses the letter grid. Letter wheel: hold the scrollbar letter, turn around the screen, then tap the centre to jump. After release, 1 second without touching also jumps.",NULL },
+    { "Playback", "Library seek", ST_CYCLER,"library_seeking",0,0,0,OPT_LIBRARY_SEEK,2,NULL,NULL,0,
+      "A-Z keys use the letter grid. A-Z wheel: hold the scrollbar letter, turn around the screen, then tap the centre to jump. After release, 1 second without touching also jumps.",NULL },
     { "Playback", "Play Mode",   ST_CYCLER, "work_mode", 0,0,0, OPT_MODE, 5, NULL, apply_mode, 0,
       "How the player advances through tracks.", D_MODE },
-    { "Playback", "Equalizer",   ST_CYCLER, "eq_preset", 0,0,0, OPT_EQ,  21, NULL, apply_eq,   0,
-      "Tone preset sent to the player; audible effect is still being verified.", NULL },
     { "Playback", "Up Next", ST_TOGGLE, "up_next", 0,1,0, NULL,0, NULL, apply_upnext, 0,
       "Up Next sits beside Home favourites. Hold Queue for Up Next; tap for the editable queue.", NULL },
     { "Playback", "Auto-tag",    ST_CYCLER, "autotag", 0,0,0, OPT_AUTOTAG, 2, NULL, apply_autotag, 0,
       "After 10 s on Wi-Fi, add missing art and synced lyrics to tags. Retry failures on later plays, at most daily.", NULL },
-    { "Playback", "Custom EQ",    ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_eq_custom, 0,
-      "View the custom EQ curve. Editing requires verified firmware support.", NULL },
-    { "Playback", "DSD Output",  ST_READONLY, NULL, 0,0,0, NULL,0, "Auto", NULL, 0,
-      "The player auto-selects the DSD mode; this control isn't user-adjustable yet.", NULL },
+    { "Playback", "Equalizer",    ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_eq_custom, 0,
+      "Choose an EQ preset, toggle EQ, or edit and rename user profiles. Editing requires verified firmware support.", NULL },
+    { "Audio", "DSD Output",  ST_READONLY, NULL, 0,0,0, NULL,0, "Player-managed", NULL, 0,
+      "Disco has no verified DSD output selector. DSD handling remains with the stock player; this information row sends no command.", NULL },
     { "Playback", "Resume Playback", ST_CYCLER, "memory_play", 0,0,0, OPT_MEMORY, 3, NULL, apply_memory, 0,
       "On startup: Off starts fresh; Position resumes the spot; Song resumes the track.", NULL },
     { "Playback", "Artists",     ST_CYCLER, "artist_class", 0,0,0, OPT_ARTISTCLASS, 2, NULL, apply_artist_class, 0,
@@ -869,8 +880,6 @@ static const setting_t TABLE[] = {
       "Show synced lyrics over a darkened part of Immersive. Off shows artwork only.", NULL },
     {"Immersive","Circular control",ST_TOGGLE,"imm_scrub",0,1,1,NULL,0,NULL,apply_imm_control,0,"Drag the artwork clockwise or counterclockwise. Tap shows playback controls; swipe from the left edge to go Back.",NULL},
     {"Immersive","Control action",ST_CYCLER,"imm_scrub_action",0,0,1,OPT_IMM_CONTROL,2,NULL,apply_imm_control,0,"Duration seeks on release and holds lyrics during the drag. Volume adjusts live.",NULL},
-    { "Text & Layout",  "Disc Colour", ST_CYCLER, "disc_colour", 0,0,0, OPT_DISCCOLOUR, 3, NULL, NULL, 0,
-      "The colour of the Disc drawn on the startup screen. Set it to match yours.", NULL },
     { "Standby",  "Screensaver", ST_CYCLER, "saver_idx",  0,0,0, OPT_POWER, 5, NULL, NULL, 2,
       "Idle time before the clock screensaver appears and the screen dims.", NULL },
     { "Standby",  "Saver Style", ST_CYCLER, "saver_style", 0,0,0, OPT_SAVERSTYLE, 6, NULL, NULL, 0,
@@ -950,8 +959,6 @@ static const setting_t TABLE[] = {
       "Double-tap the icon in the open navigation circle.", NULL },
     { "Disco Layout", "Hold", ST_CYCLER, "disco_nav_hold", 0,0,0, OPT_NAV_ACTION, DISCO_NAV_COUNT, NULL, NULL, DISCO_NAV_MUSIC,
       "Hold the icon in the open navigation circle.", NULL },
-    { "System", "Power", ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_grp_power, 0,
-      "Sleep timer, idle power-off, the charging limit and shutting down.", NULL },
     { "System", "Date & Time", ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_grp_datetime, 0,
       "Automatic time, setting the date and time by hand, and the time zone.", NULL },
     { "System", "Library", ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_grp_library, 0,
@@ -968,15 +975,15 @@ static const setting_t TABLE[] = {
       "Start first-use tips again. Your other settings stay as they are.", NULL },
     { "System", "About", ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_grp_about, 0,
       "Version, device information and temperature.", NULL },
-    { "Power",   "Sleep Timer", ST_CYCLER, "sleep_idx", 0,0,0, OPT_SLEEP, 6, NULL, apply_sleep, 0,
+    { "Battery & power",   "Sleep Timer", ST_CYCLER, "sleep_idx", 0,0,0, OPT_SLEEP, 6, NULL, apply_sleep, 0,
       "Pause or shut down when the timer ends, as chosen below. Timer resets on restart.", NULL },
-    { "Power",   "When Sleep Ends", ST_CYCLER, "sleep_action", 0,0,0, OPT_SLEEP_ACT, 2, NULL, NULL, POWER_SLEEP_PAUSE,
+    { "Battery & power",   "When Sleep Ends", ST_CYCLER, "sleep_action", 0,0,0, OPT_SLEEP_ACT, 2, NULL, NULL, POWER_SLEEP_PAUSE,
       "At timer end: pause or shut down. Shutdown safely closes the card first.", NULL },
-    { "Power",   "Idle Power-off", ST_CYCLER, "idle_off_idx", 0,0,0, OPT_IDLE_OFF, POWER_IDLE_N, NULL, NULL, 0,
+    { "Battery & power",   "Idle Power-off", ST_CYCLER, "idle_off_idx", 0,0,0, OPT_IDLE_OFF, POWER_IDLE_N, NULL, NULL, 0,
       "Shut down after no playback or input. Disabled on external power, in other working modes, or during Disc Shelf work. Closes the card safely.", NULL },
-    { "Power",   "Charging Limit", ST_TOGGLE, "charge_protect", 0,1,1, NULL, 0, NULL, apply_charge_protect, 0,
+    { "Battery & power",   "Charging Limit", ST_TOGGLE, "charge_protect", 0,1,1, NULL, 0, NULL, apply_charge_protect, 0,
       "The player's Charging optimization: stops charging at about 80% to slow battery wear.", NULL },
-    { "Power",   "Shut down player", ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_POWER, apply_shutdown, 0,
+    { "Battery & power",   "Shut down player", ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_POWER, apply_shutdown, 0,
       "Switch the player off.", NULL },
     { "Date & Time",   "Automatic Time", ST_TOGGLE, "auto_time", 0,1,1, NULL, 0, NULL, apply_auto_time, 1,
       "Sync time/zone on Wi-Fi connection. Changes take effect after restart.", NULL },
@@ -1015,9 +1022,9 @@ static const setting_t TABLE[] = {
       "What the volume keys do on a double press: adjust the volume or switch track.", NULL },
     { "Volume Keys", "Long Press", ST_CYCLER, "key_long", 0,0,0, OPT_VOLKEY, 2, NULL, apply_key_long, CTL_ACT_VOLUME,
       "What the volume keys do when held: adjust the volume or switch track.", NULL },
-    { "Network",  "Wi-Fi",       ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_wifi, 0,
+    { "Connectivity",  "Wi-Fi",       ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_wifi, 0,
       "Scan for and connect to Wi-Fi networks.", NULL },
-    { "Network",  "MA Sendspin", ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_ma_group, 0,
+    { "Connectivity",  "MA Sendspin", ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_ma_group, 0,
       "Appear as a Music Assistant speaker via Sendspin. Requires Wi-Fi; uses AirPlay while active.", NULL },
     { "MA Sendspin", "Sendspin", ST_TOGGLE, "ma_on", 0,1,1, NULL,0, NULL, apply_ma_on, 0,
       "On: connect to Music Assistant and wait for audio via AirPlay. Off: return to Playback.", NULL },
@@ -1027,14 +1034,15 @@ static const setting_t TABLE[] = {
       "How the Disc is called in Music Assistant.", NULL },
     { "MA Sendspin", "Sync Delay", ST_SLIDER, "ma_delay_ms", -2000,2000,10, NULL,0, NULL, NULL, 0,
       "Sync speakers: positive milliseconds delay the Disc; negative values play it earlier.", NULL },
-    { "Network",  "Bluetooth", ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_bt, 0,
+    { "Connectivity",  "Bluetooth", ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_bluetooth_settings, 0,
       "Pair Bluetooth devices. Audio routes to connected headphones or speakers (SBC, beta).", NULL },
-    { "Network",  "Bluetooth Codec", ST_CHOICE, "bt_codec", 0,0,0, BT_CODEC_LABEL, BT_CODEC_N, NULL, NULL, 0,
+    { "Connectivity",  "Bluetooth Codec", ST_CHOICE, "bt_codec", 0,0,0, BT_CODEC_LABEL, BT_CODEC_N, NULL, NULL, 0,
       "Choose the headphone codec for the next connection. If the headphones lack LDAC, AAC is used; SBC only if they lack both. AAC/LDAC may stutter.", NULL },
 };
 #define N_SETTINGS ((int)(sizeof(TABLE)/sizeof(TABLE[0])))
 
 #include "settings_display.h"
+#include "settings_order.h"
 
 static int nav_setting(const setting_t *s){return s->cfg_key && (!strcmp(s->cfg_key,"disco_nav_double") || !strcmp(s->cfg_key,"disco_nav_hold"));}
 static const char *setting_key(const setting_t *s){
@@ -1043,11 +1051,10 @@ static const char *setting_key(const setting_t *s){
 }
 static int get_val(const setting_t *s){const char *key=setting_key(s);return key?simple_cfg_get_int(key,th_simple()&&s->cfg_key&&!strcmp(s->cfg_key,"np_font")?2:s->def):0;}
 static void set_val(const setting_t *s, int v){
-    /* EQ persists itself only on a successful send (apply_eq -> ui_eq_select), so a failed send never
-     * leaves a stale eq_preset; every other setting persists up front here. */
+    /* EQ selection persists in SCR_EQ. These rows retain their existing saved keys. */
     if(display_blocked(s))return;
     g_set_prev = get_val(s);
-    if(s->cfg_key && strcmp(s->cfg_key, "eq_preset") && simple_cfg_set_int(setting_key(s), v) < 0){
+    if(s->cfg_key && simple_cfg_set_int(setting_key(s), v) < 0){
         ui_toast("Couldn't save settings"); return;
     }
     if(s->apply) s->apply(v);
@@ -1186,17 +1193,16 @@ static void apply_grp_musicprogress(int v){(void)v;g_active_group="Music progres
 static void apply_grp_immersive(int v){(void)v;g_active_group="Immersive";setlist_refresh();}
 static void apply_grp_zune(int v){(void)v;g_active_group="Zune";setlist_refresh();}
 static void apply_null_options(int v){(void)v;g_active_group="Navigation";setlist_refresh();}
-static void apply_disco_options(int v){ (void)v; g_active_group = "Music screen"; setlist_refresh(); }
+static void apply_disco_options(int v){ (void)v; g_active_group = "Theme settings"; setlist_refresh(); }
 /* Settings sub-groups (Display, Disco Options and System are split into short pages; back steps up one level) */
 static void apply_grp_themecolours(int v){ (void)v; g_active_group = "Appearance"; setlist_refresh(); }
-static void apply_grp_textlayout(int v){ (void)v; g_active_group = "Layout & extras"; setlist_refresh(); }
+static void apply_grp_textlayout(int v){ (void)v; g_active_group = "Text & layout"; setlist_refresh(); }
 static void apply_grp_screenstandby(int v){ (void)v; g_active_group = "Standby"; setlist_refresh(); }
-static void apply_grp_onlineextras(int v){ (void)v; g_active_group = "Online & cache"; setlist_refresh(); }
+static void apply_grp_onlineextras(int v){ (void)v; g_active_group = "Online services"; setlist_refresh(); }
 static void apply_grp_musicscreen(int v){ (void)v; g_active_group = "Music screen"; setlist_refresh(); }
 static void apply_grp_discocolours(int v){ (void)v; g_active_group = "Appearance"; setlist_refresh(); }
 static void apply_grp_discoqs(int v){(void)v;g_active_group="Quick settings";setlist_refresh();}
 static void apply_grp_discolayout(int v){ (void)v; g_active_group = "Gestures"; setlist_refresh(); }
-static void apply_grp_power(int v){ (void)v; g_active_group = "Power"; setlist_refresh(); }
 static void apply_grp_datetime(int v){ (void)v; g_active_group = "Date & Time"; setlist_refresh(); }
 static void apply_grp_library(int v){ (void)v; g_active_group = "Library"; setlist_refresh(); }
 static void apply_grp_controls(int v){ (void)v; g_active_group = "Controls"; setlist_refresh(); }
@@ -1209,40 +1215,52 @@ void settings_open_ma(void){ apply_ma_group(0); }      /* host renders */
 void settings_open_volkeys(void){ apply_volkeys_group(0); }   /* host renders */
 void settings_open_ma_delay(void){ for(int i = 0; i < (int)(sizeof TABLE / sizeof TABLE[0]); i++) if(TABLE[i].cfg_key && !strcmp(TABLE[i].cfg_key, "ma_delay_ms")){ settings_open_detail(i); return; } }
 /* screen_back() on SCR_SETLIST: a sub-group (Disco Options, Music Assistant) steps back to its parent on the same screen */
+static void apply_theme_settings(int v){(void)v;g_active_group="Theme settings";setlist_refresh();}
+static void apply_theme_navigation(int v){(void)v;g_active_group="Theme navigation";setlist_refresh();}
+static void apply_library_appearance(int v){(void)v;g_active_group="Library appearance";setlist_refresh();}
+static void apply_sleep_settings(int v){(void)v;g_active_group="Sleep timer";setlist_refresh();}
+static void apply_bluetooth_settings(int v){(void)v;g_active_group="Bluetooth";setlist_refresh();}
+static void apply_bluetooth_connection(int v){(void)v;bt_open();}
+static void apply_shared_navigation(int v){(void)v;g_active_group="Navigation";setlist_refresh();}
 static const struct { const char *child, *parent; } SUBGROUP[] = {
-    { "Appearance", "Display" },
-    { "Music screen", "Display" },
-    { "Standby", "Display" },
+    { "Theme settings", "Display" },
+    { "Theme navigation", "Theme settings" },
+    { "Library appearance", "Display" },
+    { "Sleep timer", "Battery & power" },
+    { "Bluetooth", "Connectivity" },
+    { "Appearance", "Theme settings" },
+    { "Music screen", "Theme settings" },
+    { "Standby", "Theme settings" },
     { "Navigation", "Display" },
-    { "Layout & extras", "Display" },
-    { "Online & cache", "Layout & extras" },
-    { "Gestures", "Navigation" },
-    { "Quick settings", "Navigation" },
-    { "Zune", "Music screen" },
+    { "Text & layout", "Display" },
+    { "Online services", "Connectivity" },
+    { "Gestures", "Theme navigation" },
+    { "Quick settings", "Theme settings" },
+    { "Zune", "Theme navigation" },
     { "Music text", "Music screen" },
     { "Music info", "Music screen" },
     { "Clock and info", "Music info" },
     { "Music progress", "Music screen" },
-    { "Immersive", "Music screen" },
-    { "Power", "System" },
+    { "Immersive", "Display" },
     { "Date & Time", "System" },
     { "Library", "System" },
     { "Controls", "System" },
     { "Maintenance", "System" },
-    { "About", "System" },
+    { "About", "Help" },
     { "How to", "Help" },
-    { "MA Sendspin", "Network" },
+    { "MA Sendspin", "Connectivity" },
     { "Volume Keys", "Controls" } };
 int settings_back_consumed(void){
     if(!g_active_group) return 0;
     for(size_t i = 0; i < sizeof SUBGROUP / sizeof SUBGROUP[0]; i++)
         if(!strcmp(g_active_group, SUBGROUP[i].child)){
-            if(th_zune() && !strcmp(SUBGROUP[i].parent, "System")) return 0;   /* Zune lists these on the root */
             g_active_group = SUBGROUP[i].parent; setlist_refresh(); return 1; }
     return 0;
 }
 /* Category order for the top-level Settings screen (must match the group strings used in TABLE). */
-static const char *const GROUPS[] = { "Playback", "Audio", "Display", "Network", "System" };
+static const char *const GROUPS[] = { "Playback", "Audio", "Display", "Connectivity", "System", "Battery & power", "Help" };
+static const char *const GROUP_ICONS[] = { LV_SYMBOL_PLAY, LV_SYMBOL_AUDIO, LV_SYMBOL_IMAGE,
+    LV_SYMBOL_WIFI, LV_SYMBOL_SETTINGS, LV_SYMBOL_BATTERY_3, LV_SYMBOL_FILE };
 #define N_GROUPS ((int)(sizeof(GROUPS)/sizeof(GROUPS[0])))
 
 
@@ -1326,37 +1344,29 @@ static lv_obj_t *make_list(lv_obj_t *root);
 static void zlower(char *o, size_t n, const char *s){
     size_t i = 0; for(; s && s[i] && i + 1 < n; i++) o[i] = (s[i] >= 'A' && s[i] <= 'Z') ? s[i] + 32 : s[i]; o[i] = 0;
 }
-/* the root: System's pages come up a level (the design lists power, date & time... beside display) */
-static const struct { const char *name, *group, *sub; } ZSET[] = {
-    { "playback",    "Playback",    "play mode, resume, up next" },
-    { "audio",       "Audio",       "output, gain, filter" },
-    { "display",     "Display",     "brightness, theme, lock screen" },
-    { "network",     "Network",     "wi-fi, bluetooth" },
-    { "power",       "Power",       "sleep timer, charging limit" },
-    { "date & time", "Date & Time", "time zone, 24-hour clock" },
-    { "controls",    "Controls",    "volume keys, language" },
-    { "library",     "Library",     "rescan, import playlists" },
-    { "battery",     NULL,          "charge and playback left" },
-    { "maintenance", "Maintenance", "update, restart, reset" },
-    { "about",       "About",       "model, firmware, storage" },
-    { "help",        "Help",        "how to use disco, hints" },
+/* Descriptions follow GROUPS; category names/order come from that shared root. */
+static const char *const GROUP_DESCRIPTIONS[]={
+    "play mode, equalizer, library seek", "balance, DSD, gain, filter",
+    "appearance, music screen, navigation", "bluetooth, sendspin, wi-fi",
+    "controls, date, library, maintenance", "battery, idle shutdown, sleep timer",
+    "how to use disco, hints"
 };
-#define ZSET_N ((int)(sizeof ZSET / sizeof ZSET[0]))
+_Static_assert(sizeof GROUP_DESCRIPTIONS/sizeof *GROUP_DESCRIPTIONS==N_GROUPS,"one description per category");
 static int g_zset_focus = 2;
 static void zset_go(void *p){
     int i = (int)(intptr_t)p;
-    if(!ZSET[i].group){ screen_show(SCR_USAGE); return; }
-    g_active_group = ZSET[i].group; screen_show(SCR_SETLIST);
+    g_active_group = GROUPS[i]; screen_show(SCR_SETLIST);
 }
-static void zset_pick(int i){ if(i < 0 || i >= ZSET_N) return; g_zset_focus = i; lv_async_call(zset_go, (void *)(intptr_t)i); }
+static void zset_pick(int i){ if(i < 0 || i >= N_GROUPS) return; g_zset_focus = i; lv_async_call(zset_go, (void *)(intptr_t)i); }
 static void zsettings_root(lv_obj_t *root){
     lv_obj_clean(root);
     lv_obj_set_style_bg_color(root, TC(CANVAS), 0); lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
     lv_obj_remove_flag(root, LV_OBJ_FLAG_SCROLLABLE);
-    const char *lb[ZSET_N]; for(int i = 0; i < ZSET_N; i++) lb[i] = ZSET[i].name;
+    static char names[N_GROUPS][64]; const char *lb[N_GROUPS];
+    for(int i=0;i<N_GROUPS;i++){zlower(names[i],sizeof names[i],GROUPS[i]);lb[i]=names[i];}
     zdial_wrap_next();                                             /* the settings dial loops, like home */
-    zdial_build(root, lb, ZSET_N, g_zset_focus, zset_pick, 74, "settings.zune");
-    for(int i = 0; i < ZSET_N; i++) zdial_set_sub(i, ZSET[i].sub);
+    zdial_build(root, lb, N_GROUPS, g_zset_focus, zset_pick, 74, "settings.zune");
+    for(int i = 0; i < N_GROUPS; i++) zdial_set_sub(i, GROUP_DESCRIPTIONS[i]);
     zune_status(root, SCR_SETTINGS);
     lv_obj_t *t = lv_label_create(root); kit_keep(t); lv_label_set_text(t, "SETTINGS");
     lv_obj_set_style_text_font(t, &font_zune_semibold_11, 0); lv_obj_set_style_text_letter_space(t, 2, 0);
@@ -1364,9 +1374,6 @@ static void zsettings_root(lv_obj_t *root){
 }
 
 /* a section page */
-static int zis_onoff(const setting_t *s){
-    return s->type == ST_TOGGLE || (s->type == ST_CYCLER && s->nopts == 2 && !strcmp(s->opts[0], "Off") && !strcmp(s->opts[1], "On"));
-}
 static void zswitch_paint(lv_obj_t *sw, int on){
     lv_obj_set_style_bg_color(sw, on ? TC(ACCENT_PRIMARY) : TC(CONTROL_TRACK), 0);
     lv_obj_t *k = lv_obj_get_child(sw, 0);
@@ -1399,33 +1406,19 @@ static void zcurve(lv_obj_t *list){
 }
 static void zcurve_cb(lv_event_t *e){ zcurve(lv_event_get_target(e)); }
 static void zsetlist(lv_obj_t *root){
-    char t[64]; zlower(t, sizeof t, g_active_group);
+    char t[64]; zlower(t, sizeof t, settings_page_title(g_active_group));
     lv_obj_t *list = make_list(root);
     lv_obj_set_pos(list, 0, 100); lv_obj_set_size(list, 360, 260);
     lv_obj_set_style_pad_row(list, 5, 0); lv_obj_set_style_pad_top(list, 6, 0); lv_obj_set_style_pad_bottom(list, 110, 0);
     lv_obj_set_style_pad_left(list, 0, 0); lv_obj_set_style_pad_right(list, 0, 0);
     lv_obj_set_flex_align(list, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_add_event_cb(list, zcurve_cb, LV_EVENT_SCROLL, NULL);
-    int indices[N_SETTINGS], count = 0;
-    for(int i = 0; i < N_SETTINGS; i++){
-        const setting_t *s = &TABLE[i]; const display_entry_t *d = display_entry(s);
-        const char *page = d ? d->page : s->group;
-        if(!page || strcmp(page, g_active_group) || display_variant_hidden(s) || display_disabled_reason(s)) continue;
-        if(s->cfg_key && !strcmp(s->cfg_key, "saver_style")) continue;     /* Zune has one lock screen, whatever the style */
-        if(s->apply == apply_disco_qs_items && !strcmp(s->group, "Text & Layout")) continue;
-        int at = count, order = d ? d->order : 1000 + i;
-        while(at > 0){
-            const display_entry_t *prev = display_entry(&TABLE[indices[at - 1]]);
-            if((prev ? prev->order : 1000 + indices[at - 1]) <= order) break;
-            indices[at] = indices[at - 1]; --at;
-        }
-        indices[at] = i; ++count;
-    }
+    int indices[N_SETTINGS], count = settings_collect(g_active_group, indices);
     for(int ri = 0; ri < count; ri++){
         int i = indices[ri]; const setting_t *s = &TABLE[i];
         lv_obj_t *row = lv_obj_create(list); lv_obj_remove_style_all(row); kit_keep(row);
         lv_obj_set_size(row, 300, 62); lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE); lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-        int onoff = zis_onoff(s);
+        int onoff = setting_is_onoff(s);
         if(onoff) ui_on(row, zrow_toggle_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)i, "settings.zrow", UI_CORE);
         else ui_on(row, row_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)i, "settings.row", UI_CORE);
         char nm[64]; zlower(nm, sizeof nm, tr(display_label(s)));
@@ -1445,6 +1438,11 @@ static void zsetlist(lv_obj_t *root){
         if(v[0]){ lv_obj_set_pos(l, 0, 4); lv_obj_set_pos(vl, 2, 33); }
         else { lv_obj_align(l, LV_ALIGN_LEFT_MID, 0, 0); lv_obj_add_flag(vl, LV_OBJ_FLAG_HIDDEN); }
         g_list_rows[i] = vl;
+        if(display_disabled_reason(s)){
+            lv_obj_set_style_opa(row,150,0);
+            lv_label_set_text(vl,"unavailable");lv_obj_remove_flag(vl,LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_pos(l,0,4);lv_obj_set_pos(vl,2,33);
+        }
         if(s->apply == apply_rescan){
             rescan_row_t *rr = malloc(sizeof *rr);
             if(rr){ rr->lbl = l; rr->vl = vl; lv_obj_remove_flag(vl, LV_OBJ_FLAG_HIDDEN);
@@ -1812,7 +1810,7 @@ static lv_obj_t *setting_card(lv_obj_t *list){
     return row;
 }
 
-/* ---- top-level category list (SCR_SETTINGS): Playback / Audio / Display / Network / System ---- */
+/* ---- shared top-level category structure (all themes) ---- */
 __attribute__((unused)) static void cat_cb(lv_event_t *e){
     if(lv_event_get_code(e)!=LV_EVENT_CLICKED) return;
     int gi = (int)(uintptr_t)lv_event_get_user_data(e);
@@ -1823,11 +1821,12 @@ __attribute__((unused)) static void cat_cb(lv_event_t *e){
 
 static orbit_t g_set_orb;
 static void cat_pick(int gi){
-    if(gi==N_GROUPS+1 && (th_disco_family() || th_null())){g_active_group="Help";screen_show(SCR_SETLIST);return;}
-    if(gi == N_GROUPS){ screen_show(SCR_USAGE); return; }   /* Battery */
-    if(gi < 0 || gi >= N_GROUPS) return; g_active_group = GROUPS[gi]; screen_show(SCR_SETLIST); }
+    if(gi < 0 || gi >= N_GROUPS) return;
+    g_active_group = GROUPS[gi]; screen_show(SCR_SETLIST);
+}
 void setlist_open(const char *group){
  if(!group)return;
+ group=display_group_alias(group);
  for(int i=0;i<N_GROUPS;i++)if(!strcmp(group,GROUPS[i])){g_active_group=GROUPS[i];screen_show(SCR_SETLIST);return;}
 }
 static void hub_cb(lv_event_t *e){ list_back_cb(e); }
@@ -1837,17 +1836,17 @@ static void settings_disco_list(lv_obj_t *root){          /* styled like the sub
     lv_obj_t *t = lv_label_create(root); lv_label_set_text(t, "Settings");
     lv_obj_set_style_text_font(t, th_simple()?TF(HEADER):TF(UI_20), 0); lv_obj_set_style_text_color(t, th_simple()?TC(ACCENT_PRIMARY):TC(TEXT_PRIMARY), 0);
     lv_obj_align(t, LV_ALIGN_TOP_MID, 0, th_simple()?24:28);
-    static const char *GICON[] = { LV_SYMBOL_PLAY, LV_SYMBOL_AUDIO, LV_SYMBOL_IMAGE, LV_SYMBOL_WIFI, LV_SYMBOL_SETTINGS, LV_SYMBOL_BATTERY_3, LV_SYMBOL_FILE };
     lv_obj_t *list = make_list(root);
     static curvelist_t cl; curvelist_attach(&cl, list, root, 288);
-    for(int g = 0; g <= N_GROUPS+1; g++){
+    for(int g = 0; g < N_GROUPS; g++){
         lv_obj_t *r = setting_card(list);
         lv_obj_add_event_cb(r, disco_cat_cb, LV_EVENT_CLICKED, (void *)(intptr_t)g);
-        lv_obj_t *ic = lv_label_create(r); lv_label_set_text(ic, GICON[g]); lv_obj_set_style_text_font(ic, TH_F_LIST, 0);
+        lv_obj_t *ic = lv_label_create(r); lv_label_set_text(ic, GROUP_ICONS[g]); lv_obj_set_style_text_font(ic, TH_F_LIST, 0);
         lv_obj_set_style_text_color(ic, ui_current_accent(), 0); lv_obj_set_pos(ic, 18, 16);
-        lv_obj_t *n = lv_label_create(r); lv_label_set_text(n, g < N_GROUPS ? GROUPS[g] : g==N_GROUPS?"Battery":"Help");
+        lv_obj_t *n = lv_label_create(r); lv_label_set_text(n, GROUPS[g]);
         lv_obj_set_style_text_font(n, TH_F_LIST, 0); lv_obj_set_style_text_color(n, TC(TEXT_PRIMARY), 0);
-        lv_obj_set_pos(n, 50, 16);
+        lv_obj_set_pos(n, 50, 16);lv_obj_set_width(n,192);
+        lv_label_set_long_mode(n,LV_LABEL_LONG_SCROLL_CIRCULAR);
         lv_obj_t *c = lv_label_create(r); lv_label_set_text(c, LV_SYMBOL_RIGHT); lv_obj_set_style_text_font(c, TH_F_DETAIL, 0);
         lv_obj_set_style_text_color(c, TC(TEXT_SECONDARY), 0); lv_obj_set_size(c, 120, 22); lv_obj_set_pos(c, 150, 18);
         lv_obj_set_style_text_align(c, LV_TEXT_ALIGN_RIGHT, 0);
@@ -1860,15 +1859,18 @@ void settings_create(lv_obj_t *root){
     lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
     if(th_disco_family() || th_null()){ settings_disco_list(root); return; }
     if(th_zune()) return;                                   /* Zune: the dial is built on every entry */
-    /* orbit: the five categories circle a grey-ringed hub; one sits at the bottom, the top holds the title */
+    /* The same seven categories, presented with this theme's circular controls. */
     orbit_title(root, "Settings");
-    static const char *GICON[N_GROUPS] = { LV_SYMBOL_PLAY, LV_SYMBOL_AUDIO, LV_SYMBOL_IMAGE,
-                                           LV_SYMBOL_WIFI, LV_SYMBOL_SETTINGS };
-    orbit_item_t it[N_GROUPS + 1];                          /* + Battery: the usage dial */
-    for(int g = 0; g < N_GROUPS; g++){ it[g].glyph = GICON[g]; it[g].cap = GROUPS[g]; }
-    it[N_GROUPS].glyph = LV_SYMBOL_BATTERY_3; it[N_GROUPS].cap = "Battery";
-    orbit_create(&g_set_orb, root, it, N_GROUPS + 1, -60, cat_pick);
-    for(int g = 0; g <= N_GROUPS; g++)                                  /* category icons in the accent */
+    orbit_item_t it[N_GROUPS];
+    for(int g = 0; g < N_GROUPS; g++){ it[g].glyph = GROUP_ICONS[g]; it[g].cap = GROUPS[g]; }
+    orbit_create(&g_set_orb, root, it, N_GROUPS, -60, cat_pick);
+    orbit_cap_width(&g_set_orb, 96, th_braun()?br_font(12,0):TH_F_CAPTION);
+    for(int g=0;g<N_GROUPS;g++)if(g_set_orb.cap[g]){
+        lv_label_set_long_mode(g_set_orb.cap[g],LV_LABEL_LONG_WRAP);
+        lv_obj_set_height(g_set_orb.cap[g],LV_SIZE_CONTENT);
+        lv_obj_align_to(g_set_orb.cap[g],g_set_orb.btn[g],LV_ALIGN_OUT_BOTTOM_MID,0,5);
+    }
+    for(int g = 0; g < N_GROUPS; g++)
         lv_obj_set_style_text_color(g_set_orb.icon[g], TC(ACCENT_PRIMARY), 0);
     orbit_hub_create(&g_set_orb, root, hub_cb, LV_SYMBOL_SETTINGS, "Back");
     if(th_braun()){ br_face(root); orbit_braun_icons(&g_set_orb); }   /* Braun: the grille face; knob icons white */
@@ -1894,7 +1896,7 @@ void settings_row_values_refresh(void){
 /* ---- one category's rows (SCR_SETLIST), rebuilt on every entry so values are always live ---- */
 void setlist_create(lv_obj_t *root){ g_setlist_root = root; }
 
-void settings_open_howto(void){if(th_disco_family() || th_null() || th_zune()){g_active_group="How to";screen_show(SCR_SETLIST);}}
+void settings_open_howto(void){g_active_group="How to";screen_show(SCR_SETLIST);}
 static void howto_next(lv_event_t *e){
     lv_obj_t *list=lv_event_get_user_data(e);
     int pitch=th_zune()?208:240;
@@ -1955,26 +1957,13 @@ void setlist_refresh(void){
     memset(g_list_rows, 0, sizeof g_list_rows);   /* the old rows are gone: never write to their freed labels */
     lv_obj_set_style_bg_color(g_setlist_root, TC(CANVAS), 0);
     lv_obj_set_style_bg_opa(g_setlist_root, LV_OPA_COVER, 0);
-    ui_header_cb(g_setlist_root, g_active_group, list_back_cb);   /* title = category; back pops to categories */
+    ui_header_cb(g_setlist_root, settings_page_title(g_active_group), list_back_cb);   /* title = category; back pops to categories */
 
     if(th_zune() && strcmp(g_active_group, "How to")){ lv_obj_clean(g_setlist_root); zsetlist(g_setlist_root); return; }
     if(!strcmp(g_active_group,"How to")){howto_body(g_setlist_root);return;}
     lv_obj_t *list = make_list(g_setlist_root);
     static curvelist_t cl; curvelist_attach(&cl, list, g_setlist_root, 288);   /* theme: every list curves + dots */
-    int indices[N_SETTINGS],count=0;
-    for(int i=0;i<N_SETTINGS;i++){
-        const setting_t *s=&TABLE[i];const display_entry_t *d=display_entry(s);
-        const char *page=d?d->page:s->group;
-        if(!page || strcmp(page,g_active_group) || display_variant_hidden(s))continue;
-        if(s->apply==apply_disco_qs_items && !strcmp(s->group,"Text & Layout"))continue;
-        int at=count,order=d?d->order:1000+i;
-        while(at>0){
-            const display_entry_t *prev=display_entry(&TABLE[indices[at-1]]);
-            if((prev?prev->order:1000+indices[at-1])<=order)break;
-            indices[at]=indices[at-1];--at;
-        }
-        indices[at]=i;++count;
-    }
+    int indices[N_SETTINGS],count=settings_collect(g_active_group,indices);
     for(int ri=0;ri<count;ri++){
         int i=indices[ri];const setting_t *s=&TABLE[i];
         lv_obj_t *row = setting_card(list);
@@ -1998,6 +1987,9 @@ void setlist_refresh(void){
         lv_obj_set_style_text_font(vl, TH_F_DETAIL, 0);
         lv_obj_set_style_text_color(vl, TC(TEXT_SECONDARY), 0);
         lv_obj_set_style_text_color(vl, s->type==ST_READONLY? TC(TEXT_MUTED) : TC(TEXT_LYRICS), 0);
+        if(s->ro_val && !strcmp(s->ro_val,"Player-managed")){
+            lv_obj_set_style_text_font(vl,TF(UI_14),0);kit_keep(vl);
+        }
         g_list_rows[i] = vl;
         if(s->apply == apply_rescan){                  /* live scan progress on this row while a scan runs */
             rescan_row_t *rr = malloc(sizeof *rr);
@@ -2024,11 +2016,23 @@ void setlist_refresh(void){
             lv_obj_set_style_text_color(vl,TC(TEXT_MUTED),0);
         }
         if(th_null() && s->cfg_key && !strcmp(s->cfg_key,"null_side")){lv_obj_set_style_text_color(lbl,TC(TEXT_MUTED),0);lv_obj_set_style_text_color(vl,TC(TEXT_MUTED),0);}
+        /* Read-only/unsupported status belongs beneath its title. Two narrow
+         * columns clipped long names at the curved screen edge. */
+        if(s->type==ST_READONLY || setting_unavailable(s) || display_disabled_reason(s)){
+            lv_obj_set_pos(lbl,18,4);lv_obj_set_width(lbl,lv_pct(88));
+            lv_obj_set_height(lbl,lv_font_get_line_height(TH_F_LIST));
+            lv_label_set_long_mode(lbl,LV_LABEL_LONG_SCROLL_CIRCULAR);
+            lv_obj_set_pos(vl,18,36);lv_obj_set_width(vl,lv_pct(88));lv_obj_set_height(vl,18);
+            lv_obj_set_style_text_align(vl,LV_TEXT_ALIGN_LEFT,0);
+            lv_obj_set_style_text_font(vl,TF(UI_14),0);
+            lv_label_set_long_mode(vl,LV_LABEL_LONG_SCROLL_CIRCULAR);
+            kit_keep(lbl);kit_keep(vl);
+        }
     }
     curvelist_update(&cl);
 }
 void settings_open_disco(void){ apply_disco_options(0); }   /* host renders */
-void settings_open_group(const char *g){ if(!g)return;g=display_group_alias(g); for(size_t i = 0; i < sizeof SUBGROUP / sizeof SUBGROUP[0]; i++) if(!strcmp(g, SUBGROUP[i].child)){ g_active_group = SUBGROUP[i].child; setlist_refresh(); return; } }   /* host renders */
+void settings_open_group(const char *g){ if(!g)return;g=display_group_alias(g); for(int i=0;i<N_GROUPS;i++)if(!strcmp(g,GROUPS[i])){g_active_group=GROUPS[i];setlist_refresh();return;} for(size_t i = 0; i < sizeof SUBGROUP / sizeof SUBGROUP[0]; i++) if(!strcmp(g, SUBGROUP[i].child)){ g_active_group = SUBGROUP[i].child; setlist_refresh(); return; } }   /* host renders */
 void settings_test_scroll(int y){                                     /* host renders: scroll the rows by y px */
     if(!g_setlist_root) return;
     lv_obj_t *st[64]; int n = 0; st[n++] = g_setlist_root;
@@ -2040,3 +2044,43 @@ void settings_test_open_key(const char *key){
     for(int i = 0; key && i < N_SETTINGS; i++) if(TABLE[i].cfg_key && !strcmp(TABLE[i].cfg_key, key)){
         g_active = &TABLE[i]; screen_show(SCR_SETTING_DETAIL); setting_detail_refresh(); return; }
 }
+
+/* Host verification uses the production collector; no saved preferences change. */
+void settings_test_manifest(void){
+    for(int g=0;g<N_GROUPS;g++)printf("SETTINGS_ROOT|%d|%s\n",g,GROUPS[g]);
+    const char *pages[N_SETTINGS];int np=0;
+    for(int i=0;i<N_SETTINGS;i++){
+        const char *page=settings_page(&TABLE[i]);
+        if(!page || display_variant_hidden(&TABLE[i]))continue;
+        int seen=0;for(int j=0;j<np;j++)if(!strcmp(page,pages[j]))seen=1;
+        if(!seen)pages[np++]=page;
+    }
+    for(int g=0;g<np;g++){
+        int indices[N_SETTINGS],n=settings_collect(pages[g],indices);
+        for(int j=0;j<n;j++){
+            const setting_t *s=&TABLE[indices[j]];
+            printf("SETTINGS_ROW|%s|%s|%d|%s|%d\n",pages[g],display_label(s),setting_is_onoff(s),s->cfg_key?s->cfg_key:"",s->type);
+        }
+    }
+}
+
+/* Exercise actual submenu handlers and Back paths without invoking device actions. */
+void settings_test_submenus(void){
+    int saved[N_SETTINGS];
+    for(int i=0;i<N_SETTINGS;i++)saved[i]=TABLE[i].cfg_key?simple_cfg_get_int(TABLE[i].cfg_key,-999):0;
+    for(int i=0;i<N_SETTINGS;i++){
+        const setting_t *s=&TABLE[i];const char *parent=settings_page(s);
+        if(!parent||display_variant_hidden(s)||settings_hidden(s))continue;
+        void (*f)(int)=s->apply;
+        if(!(f==apply_theme_settings||f==apply_theme_navigation||f==apply_library_appearance||f==apply_sleep_settings||f==apply_bluetooth_settings||f==apply_shared_navigation||
+             f==apply_grp_musictext||f==apply_grp_musicinfo||f==apply_grp_clockinfo||f==apply_grp_musicprogress||f==apply_grp_immersive||f==apply_grp_zune||f==apply_grp_textlayout||f==apply_grp_screenstandby||f==apply_grp_onlineextras||f==apply_grp_musicscreen||f==apply_grp_discocolours||f==apply_grp_discoqs||f==apply_grp_discolayout||f==apply_grp_datetime||f==apply_grp_library||f==apply_grp_controls||f==apply_grp_maintenance||f==apply_grp_about||f==apply_volkeys_group||f==apply_ma_group||f==apply_howto))continue;
+        g_active_group=parent;f(0);
+        int indices[N_SETTINGS];
+        if(strcmp(g_active_group,"How to")&&!settings_collect(g_active_group,indices)){fprintf(stderr,"Empty submenu: %s\n",g_active_group);abort();}
+        if(!settings_back_consumed()||strcmp(g_active_group,parent)){fprintf(stderr,"Wrong Back path for %s; expected %s got %s\n",display_label(s),parent,g_active_group);abort();}
+    }
+    for(int i=0;i<N_SETTINGS;i++)if(TABLE[i].cfg_key&&saved[i]!=simple_cfg_get_int(TABLE[i].cfg_key,-999)){fprintf(stderr,"Navigation changed %s\n",TABLE[i].cfg_key);abort();}
+    puts("PASS all visible submenu handlers, nonempty destinations, Back paths and saved settings");
+}
+
+void settings_test_open_accent(void){apply_open_colorpick(0);}

@@ -933,7 +933,7 @@ void tune_create(lv_obj_t *root){
     int m = simple_cfg_get_int("work_mode", 0); if(m<0||m>4) m=0;
     int q = simple_cfg_get_int("eq_preset", 0); if(q<0||q>20) q=0;
     cyc_row(root, 84,  "PLAY MODE",  mode_dir_cb, &g_mode_val, T_MODE[m]);
-    cyc_row(root, 158, "EQUALIZER",  eq_dir_cb,   &g_eq_val,   T_EQ[q]);
+    cyc_row(root, 158, "EQ PRESET",  eq_dir_cb,   &g_eq_val,   T_EQ[q]);
     g_tune_built = 1;
 
     lv_obj_t *cust = lv_button_create(root);
@@ -944,7 +944,7 @@ void tune_create(lv_obj_t *root){
     lv_obj_set_style_bg_opa(cust, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(cust, TC(SURFACE_RAISED), LV_STATE_PRESSED);
     lv_obj_add_event_cb(cust, eq_custom_cb, LV_EVENT_CLICKED, NULL);
-    lv_obj_t *cl=lv_label_create(cust); lv_label_set_text(cl, "Custom EQ");
+    lv_obj_t *cl=lv_label_create(cust); lv_label_set_text(cl, "Equalizer");
     lv_obj_set_style_text_font(cl, TF(UI_16), 0);
     lv_obj_set_style_text_color(cl, TC(TEXT_PRIMARY), 0); lv_obj_center(cl);
 }

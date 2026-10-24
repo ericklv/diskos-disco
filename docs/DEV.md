@@ -83,3 +83,16 @@ playback; and post-handoff card protection. Also run `shutdown_test.py`,
 `audio_running_test.py`, `power_plugged_test.py`, and build the host renderer.
 These are host regressions, not device power-off validation. The tracked release
 binary remains unchanged; a target build and physical checks are still required.
+
+
+## Unified settings hierarchy
+
+The approved shared hierarchy and anchors/alphabetical/On-Off-last policy are in
+[SETTINGS_TEMPLATE.md](SETTINGS_TEMPLATE.md). Theme ownership is explained in
+[DISPLAY_SETTINGS_SPLIT.md](DISPLAY_SETTINGS_SPLIT.md).
+
+Seven categories now agree across all themes. Battery & power includes Details,
+idle shutdown, charging protection, standby timing, sleep timer and power actions.
+The Equalizer opens the existing full profile editor; DSD output remains read-only.
+Saved option IDs and handlers are preserved; startup disc colour is removed.
+This is a source update; the release binary is not replaced by host validation.

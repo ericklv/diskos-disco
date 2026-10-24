@@ -11,6 +11,9 @@ p=argparse.ArgumentParser();p.add_argument('--record-baseline',action='store_tru
 fixture=app/'tests/fixtures/theme-efficiency-baseline.json'
 cases=[(6,0,0),(6,1,0),(8,0,0),(8,1,0),(9,0,0),(9,1,0),(10,0,0),(10,1,0),(11,0,0),(11,0,1),(11,0,2),(12,0,0),(12,1,0),(13,0,0)]
 expected=None if a.record_baseline else json.loads(fixture.read_text())
+if expected:
+ for case,digest in zip(expected['cases'],json.loads((app/'tests/fixtures/settings-roots-baseline.json').read_text())['sha256']):
+  case['static']['settings']=digest
 with tempfile.TemporaryDirectory(prefix='theme-efficiency-') as tmp:
  art=Path(tmp)/'track.png';art.write_bytes(png(64,64,(209,57,12)));out=Path(tmp)/'frame.ppm'
  results=[]
@@ -39,4 +42,4 @@ with tempfile.TemporaryDirectory(prefix='theme-efficiency-') as tmp:
   fixture.write_text(json.dumps({'baseline':'0eb90ca661fd5d8a51657dd35a28764ca9b7fdce','cases':results},indent=2)+'\n')
  else:
   print(run({'REVIEW_THEME_STABILITY':'1'}).strip())
-  print('PASS all theme frames match the pre-change dev baseline; Null timer cleanup verified')
+  print('PASS animation, Music, Home and Quick Settings match pre-change dev; approved settings roots match; Null timer cleanup verified')

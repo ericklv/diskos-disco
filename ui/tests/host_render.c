@@ -338,9 +338,8 @@ static void review_nav(void){
     assert(screen_current()==SCR_LIBRARY); /* returning inside cannot revive a cancelled hold */
     /* Apply is the only persistence point; Back discards an unconfirmed choice. */
     for(int attempt=0;attempt<2;attempt++){
-        setlist_open("Display");nav_wait(100);   /* 1.4.1: Display > Disco Options > Layout */
-        lv_obj_t *opts=find_text(screen_get_root(SCR_SETLIST),"Navigation");assert(opts);
-        lv_obj_send_event(lv_obj_get_parent(opts),LV_EVENT_CLICKED,NULL);nav_wait(100);
+        setlist_open("Display");settings_open_group("Theme navigation");nav_wait(100);   /* selected theme navigation */
+
         lv_obj_t *controls=find_text(screen_get_root(SCR_SETLIST),"Gestures");assert(controls);
         lv_obj_send_event(lv_obj_get_parent(controls),LV_EVENT_CLICKED,NULL);nav_wait(100);
         lv_obj_t *label=find_text(screen_get_root(SCR_SETLIST),"Menu double tap");assert(label);
@@ -408,7 +407,7 @@ static void review_hints(void){
     FILE *saved=fopen(CFG_PATH,"r");assert(saved);char line[128];int persisted=0;
     while(fgets(line,sizeof line,saved))if(!strcmp(line,"hint_starts=0\n") || !strcmp(line,"hint_music=0\n") || !strcmp(line,"disco_hints=0\n"))persisted++;
     fclose(saved);assert(persisted==3);
-    setlist_open("Display");settings_open_group("Navigation");nav_wait(100);
+    setlist_open("Help");nav_wait(100);
     lv_obj_t *label=find_text(screen_get_root(SCR_SETLIST),"Interaction hints");assert(label);
     lv_obj_send_event(lv_obj_get_parent(label),LV_EVENT_CLICKED,NULL);nav_wait(100);
     for(int value=1;value<=3;value++){
@@ -1581,7 +1580,7 @@ int main(int argc, char **argv){
             lv_obj_t *root=screen_get_root(SCR_SETLIST),*how=find_text(root,"How to");assert(how);
             lv_obj_send_event(lv_obj_get_parent(how),LV_EVENT_CLICKED,NULL);nav_wait(100);
             assert(settings_back_consumed());nav_wait(100);assert(find_text(root,"How to"));
-            setlist_open("Display");settings_open_group("Navigation");nav_wait(80);root=screen_get_root(SCR_SETLIST);
+            setlist_open("Help");nav_wait(80);root=screen_get_root(SCR_SETLIST);
             assert(find_text(root,"Interaction hints") && find_text(root,"Show hints again"));
             simple_cfg_set_int("disco_hints",th_null()?2:0);cfg_set_int("null_hints",0);
             lv_obj_t *mode=find_text(root,"Interaction hints");lv_obj_send_event(lv_obj_get_parent(mode),LV_EVENT_CLICKED,NULL);nav_wait(100);
@@ -1805,19 +1804,54 @@ int main(int argc, char **argv){
             }
             puts("PASS: Null idle timer pauses/resumes; no Music state reads while panel off; wake resumes updates");return 0;
         }
+        if(getenv("REVIEW_SETTINGS_ALIGNMENT")){
+            extern void settings_test_manifest(void);
+            extern int settings_back_consumed(void);
+            settings_test_manifest();
+            extern void settings_test_submenus(void);settings_test_submenus();
+            const char *roots[]={"Playback","Audio","Display","Connectivity","System","Battery & power","Help"};
+            screen_show(SCR_SETTINGS);nav_wait(80);
+            for(int j=0;j<7;j++){
+                char lower[64];snprintf(lower,sizeof lower,"%s",roots[j]);
+                if(th_zune())for(char *c=lower;*c;c++)if(*c>='A'&&*c<='Z')*c+=32;
+                assert(find_text(screen_get_root(SCR_SETTINGS),lower));
+            }
+            setlist_open("Playback");nav_wait(60);
+            lv_obj_t *root=screen_get_root(SCR_SETLIST);
+            lv_obj_t *eq=find_text(root,th_zune()?"equalizer":"Equalizer");assert(eq);
+            assert(!find_text(root,"Custom EQ")&&!find_text(root,"DSD Output")&&!find_text(root,"dsd output"));
+            lv_obj_send_event(lv_obj_get_parent(eq),LV_EVENT_CLICKED,NULL);nav_wait(60);assert(screen_current()==SCR_EQ);
+            screen_back();nav_wait(60);assert(screen_current()==SCR_SETLIST);
+            setlist_open("Audio");nav_wait(60);root=screen_get_root(SCR_SETLIST);
+            lv_obj_t *dsd=find_text(root,th_zune()?"dsd output":"DSD Output");assert(dsd);
+            assert(find_text(root,th_zune()?"player-managed":"Player-managed"));
+            int before=send_count;lv_obj_send_event(lv_obj_get_parent(dsd),LV_EVENT_CLICKED,NULL);
+            assert(screen_current()==SCR_SETLIST&&send_count==before);
+            setlist_open("Network");nav_wait(40);assert(find_heading(screen_get_root(SCR_SETLIST),th_zune()?"connectivity":"Connectivity"));
+            settings_open_group("MA Sendspin");nav_wait(40);assert(settings_back_consumed());
+            assert(find_heading(screen_get_root(SCR_SETLIST),th_zune()?"connectivity":"Connectivity"));
+            setlist_open("System");settings_open_group("Controls");nav_wait(40);
+            assert(settings_back_consumed());assert(find_heading(screen_get_root(SCR_SETLIST),th_zune()?"system":"System"));
+            setlist_open("Battery & power");nav_wait(40);root=screen_get_root(SCR_SETLIST);
+            lv_obj_t *battery=find_text(root,th_zune()?"details":"Details");assert(battery);
+            lv_obj_send_event(lv_obj_get_parent(battery),LV_EVENT_CLICKED,NULL);nav_wait(40);assert(screen_current()==SCR_USAGE);
+            screen_back();nav_wait(40);assert(screen_current()==SCR_SETLIST);
+            setlist_open("Help");nav_wait(40);assert(find_text(screen_get_root(SCR_SETLIST),th_zune()?"how to":"How to"));
+            puts("PASS shared settings roots, Equalizer routing/back, read-only DSD, legacy aliases, System parents, Battery and Help");return 0;
+        }
         if(getenv("REVIEW_DISPLAY")){
             extern int settings_back_consumed(void);
-            const char *top[]={"Brightness","Theme","Appearance","Music screen","Standby","Navigation","Layout & extras"};
+            const char *top[]={"Brightness","Theme","Immersive","Library appearance","Navigation","Text & layout"};
             setlist_open("Display");nav_wait(80);
             for(size_t i=0;i<sizeof top/sizeof top[0];i++)assert(find_text(screen_get_root(SCR_SETLIST),top[i]));
-            const char *pages[]={"Appearance","Music screen","Music text","Music info","Music progress","Immersive","Standby","Navigation","Gestures","Quick settings","Layout & extras","Online & cache"};
-            const char *parent[]={"Display","Display","Music screen","Music screen","Music screen","Music screen","Display","Display","Navigation","Navigation","Display","Layout & extras"};
+            const char *pages[]={"Appearance","Music screen","Music text","Music info","Music progress","Immersive","Standby","Navigation","Gestures","Quick settings","Text & layout","Online services","Theme navigation","Sleep timer","Bluetooth"};
+            const char *parent[]={"Theme settings","Theme settings","Music screen","Music screen","Music screen","Display","Theme settings","Display","Theme navigation","Theme settings","Display","Connectivity","Theme settings","Battery & power","Connectivity"};
             const char *keys[]={"theme_variant","theme_auto","null_palette","disco_controls","null_controls","np_font","simple_track_font","null_music_fonts","disco_title_al","null_text_align","disco_trackno","null_trackno","disco_side_pick","null_side","saver_style","np_style","disco_hints","null_hints","accent_color"};
             int saved[sizeof keys/sizeof keys[0]];
             for(size_t i=0;i<sizeof keys/sizeof keys[0];i++)saved[i]=simple_cfg_get_int(keys[i],-999);
             int disabled=0;
             for(size_t i=0;i<sizeof pages/sizeof pages[0];i++){
-                settings_open_group(pages[i]);nav_wait(30);lv_obj_t *root=screen_get_root(SCR_SETLIST);assert(find_heading(root,pages[i]));
+                settings_open_group(pages[i]);nav_wait(30);lv_obj_t *root=screen_get_root(SCR_SETLIST);assert(find_heading(root,!strcmp(pages[i],"Theme navigation")?"Navigation":pages[i]));
                 lv_obj_t *stack[512];int n=0;stack[n++]=root;
                 while(n){lv_obj_t *o=stack[--n];
                     if(lv_obj_check_type(o,&lv_label_class)&&!strcmp(lv_label_get_text(o),"Disabled")){
@@ -1826,9 +1860,9 @@ int main(int argc, char **argv){
                     }
                     for(uint32_t j=0;j<lv_obj_get_child_count(o);j++){assert(n<512);stack[n++]=lv_obj_get_child(o,j);}
                 }
-                assert(settings_back_consumed());assert(find_heading(screen_get_root(SCR_SETLIST),parent[i]));
+                assert(settings_back_consumed());assert(find_heading(screen_get_root(SCR_SETLIST),!strcmp(parent[i],"Theme settings")?(th_disco()?"Disco settings":th_null()?"Null settings":th_simple()?"Squash settings":th_braun()?"Braun settings":"Ring settings"):!strcmp(parent[i],"Theme navigation")?"Navigation":parent[i]));
             }
-            assert(disabled>0);settings_open_group("Appearance");
+            settings_open_group("Appearance");
             if(th_null()){settings_open_key("theme_variant");assert(screen_current()==SCR_SETLIST);settings_open_key("null_side");assert(screen_current()==SCR_SETLIST);}
             if(th_simple()){settings_open_key("disco_controls");assert(screen_current()==SCR_SETLIST);}
             for(size_t i=0;i<sizeof keys/sizeof keys[0];i++)assert(saved[i]==simple_cfg_get_int(keys[i],-999));
@@ -1846,12 +1880,11 @@ int main(int argc, char **argv){
         }
         if((th_simple() || th_null()) && getenv("REVIEW_SQUASH_ACCENT")){
             setlist_open("Display");settings_open_group("Theme Colours");nav_wait(100);
-            lv_obj_t *root=screen_get_root(SCR_SETLIST),*label=find_text(root,"Accent colour");assert(label);
-            lv_obj_t *row=lv_obj_get_parent(label);assert(lv_obj_get_style_opa(row,0)==150);
-            int before=simple_cfg_get_int("accent_color",-1);lv_obj_send_event(row,LV_EVENT_CLICKED,NULL);nav_wait(50);
+            lv_obj_t *root=screen_get_root(SCR_SETLIST);assert(!find_text(root,"Accent colour"));
+            int before=simple_cfg_get_int("accent_color",-1);extern void settings_test_open_accent(void);settings_test_open_accent();nav_wait(50);
             assert(screen_current()==SCR_SETLIST&&simple_cfg_get_int("accent_color",-1)==before);
             assert(find_text(lv_layer_top(),th_null()?"Null uses fixed colour schemes. Choose a colour scheme in Appearance instead of a custom accent.":"Squash uses its own theme palette. This accent setting doesn't apply."));
-            puts("PASS: Squash Accent Colour is visibly disabled, explains why on tap, preserves saved colour");return 0;
+            puts("PASS: Theme-owned accent is hidden when unsupported, guarded on direct entry, preserves saved colour");return 0;
         }
         if(getenv("REVIEW_DISCO_SETTINGS")){
             void settings_open_group(const char *);
