@@ -32,6 +32,7 @@ LV_FONT_DECLARE(font_zune_regular_16)
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 
 #define QMAX 400
 #define RMAX 4000
@@ -59,6 +60,28 @@ static int  g_skip_change;                        /* the user just started somet
 
 static void view_reload(void);
 /* ---------------------------------------------------------------- storage */
+/* Version 2 hex-encodes strings, preserving tabs, newlines and UTF-8 bytes. */
+static int queue_hex_write(FILE *f, const char *s){
+    for(; *s; s++) if(fprintf(f, "%02X", (unsigned char)*s) < 0) return 0;
+    return 1;
+}
+static int queue_unhex(char *out, size_t cap, const char *s){
+    size_t n = strlen(s); if(n % 2 || n / 2 >= cap) return 0;
+    for(size_t i = 0; i < n; i += 2){
+        unsigned v = 0;
+        for(int j = 0; j < 2; j++){
+            char c = s[i+j]; int x = c >= '0' && c <= '9' ? c-'0' : c >= 'A' && c <= 'F' ? c-'A'+10 : -1;
+            if(x < 0) return 0; v = v * 16 + x;
+        }
+        if(!v) return 0; out[i/2] = (char)v;
+    }
+    out[n/2] = 0; return 1;
+}
+static int queue_number(const char *s, long *v){
+    if(!s || !*s) return 0;
+    for(const char *p=s; *p; p++) if(*p<'0' || *p>'9') return 0;
+    char *end; errno=0; *v=strtol(s,&end,10); return !errno && !*end;
+}
 static void save(void){
     if(!g_loaded){ ui_toast("Queue unavailable - try again"); return; }
     char tmp[sizeof(QUEUE_FILE) + 16];
@@ -67,9 +90,14 @@ static void save(void){
     if(fd < 0){ ui_toast("Couldn't save queue"); return; }
     FILE *f = fdopen(fd, "w");
     if(!f){ close(fd); unlink(tmp); ui_toast("Couldn't save queue"); return; }
-    int ok = 1;
-    for(int i = 0; i < g_qn; i++)
-        if(fprintf(f, "%s\t%s\t%s\t%ld\t%d\t%d\t%d\t%d\t%d\n", g_q[i].path, g_q[i].title, g_q[i].artist, g_q[i].dur, g_q[i].id, g_q[i].track, g_q[i].cue, g_q[i].iso, g_q[i].have_key) < 0) ok = 0;
+    int ok = fputs("#diskos-queue-v2\n", f) >= 0;
+    for(int i = 0; i < g_qn; i++){
+        qitem_t *q = &g_q[i];
+        if(!queue_hex_write(f,q->path) || fputc('\t',f)==EOF ||
+           !queue_hex_write(f,q->title) || fputc('\t',f)==EOF ||
+           !queue_hex_write(f,q->artist) ||
+           fprintf(f,"\t%ld\t%d\t%d\t%d\t%d\t%d\n",q->dur,q->id,q->track,q->cue,q->iso,q->have_key)<0) ok=0;
+    }
     if(ferror(f) || fflush(f) != 0) ok = 0;
     if(ok && fsync(fd) != 0) ok = 0;
     if(fclose(f) != 0) ok = 0;
@@ -88,20 +116,35 @@ static void load(void){
     g_qn = 0;
     FILE *f = fopen(QUEUE_FILE, "r");
     if(!f){ if(errno == ENOENT) g_loaded = 1; return; }
-    char line[700];
-    while(g_qn < QMAX && fgets(line, sizeof line, f)){
-        char *nl = strchr(line, '\n'); if(nl) *nl = 0;
-        char *p[9] = { line, 0, 0, 0, 0, 0, 0, 0, 0 }; int k = 1;
-        for(char *c = line; *c && k < 9; c++) if(*c == '\t'){ *c = 0; p[k++] = c + 1; }
-        if(!p[0][0]) continue;
-        qitem_t *q = &g_q[g_qn++];
-        snprintf(q->path, sizeof q->path, "%s", p[0]); snprintf(q->title, sizeof q->title, "%s", p[1] ? p[1] : "");
-        snprintf(q->artist, sizeof q->artist, "%s", p[2] ? p[2] : ""); q->dur = p[3] ? atol(p[3]) : 0;
-        q->id = p[4] ? atoi(p[4]) : mdb_queue_current_id(q->path,0,"");
-        q->track=p[5]?atoi(p[5]):0; q->cue=p[6]?atoi(p[6]):0; q->iso=p[7]?atoi(p[7]):0; q->have_key=p[8]?atoi(p[8]):0;
-        /* Keep ambiguous legacy paths until admission permits exact migration. */
+    char line[1200]; int version = 1, first = 1, valid = 1;
+    while(fgets(line, sizeof line, f)){
+        char *nl = strchr(line, '\n');
+        if(!nl && !feof(f)){ valid = 0; break; }
+        if(nl) *nl = 0;
+        if(first && !strcmp(line,"#diskos-queue-v2")){version=2;first=0;continue;}
+        first=0;
+        if(g_qn >= QMAX){valid=0;break;}
+        char *fields[9]={line}; int k=1;
+        for(char *c=line; *c; c++) if(*c=='\t'){
+            if(k==9){valid=0;break;} *c=0;fields[k++]=c+1;
+        }
+        if(!valid || (version==2 ? k!=9 : (k!=5 && k!=9))){valid=0;break;}
+        qitem_t q={0};
+        if(version==2){
+            if(!queue_unhex(q.path,sizeof q.path,fields[0]) ||
+               !queue_unhex(q.title,sizeof q.title,fields[1]) ||
+               !queue_unhex(q.artist,sizeof q.artist,fields[2])){valid=0;break;}
+        }else{
+            if(strlen(fields[0])>=sizeof q.path || strlen(fields[1])>=sizeof q.title || strlen(fields[2])>=sizeof q.artist){valid=0;break;}
+            strcpy(q.path,fields[0]);strcpy(q.title,fields[1]);strcpy(q.artist,fields[2]);
+        }
+        long numbers[6]={0};
+        for(int j=3;j<k;j++) if(!queue_number(fields[j],&numbers[j-3]) || (j>3 && numbers[j-3]>INT_MAX)) valid=0;
+        if(!q.path[0] || !valid || numbers[3]>1 || numbers[4]>1 || numbers[5]>1){valid=0;break;}
+        q.dur=numbers[0];q.id=numbers[1];q.track=numbers[2];q.cue=numbers[3];q.iso=numbers[4];q.have_key=numbers[5];
+        g_q[g_qn++]=q;
     }
-    int ok = !ferror(f);
+    int ok = valid && !ferror(f);
     if(fclose(f) != 0) ok = 0;
     if(ok) g_loaded = 1; else g_qn = 0;
 }
