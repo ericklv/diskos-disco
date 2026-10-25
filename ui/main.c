@@ -3370,6 +3370,7 @@ int main(int argc, char **argv){
     uint32_t last_blpoll = 0;   /* PW-10 backlight-rail poll cadence */
     int player_blanked = 0;     /* PW-10: we forced bl_power=4 because the player blanked via brightness=0 */
     unsigned last_vol_seq = 0;
+    int last_volume = -1; /* first player report establishes a baseline, not user input */
     /* Start the boot splash HERE - after all the blocking startup init (hwclock, bt_boot_restore,
      * IPC connect, etc.). Created earlier, its time-based animation would elapse during that
      * blocking init (the loop isn't ticking yet) and get skipped. Here it animates cleanly in the
@@ -3441,20 +3442,22 @@ int main(int argc, char **argv){
          * (no ack to correlate our restore's echo). The "boots at 0" seen in dev was our
          * `reboot`s skipping the player's shutdown-save, not a real power-off. VERIFY on device:
          * set a volume, power OFF with the button, power ON -> should return to that volume. */
-        /* volume change (hardware buttons -> player -> a714 frame): show the bar + count activity,
-         * but ONLY while the screen is already on. The player owns the physical keys, so a VOLUME
-         * press - and any play-triggered or BT-autoroute volume RE-report (bt.c resends 0715 ->
-         * a714 echo) - lands here as an a714 frame. Waking a dimmed/off panel from a player frame is
-         * exactly the "random wake" bug: never call ui_backlight() from player IPC. Deliberate touch
-         * (the raw-evdev path below) is the only thing that may wake the screen. Always consume the
-         * seq so it can't re-fire. */
+        /* Player a714 frames also include route/query echoes. Only a changed level
+         * after the initial baseline counts as activity; identical reports must not
+         * keep the idle timer (or display timer) alive. This cannot distinguish a
+         * physical key at the volume limit from an unchanged player echo.
+         * Never wake a dimmed/off panel from player IPC. */
         if(st.volume_seq != last_vol_seq){
             last_vol_seq = st.volume_seq;
-            power_note_input();   /* a volume key press counts as input for idle power-off (last_activity only moves when the panel is off) */
-            if(bl_state == 0){
-                last_activity = lv_tick_get();
-                if(screen_current()==SCR_SAVER) screen_back();
-                ui_show_volume(st.volume);
+            int changed = last_volume >= 0 && st.volume != last_volume;
+            last_volume = st.volume;
+            if(changed){
+                power_note_input();
+                if(bl_state == 0){
+                    last_activity = lv_tick_get();
+                    if(screen_current()==SCR_SAVER) screen_back();
+                    ui_show_volume(st.volume);
+                }
             }
         }
         /* the metadata 'state' field is unreliable (reports 0 while playing); infer play/pause from
