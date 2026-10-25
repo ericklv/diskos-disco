@@ -31,6 +31,7 @@ LV_FONT_DECLARE(font_zune_regular_16)
 #include <strings.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #define QMAX 400
 #define RMAX 4000
@@ -60,10 +61,27 @@ static void view_reload(void);
 /* ---------------------------------------------------------------- storage */
 static void save(void){
     if(!g_loaded){ ui_toast("Queue unavailable - try again"); return; }
-    char tmp[64]; snprintf(tmp, sizeof tmp, "%s.tmp", QUEUE_FILE);
-    FILE *f = fopen(tmp, "w"); if(!f) return;
-    for(int i = 0; i < g_qn; i++) fprintf(f, "%s\t%s\t%s\t%ld\t%d\t%d\t%d\t%d\t%d\n", g_q[i].path, g_q[i].title, g_q[i].artist, g_q[i].dur, g_q[i].id, g_q[i].track, g_q[i].cue, g_q[i].iso, g_q[i].have_key);
-    if(fclose(f) == 0) rename(tmp, QUEUE_FILE); else unlink(tmp);
+    char tmp[sizeof(QUEUE_FILE) + 16];
+    snprintf(tmp, sizeof tmp, "%s.XXXXXX", QUEUE_FILE);
+    int fd = mkstemp(tmp);
+    if(fd < 0){ ui_toast("Couldn't save queue"); return; }
+    FILE *f = fdopen(fd, "w");
+    if(!f){ close(fd); unlink(tmp); ui_toast("Couldn't save queue"); return; }
+    int ok = 1;
+    for(int i = 0; i < g_qn; i++)
+        if(fprintf(f, "%s\t%s\t%s\t%ld\t%d\t%d\t%d\t%d\t%d\n", g_q[i].path, g_q[i].title, g_q[i].artist, g_q[i].dur, g_q[i].id, g_q[i].track, g_q[i].cue, g_q[i].iso, g_q[i].have_key) < 0) ok = 0;
+    if(ferror(f) || fflush(f) != 0) ok = 0;
+    if(ok && fsync(fd) != 0) ok = 0;
+    if(fclose(f) != 0) ok = 0;
+    if(!ok || rename(tmp, QUEUE_FILE) != 0){ unlink(tmp); ui_toast("Couldn't save queue"); return; }
+    char dir[sizeof(QUEUE_FILE)]; snprintf(dir, sizeof dir, "%s", QUEUE_FILE);
+    char *slash = strrchr(dir, '/');
+    if(slash){ if(slash == dir) slash[1] = 0; else *slash = 0; }
+    else snprintf(dir, sizeof dir, ".");
+    int dfd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    int durable = dfd >= 0 && fsync(dfd) == 0;
+    if(dfd >= 0 && close(dfd) != 0) durable = 0;
+    if(!durable) ui_toast("Queue saved, but storage sync failed");
 }
 static void load(void){
     if(g_loaded) return;
