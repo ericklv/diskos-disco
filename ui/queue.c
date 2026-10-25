@@ -30,6 +30,7 @@ LV_FONT_DECLARE(font_zune_regular_16)
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+#include <errno.h>
 
 #define QMAX 400
 #define RMAX 4000
@@ -58,6 +59,7 @@ static int  g_skip_change;                        /* the user just started somet
 static void view_reload(void);
 /* ---------------------------------------------------------------- storage */
 static void save(void){
+    if(!g_loaded){ ui_toast("Queue unavailable - try again"); return; }
     char tmp[64]; snprintf(tmp, sizeof tmp, "%s.tmp", QUEUE_FILE);
     FILE *f = fopen(tmp, "w"); if(!f) return;
     for(int i = 0; i < g_qn; i++) fprintf(f, "%s\t%s\t%s\t%ld\t%d\t%d\t%d\t%d\t%d\n", g_q[i].path, g_q[i].title, g_q[i].artist, g_q[i].dur, g_q[i].id, g_q[i].track, g_q[i].cue, g_q[i].iso, g_q[i].have_key);
@@ -65,8 +67,9 @@ static void save(void){
 }
 static void load(void){
     if(g_loaded) return;
-    g_loaded = 1; g_qn = 0;
-    FILE *f = fopen(QUEUE_FILE, "r"); if(!f) return;
+    g_qn = 0;
+    FILE *f = fopen(QUEUE_FILE, "r");
+    if(!f){ if(errno == ENOENT) g_loaded = 1; return; }
     char line[700];
     while(g_qn < QMAX && fgets(line, sizeof line, f)){
         char *nl = strchr(line, '\n'); if(nl) *nl = 0;
@@ -80,7 +83,9 @@ static void load(void){
         q->track=p[5]?atoi(p[5]):0; q->cue=p[6]?atoi(p[6]):0; q->iso=p[7]?atoi(p[7]):0; q->have_key=p[8]?atoi(p[8]):0;
         /* Keep ambiguous legacy paths until admission permits exact migration. */
     }
-    fclose(f);
+    int ok = !ferror(f);
+    if(fclose(f) != 0) ok = 0;
+    if(ok) g_loaded = 1; else g_qn = 0;
 }
 /* ---------------------------------------------------------------- changes */
 static void changed(void){                         /* the queue's content changed */
@@ -112,7 +117,7 @@ static int add_path_tracks(const char *path){
     return added;
 }
 int queue_add_path(const char *path){
-    load(); if(!path || !path[0]) return 0;
+    load(); if(!g_loaded){ ui_toast("Queue unavailable - try again"); return 0; } if(!path || !path[0]) return 0;
     int n=add_path_tracks(path); if(n>0) changed(); return n;
 }
 /* Exact songs (SONG.IDs), each with its own track/CUE/ISO identity: never a whole image for one track. All or nothing
@@ -140,13 +145,13 @@ static int add_ids(const int *ids, int n){
     return added;
 }
 int queue_add_ids(const int *ids, int n){
-    load();
+    load(); if(!g_loaded){ ui_toast("Queue unavailable - try again"); return 0; }
     int r = add_ids(ids, n);
     if(r > 0) changed();
     return r;
 }
 int queue_add_folder(const char *dir){
-    load();
+    load(); if(!g_loaded){ ui_toast("Queue unavailable - try again"); return 0; }
     int *ids = NULL, n = mdb_folder_ids(dir, &ids);    /* in file order; each CUE/ISO sub-track once */
     int r = n > 0 ? add_ids(ids, n) : 0;
     free(ids);
@@ -155,34 +160,34 @@ int queue_add_folder(const char *dir){
 }
 static void group_cb(void *ud, const char *path){ int n = add_path_tracks(path); if(n > 0) *(int *)ud += n; }
 int queue_add_group(const char *col, const char *val){        /* fork: Library long-press on an album / artist / genre */
-    load(); int n = 0;
+    load(); if(!g_loaded){ ui_toast("Queue unavailable - try again"); return 0; } int n = 0;
     mdb_group_paths(col, val, group_cb, &n);
     if(n > 0) changed();
     return n;
 }
-void queue_clear(void){ load(); g_qn = 0; changed(); }
-int  queue_remove_at(int i){ load(); if(i < 0 || i >= g_qn) return 0; memmove(&g_q[i], &g_q[i+1], (size_t)(g_qn - i - 1) * sizeof g_q[0]); g_qn--; changed(); return 1; }
+void queue_clear(void){ load(); if(!g_loaded) return; g_qn = 0; changed(); }
+int  queue_remove_at(int i){ load(); if(!g_loaded){ ui_toast("Queue unavailable - try again"); return 0; } if(i < 0 || i >= g_qn) return 0; memmove(&g_q[i], &g_q[i+1], (size_t)(g_qn - i - 1) * sizeof g_q[0]); g_qn--; changed(); return 1; }
 int  queue_move(int from, int to){
-    load(); if(from < 0 || from >= g_qn || to < 0 || to >= g_qn || from == to) return 0;
+    load(); if(!g_loaded){ ui_toast("Queue unavailable - try again"); return 0; } if(from < 0 || from >= g_qn || to < 0 || to >= g_qn || from == to) return 0;
     qitem_t t = g_q[from];
     if(from < to) memmove(&g_q[from], &g_q[from+1], (size_t)(to - from) * sizeof t);
     else          memmove(&g_q[to+1], &g_q[to], (size_t)(from - to) * sizeof t);
     g_q[to] = t; changed(); return 1;
 }
 void queue_shuffle(void){
-    load(); for(int i = g_qn - 1; i > 0; i--){ int j = rand() % (i + 1); qitem_t t = g_q[i]; g_q[i] = g_q[j]; g_q[j] = t; }
+    load(); if(!g_loaded) return; for(int i = g_qn - 1; i > 0; i--){ int j = rand() % (i + 1); qitem_t t = g_q[i]; g_q[i] = g_q[j]; g_q[j] = t; }
     if(g_qn > 1) changed();
 }
 void queue_touched(void){ ui_queue_changed(); }
 void queue_path_moved(const char *o, const char *n){         /* file rename / move */
-    load(); size_t ol = strlen(o); int hit = 0;
+    load(); if(!g_loaded) return; size_t ol = strlen(o); int hit = 0;
     for(int i = 0; i < g_qn; i++)
         if(!strncmp(g_q[i].path, o, ol) && (g_q[i].path[ol] == 0 || g_q[i].path[ol] == '/')){
             char np[256]; snprintf(np, sizeof np, "%s%s", n, g_q[i].path + ol); snprintf(g_q[i].path, sizeof g_q[i].path, "%s", np); hit = 1; }
     if(hit){ save(); if(screen_current() == SCR_QUEUE) view_reload(); }
 }
 void queue_path_removed(const char *p){                      /* file / folder delete */
-    load(); size_t pl = strlen(p); int k = 0;
+    load(); if(!g_loaded) return; size_t pl = strlen(p); int k = 0;
     for(int i = 0; i < g_qn; i++)
         if(!(!strncmp(g_q[i].path, p, pl) && (g_q[i].path[pl] == 0 || g_q[i].path[pl] == '/'))) g_q[k++] = g_q[i];
     if(k != g_qn){ g_qn = k; changed(); }
