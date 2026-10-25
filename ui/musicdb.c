@@ -1420,7 +1420,7 @@ int mdb_love_path(int love_id, char *out, int cap){
 typedef struct { char path[512]; sqlite3_int64 stamp; int log_ms; char title[160], artist[160], album[160]; } history_job_t;   /* log_ms > 0: a PLAY_LOG row */
 static history_job_t history_jobs[HISTORY_CAP];
 static unsigned history_head, history_count;
-static int history_started;
+static int history_started, history_active, history_held;
 static pthread_mutex_t history_mu = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t history_cv = PTHREAD_COND_INITIALIZER;
 /* One PLAY_LOG row. Title / artist / album / album artist come from the library row for the file when it has them (the
@@ -1459,15 +1459,15 @@ static void *history_worker(void *unused){
         pthread_mutex_lock(&history_mu);
         while(!history_count) pthread_cond_wait(&history_cv, &history_mu);
         history_job_t job = history_jobs[history_head];
-        history_head = (history_head + 1) % HISTORY_CAP; history_count--;
+        history_head = (history_head + 1) % HISTORY_CAP; history_count--; history_active = 1;
         pthread_mutex_unlock(&history_mu);
         if(!d){
             if(sqlite3_open_v2(DB_PATH, &d, SQLITE_OPEN_READWRITE|SQLITE_OPEN_FULLMUTEX, NULL) != SQLITE_OK){
-                if(d) sqlite3_close(d); d = NULL; continue;
+                if(d) sqlite3_close(d); d = NULL; goto history_done;
             }
             sqlite3_busy_timeout(d, 100);
         }
-        if(job.log_ms > 0){ history_log_row(d, &job); continue; }
+        if(job.log_ms > 0){ history_log_row(d, &job); goto history_done; }
         for(int attempt = 0; attempt < 40; attempt++){
             sqlite3_stmt *st = NULL;
             int rc = sqlite3_prepare_v2(d,
@@ -1481,6 +1481,10 @@ static void *history_worker(void *unused){
             if(st) sqlite3_finalize(st);
             if(rc != SQLITE_BUSY && rc != SQLITE_LOCKED) break;
         }
+history_done:
+        pthread_mutex_lock(&history_mu);
+        history_active = 0;
+        pthread_mutex_unlock(&history_mu);
     }
     return NULL;
 }
@@ -1488,6 +1492,7 @@ static void *history_worker(void *unused){
 void mdb_record_play(const char *path){
     if(!path || !path[0] || strlen(path) >= sizeof history_jobs[0].path) return;
     pthread_mutex_lock(&history_mu);
+    if(history_held){ pthread_mutex_unlock(&history_mu); return; }
     if(!history_started){
         pthread_attr_t attr; pthread_t worker;
         pthread_attr_init(&attr); pthread_attr_setstacksize(&attr, 256 * 1024);
@@ -1522,6 +1527,7 @@ int mdb_keep_song_ids(int *ids, int n){
 void mdb_log_play(const char *path, const char *title, const char *artist, const char *album, long long at, int ms){
     if(!path || !path[0] || ms <= 0 || strlen(path) >= sizeof history_jobs[0].path) return;
     pthread_mutex_lock(&history_mu);
+    if(history_held){ pthread_mutex_unlock(&history_mu); return; }
     if(!history_started){
         pthread_attr_t attr; pthread_t worker;
         pthread_attr_init(&attr); pthread_attr_setstacksize(&attr, 256 * 1024);
@@ -4046,4 +4052,14 @@ int mdb_queue_resolve(const char *path, int track, int cue, int iso){
     }
     if(st) sqlite3_finalize(st);
     sd_io_end(); return hits==1?id:0;
+}
+
+/* Shutdown closes admission after stats_flush(), then polls without blocking LVGL. */
+void mdb_history_hold(int hold){
+    pthread_mutex_lock(&history_mu); history_held = hold; pthread_mutex_unlock(&history_mu);
+}
+int mdb_history_drained(void){
+    pthread_mutex_lock(&history_mu);
+    int done = history_count == 0 && !history_active;
+    pthread_mutex_unlock(&history_mu); return done;
 }

@@ -2,6 +2,7 @@
 /* Copyright (C) 2026 diskOS contributors */
 /* Power settings and the SD-safe shutdown (see power.h for the stock facts this is built on). */
 #include "stats.h"
+#include "musicdb.h"
 #include "command_spawn.h"
 #include "power.h"
 #include <stdio.h>
@@ -256,9 +257,9 @@ void power_startup_mirror(void){
 }
 
 static pid_t g_sync_pid;
-static void real_quiesce_begin(void *c){ (void)c; ui_sd_quiesce_begin(); scanner_abort(); art_kill_all(); }
-static int  real_drained(void *c){ (void)c; return ui_sd_quiesce_drained(); }
-static void real_quiesce_end(void *c){ (void)c; ui_sd_quiesce_end(); }
+static void real_quiesce_begin(void *c){ (void)c; mdb_history_hold(1); ui_sd_quiesce_begin(); scanner_abort(); art_kill_all(); }
+static int  real_drained(void *c){ (void)c; return ui_sd_quiesce_drained() && mdb_history_drained(); }
+static void real_quiesce_end(void *c){ (void)c; mdb_history_hold(0); ui_sd_quiesce_end(); }
 static int  real_sync_start(void *c){
     (void)c;
     pid_t p = 0;                                   /* posix_spawn, not fork(): a fork of the big UI can fail for memory */

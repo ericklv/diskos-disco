@@ -250,4 +250,6 @@ int mdb_queue_current_id(const char *path, int pos, const char *title);
 int mdb_queue_current_id_quick(const char *path, int pos, const char *title);   /* -1 = busy, try later */
 int mdb_queue_resolve(const char *path, int track, int cue, int iso);
 int mdb_queue_slot_set(int *ids, int n, int first);
+void mdb_history_hold(int hold);
+int mdb_history_drained(void);
 #endif
