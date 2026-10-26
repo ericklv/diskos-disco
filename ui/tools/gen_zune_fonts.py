@@ -27,7 +27,7 @@ def main():
             if a.only and a.only != f'font_zune_{name}_{px}': continue
             if name == 'light' and px == 64: continue  # drawn logo, not interface text
             actual = px + (1 if px <= 17 else 2 if px <= 50 else 3)
-            weight = (350 if px <= 28 else 325) if name == 'light' else 425 if name == 'regular' else w
+            weight = (500 if px in (32, 46) else 350 if px <= 28 else 325) if name == 'light' else 425 if name == 'regular' else w
             ttf = tmp / f'OpenSans-{name}-{weight}.ttf'
             instancer.instantiateVariableFont(TTFont(a.src), {'wght': weight, 'wdth': 100}).save(ttf)
             fn = f'font_zune_{name}_{px}'
