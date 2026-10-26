@@ -71,7 +71,7 @@ Immersive 3.0 shares the transport overlay and spinning-disc transition with the
 - **ON/OFF knobs instead of lamps.** A toggle is a knob: pointer straight up in the icon colour = off,
   rotated **45° and orange** = on. No indicator lamp — the pointer *is* the state, like a real dial.
 - **Lists stay straight** (unlike Ring's curves) — it's a radio, not a watch.
-- **Braun Dark** (charcoal body, aluminium knobs) and an **Automatic Appearance** toggle for day/night.
+- **Braun Dark** (charcoal body, aluminium knobs) and the **Light / dark > Auto** option for day/night.
   The volume popup uses the theme's own surfaces in Dark, so it no longer flashes a light band at night.
 
 ### Upstream themes

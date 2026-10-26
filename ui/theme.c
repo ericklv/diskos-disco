@@ -666,6 +666,10 @@ void theme_init(void){
     disco_palettes_init();
     null_palettes_init(); simple_palettes_init(); zune_palettes_init();
     fork_config_migrate();
+    /* Import the retired toggle once; the three-way setting owns all new changes. */
+    if(cfg_get_int("theme_auto",0)){
+        if(cfg_set_int("theme_variant",2)==0) cfg_set_int("theme_auto",0);
+    }
     int outdoor = cfg_get_int("outdoor", 0) == 1;
     g_outdoor = outdoor;
     g_variant = (outdoor || cfg_get_int("theme_variant", 0) == 1) ? 1 : 0;
@@ -674,9 +678,9 @@ void theme_init(void){
         g_preset=THEME_PRESET_DISCO;cfg_set_int("theme_preset",g_preset);
     }
     if(g_preset==THEME_PRESET_NULL||g_preset==THEME_PRESET_ZUNE)g_variant=0;   /* dark-only themes */
-    if(theme_auto_supported() && cfg_get_int("theme_auto",0) && !outdoor){
+    if(theme_auto_supported() && cfg_get_int("theme_variant",0)==2 && !outdoor){
         time_t now=time(NULL); struct tm tm; localtime_r(&now,&tm);
-        g_variant = !(tm.tm_hour >= 20 || tm.tm_hour < 7);
+        g_variant = !(tm.tm_hour >= 19 || tm.tm_hour < 7);
     }
     g_custom_on = 0;
     g_def = NULL;
@@ -1133,7 +1137,7 @@ static void theme_install_lvgl(void){
 const theme_kit_t *theme_kit_for_active(void){ return (g_def && g_def->kit) ? g_def->kit : &theme_kit_default; }
 
 int theme_ring_light(void){return (g_preset==THEME_PRESET_RING || g_preset==THEME_PRESET_DISCO) && g_variant==1;}
-int theme_auto_supported(void){return g_preset==THEME_PRESET_RING || g_preset==THEME_PRESET_BRAUN || g_preset==THEME_PRESET_DISCO;}
+int theme_auto_supported(void){return g_preset!=THEME_PRESET_NULL && g_preset!=THEME_PRESET_ZUNE;}
 int th_null(void){return g_preset==THEME_PRESET_NULL;}
 int th_disco(void){return g_preset==THEME_PRESET_DISCO;}
 int th_simple(void){return g_preset==THEME_PRESET_SIMPLE;}

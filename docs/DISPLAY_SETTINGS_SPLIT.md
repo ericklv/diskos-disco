@@ -64,8 +64,7 @@ one interchangeable implementation.
 ### Appearance is not wholly common
 
 Light/dark is configurable in Disco/Squash but Null and Zune are fixed-dark.
-Automatic appearance is implemented for Disco, Ring and Braun, not every modern
-theme. Custom accent selection is blocked for Null and Squash. These controls
+The Display > Light / dark selector offers Dark, Light and Auto for supported themes. Auto is dark from 19:00 to 07:00 and light otherwise; switching happens while the display is off. Custom accent selection is blocked for Null and Squash. These controls
 must be classified by actual capability, rather than grouped as universal ones.
 
 ### Similar names do not imply the same setting

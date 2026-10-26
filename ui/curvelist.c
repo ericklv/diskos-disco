@@ -204,7 +204,61 @@ static void dots(curvelist_t *c){
     }
 }
 static void scroll_cb(lv_event_t *e){ curvelist_t *c = lv_event_get_user_data(e); curve(c); dots(c); }
+/* Fixed viewport overlays: transparent beside the rows, opaque at the safe
+ * edges. Drawing after children keeps them stationary during scrolling and
+ * adds no objects, input surfaces or animation timers. */
+static void edge_fade_cb(lv_event_t *e){
+    if(!(th_disco() || th_simple() || th_null())) return;
+    lv_obj_t *list = lv_event_get_current_target(e);
+    lv_area_t a; lv_obj_get_coords(list, &a);
+    /* Roughly half a standard menu row; clamp for small embedded lists. */
+    int h = th_null() ? 32 : 27;
+    int height = lv_area_get_height(&a);
+    if(h > height / 2) h = height / 2;
+    if(h < 2) return;
+    lv_draw_rect_dsc_t d; lv_draw_rect_dsc_init(&d);
+    lv_obj_t *screen = lv_obj_get_parent(list);
+    while(lv_obj_get_parent(screen) && lv_obj_get_style_bg_opa(screen, LV_PART_MAIN) != LV_OPA_COVER)
+        screen = lv_obj_get_parent(screen);
+    /* Disco can paint album art over its canvas. Repaint that same fixed
+     * backdrop through a row-wise opacity ramp instead of fading to black. */
+    const void *backdrop = lv_obj_get_style_bg_image_src(screen, LV_PART_MAIN);
+    if(backdrop){
+        lv_layer_t *layer = lv_event_get_layer(e);
+        lv_area_t original = layer->_clip_area, image_area;
+        lv_obj_get_coords(screen, &image_area);
+        lv_draw_image_dsc_t image; lv_draw_image_dsc_init(&image);
+        image.src = backdrop;
+        image.recolor = lv_obj_get_style_bg_image_recolor(screen, LV_PART_MAIN);
+        image.recolor_opa = lv_obj_get_style_bg_image_recolor_opa(screen, LV_PART_MAIN);
+        for(int edge = 0; edge < 2; edge++) for(int n = 0; n < h; n++){
+            lv_area_t line = a;
+            line.y1 = line.y2 = edge ? a.y2 - n : a.y1 + n;
+            if(!lv_area_intersect(&layer->_clip_area, &original, &line)) continue;
+            image.opa = (lv_opa_t)(255 * (h - 1 - n) / (h - 1));
+            if(image.opa) lv_draw_image(layer, &image, &image_area);
+        }
+        layer->_clip_area = original;
+        return;
+    }
+    lv_color_t canvas = lv_obj_get_style_bg_color(screen, LV_PART_MAIN);
+    d.bg_color = canvas; d.bg_opa = LV_OPA_COVER;
+    d.bg_grad.dir = LV_GRAD_DIR_VER; d.bg_grad.stops_count = 2;
+    d.bg_grad.stops[0].color = d.bg_grad.stops[1].color = canvas;
+    d.bg_grad.stops[0].frac = 0; d.bg_grad.stops[1].frac = 255;
+    lv_area_t band = a; band.y2 = band.y1 + h - 1;
+    d.bg_grad.stops[0].opa = LV_OPA_COVER;
+    d.bg_grad.stops[1].opa = LV_OPA_TRANSP;
+    lv_draw_rect(lv_event_get_layer(e), &d, &band);
+    band = a; band.y1 = band.y2 - h + 1;
+    d.bg_grad.stops[0].opa = LV_OPA_TRANSP;
+    d.bg_grad.stops[1].opa = LV_OPA_COVER;
+    lv_draw_rect(lv_event_get_layer(e), &d, &band);
+}
 void curvelist_attach(curvelist_t *c, lv_obj_t *list, lv_obj_t *root, int full_w){
+    lv_obj_remove_event_cb(list, edge_fade_cb);
+    if(th_disco() || th_simple() || th_null())
+        lv_obj_add_event_cb(list, edge_fade_cb, LV_EVENT_DRAW_POST, NULL);
     c->list = list; c->full_w = full_w; c->cur = -2; c->disco_style=0;
     if(th_braun()){                                                /* Braun: the grille, and the list on the lower segment */
         br_face(root);

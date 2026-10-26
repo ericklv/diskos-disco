@@ -6,6 +6,10 @@ Entries follow the Keep a Changelog format, with Added, Changed, and Fixed categ
 diskOS remains beta software; version numbers do not imply broad hardware or feature validation.
 
 
+## 3.1.0
+
+Automatic appearance, menu-edge fades, medium-weight Zune menu fonts, idle timer and queue/history persistence fixes. [Release notes](docs/releases/v3.1.0.md). Device testing pending.
+
 ## 3.0.1
 
 - Replace the A–Z wheel with Focus: the selected letter stays at twelve o’clock, neighbouring letters fade with distance, and subtle accent highlights soften the ring. Use each theme’s fonts and colours; omit the heading above the centre letter.

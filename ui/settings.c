@@ -185,7 +185,6 @@ static void theme_reload_or_revert(const char *key){
     if(g_reload_tm) lv_timer_set_repeat_count(g_reload_tm, 1); else reload_go(NULL);
 }
 static void apply_appearance(int v){ (void)v; theme_reload_or_revert("theme_variant"); }
-static void apply_theme_auto(int v){ (void)v; theme_reload_or_revert("theme_auto"); }
 static void apply_outdoor(int v){ (void)v; theme_reload_or_revert("outdoor"); }
 static void apply_theme_preset(int v){ (void)v; theme_reload_or_revert("theme_preset"); }
 static void apply_simple_background(int v){(void)v;theme_reload_or_revert("simple_background");}
@@ -709,7 +708,7 @@ static const char *const OPT_SLEEP_ACT[] = { "Pause","Shut down" };
 static const char *const OPT_IDLE_OFF[POWER_IDLE_N] = { "Off","5 min","10 min","30 min","60 min","90 min","120 min" };
 static const char *const OPT_POWER[] = { "Off","30 sec","1 min","2 min","5 min" };  /* idx->TMAP secs in main.c */
 static const char *const OPT_NPSTYLE[] = { "Cover", "Vinyl", "Poster", "Ring" };
-static const char *const OPT_APPEARANCE[] = { "Dark", "Light" };
+static const char *const OPT_APPEARANCE[] = { "Dark", "Light", "Auto" };
 static const char *const OPT_NPFONT[] = {"Original", "Inter Semibold", "Nunito Bold"};
 static const char *const OPT_FONTSIZE[] = { "Small", "Medium", "Large" };
 static const char *const OPT_ALBUMVIEW[] = { "List", "Wall", "Coverflow" };
@@ -850,10 +849,8 @@ static const setting_t TABLE[] = {
       "Online album art and lyrics, the art cache, weather on Home, Shortcuts and the album view.", NULL },
     { "Theme Colours",  "Theme",       ST_CHOICE, "theme_preset", 0,0,0, theme_preset_names, THEME_PRESET_COUNT, NULL, apply_theme_preset, THEME_PRESET_DISCO,
       "Choose the UI theme. Restarts the screen; music continues.", NULL },
-    { "Theme Colours",  "Appearance",  ST_CYCLER, "theme_variant", 0,0,0, OPT_APPEARANCE, 2, NULL, apply_appearance, 0,
-      "Dark or light screens. Changing it redraws the screen in a moment; music keeps playing.", NULL },
-    { "Theme Colours",  "Automatic Appearance", ST_TOGGLE, "theme_auto", 0,1,1, NULL,0,NULL,apply_theme_auto,0,
-      "Ring, Braun and Disco: Light 07:00-20:00, Dark otherwise. Applies at screen-off. Outdoor stays Light.",NULL },
+    { "Theme Colours",  "Appearance",  ST_CYCLER, "theme_variant", 0,0,0, OPT_APPEARANCE, 3, NULL, apply_appearance, 0,
+      "For themes supporting light and dark appearances only. Auto uses Dark from 7pm to 7am and Light from 7am to 7pm, using the device clock. Automatic changes apply when the screen is off. Outdoor mode keeps Light on.", NULL },
     { "Theme Colours",  "Outdoor Mode", ST_TOGGLE, "outdoor",  0,1,1, NULL, 0, NULL, apply_outdoor, 0,
       "Light UI at full brightness for sunlight; uses more battery. Off restores your brightness.", NULL },
     { "Theme Colours",  "Accent Colour", ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_open_colorpick, 0,
@@ -1124,7 +1121,7 @@ static const char *val_text_value(const setting_t *s, char *buf, int n){
      * stays untouched and comes back when Outdoor Mode is turned off) */
     if(th_null() && s->cfg_key && !strcmp(s->cfg_key,"theme_variant"))return "Dark";
     if(theme_outdoor() && s->cfg_key && !strcmp(s->cfg_key, "theme_variant")) return "Light (Outdoor)";
-    if(theme_auto_supported() && simple_cfg_get_int("theme_auto",0) && s->cfg_key && !strcmp(s->cfg_key,"theme_variant"))
+    if(theme_auto_supported() && (simple_cfg_get_int("theme_variant",0)==2) && s->cfg_key && !strcmp(s->cfg_key,"theme_variant"))
         return theme_variant() ? "Light (Auto)" : "Dark (Auto)";
     if(theme_outdoor() && s->cfg_key && !strcmp(s->cfg_key, "brightness")) return "Full (Outdoor)";
     int v = get_val(s);
@@ -1293,9 +1290,6 @@ static void detail_cycle_cb(lv_event_t *e){
     if(theme_outdoor() && g_active->cfg_key && !strcmp(g_active->cfg_key, "theme_variant")){
         ui_toast("Outdoor Mode keeps Light on");   /* a Dark/Light change could not show until Outdoor Mode is off */
         return;
-    }
-    if(theme_auto_supported() && simple_cfg_get_int("theme_auto",0) && g_active->cfg_key && !strcmp(g_active->cfg_key,"theme_variant")){
-        ui_toast("Turn Automatic Appearance off first"); return;
     }
     int dir = (int)(uintptr_t)lv_event_get_user_data(e);
     int v = (nav_setting(g_active)?g_nav_pending:get_val(g_active)) + dir;

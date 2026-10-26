@@ -5,8 +5,7 @@ static const display_entry_t DISPLAY_ENTRIES[]={
     {"imm_scrub_action",NULL,"Immersive","Control action"},
     {"brightness",NULL,"Display","Brightness"},
     {"theme_preset",NULL,"Display","Theme"},
-    {"theme_variant",NULL,"Appearance","Light / dark"},
-    {"theme_auto",NULL,"Appearance","Automatic appearance"},
+    {"theme_variant",NULL,"Display","Light / dark"},
     {"outdoor",NULL,"Appearance","Outdoor mode"},
     {"null_palette",NULL,"Appearance","Colour scheme"},
     {"disco_sheen",NULL,"Appearance","Rim sheen"},
@@ -123,7 +122,6 @@ static const char *display_disabled_reason(const setting_t *s){
     if(!strcmp(k,"disco_qs_style") && th_zune())return "Zune uses six circular quick actions. Choose and reorder them in Items.";
     if(!strcmp(k,"theme_variant") && th_zune())return "Zune uses a fixed dark appearance. Choose an accent colour instead.";
     if(!strcmp(k,"theme_variant") && th_null())return "Null uses a fixed dark appearance. Choose a colour scheme instead.";
-    if(!strcmp(k,"theme_auto") && !theme_auto_supported())return "Automatic light/dark switching is available in Disco, Ring and Braun.";
     if(!strcmp(k,"null_side"))return "Null keeps its navigation on the right.";
     if((!strcmp(k,"zlock_src") || !strcmp(k,"zlock_tint")) && !th_zune())return "This option belongs to the Zune lock screen.";
     if(!strcmp(k,"null_palette") && !th_null())return "Colour schemes are specific to Null. Use light/dark and accent settings for this theme.";

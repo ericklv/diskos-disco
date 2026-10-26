@@ -65,7 +65,7 @@ Switching themes never resets your choices.
 |---|---|
 | Brightness | Screen brightness |
 | Theme | Disco, Ring, Braun, Stone, Null or Squash |
-| Appearance | Light / dark, Automatic appearance, Outdoor mode, Null colour scheme, Accent colour, Rim sheen, Equalizer / Volume / Menu colours |
+| Appearance | Outdoor mode, Null colour scheme, Accent colour, Rim sheen, Equalizer / Volume / Menu colours |
 | Music screen | Background, Controls, Text, Information, Progress, Now Playing style, Immersive |
 | Standby | Screensaver delay, Screen-off delay, Screensaver style |
 | Navigation | Menu items, Quick settings, Shortcuts, Gestures, Interaction hints, Navigation side, Menu timeout, Show hints again |
@@ -187,9 +187,7 @@ going back to Playback (Modes, then Playback). USB DAC needs 2.2.1 or later on t
 
 ## Make it yours
 
-**Change the theme.** Settings > Display > Theme: Disco, Ring, Braun, Stone, Null or Squash. Display > Appearance
-switches between Dark and Light; Automatic appearance does it for you (light by day). Null is always dark and
-Squash has its own colours, so these are dimmed there.
+**Change the theme.** Settings > Display > Theme: Disco, Ring, Braun, Stone, Null or Squash. Display > Light / dark sits directly below the theme settings entry and offers Dark, Light and Auto on supported themes. Auto uses Dark from 7pm to 7am and Light otherwise, applying changes while the display is off. Null and Zune remain fixed-dark.
 
 **Change the accent colour.** Settings > Display > Appearance > Accent colour. **Follow album** takes the colour from each
 cover; or pick a fixed one.

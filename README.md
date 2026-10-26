@@ -2,7 +2,7 @@
 
 > **Development builds on `dev` are experimental / in testing.** Use tagged releases for the published downloads. [Development notes](docs/DEV.md).
 
-**Disco! 3.0.1:** Focus A–Z wheel, unified settings and idle-shutdown fixes. [Release notes](docs/releases/v3.0.1.md) · [Validation notes](docs/RELEASE_3.0.1.md).
+**Disco! 3.1.0:** Automatic light/dark appearance, softer menu edges, clearer Zune menu text and queue reliability fixes. [Release notes](docs/releases/v3.1.0.md) · [Validation notes](docs/RELEASE_3.1.0.md).
 
 <p align="center">
   <b>Your music. Your kind of Disco.</b><br>
@@ -41,11 +41,11 @@
 > a power cut, a bad cable or an interrupted flash can leave it unbootable. Back up your music and keep the
 > saved stock image somewhere safe before you start. Not affiliated with FiiO, Snowsky or Ingenic.
 
-## New in 3.0.1
+## New in 3.1.0
 
 A clearer Focus A–Z wheel, with theme-native typography, a fixed top selection and subtle fades. Settings now share one hierarchy across every theme, with dedicated theme settings and Battery & power controls. Idle shutdown retries failed requests and cancels stale requests before handoff.
 
-[3.0.1 release notes](docs/releases/v3.0.1.md)
+[3.1.0 release notes](docs/releases/v3.1.0.md)
 
 ## Introduced in 3.0.0 — hello, Zune.
 

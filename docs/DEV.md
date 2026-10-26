@@ -1,3 +1,7 @@
+# Current release: 3.1.0
+
+The prepared payload is rebuilt for this release. See [3.1.0 preparation notes](RELEASE_3.1.0.md) for current testing limits. The records below describe earlier development checkpoints and their historical artifacts.
+
 # dev — experimental / in testing
 
 Development continues from Disco! 3.0.0, commit `721e07ee2266466888d84b92e756fd3a4fc778b1` (`v3.0.0`). Work belongs on **dev**. Do not update main or release tags without the maintainer’s explicit instruction.

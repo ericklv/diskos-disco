@@ -63,14 +63,14 @@ int th_braun(void){
     const theme_def_t *d=theme_def(); return d && d->kit && !strcmp(d->kit->id,"braun");
 #endif
 }
-int th_night_now(void){ time_t now = time(NULL); struct tm tm; localtime_r(&now, &tm); return tm.tm_hour >= 20 || tm.tm_hour < 7; }
+int th_night_now(void){ time_t now = time(NULL); struct tm tm; localtime_r(&now, &tm); return tm.tm_hour >= 19 || tm.tm_hour < 7; }
 /* the variant the current settings and clock ask for (Braun family only) */
 int th_want_dark(void){
 #ifdef TH_FORCE_BRAUN_DARK
     return 1;
 #endif
     if(!th_braun()) return 0;
-    if(cfg_get_int("theme_auto", 0)) return th_night_now();
+    if(cfg_get_int("theme_variant", 0)==2) return th_night_now();
     return th_index() == 2;
 }
 int br_dark(void){ return !theme_variant(); }

@@ -34,6 +34,7 @@ static int setting_order_band(const setting_t *s){
     if(!strcmp(k,"brightness"))return -30;
     if(!strcmp(k,"theme_preset"))return -29;
     if(s->apply==apply_theme_settings)return -28;
+    if(!strcmp(k,"theme_variant"))return -27;
     if(s->apply==apply_wifi||s->apply==apply_battery||s->apply==apply_open_datetime||s->apply==apply_volkeys_group||s->apply==apply_rescan||s->apply==system_update_sd_open||s->apply==apply_howto||s->apply==apply_ma_server||s->apply==apply_bluetooth_connection)return -20;
     if(s->apply==apply_bluetooth_settings||!strcmp(k,"idle_off_idx"))return -19;
     if(!strcmp(k,"language")||!strcmp(k,"font_size")||!strcmp(k,"album_view")||!strcmp(k,"imm_style")||!strcmp(k,"sleep_idx"))return -20;

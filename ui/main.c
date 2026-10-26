@@ -3969,7 +3969,7 @@ int main(int argc, char **argv){
         if(was_screen_off && !g_screen_off)ui_clock_refresh();
         if(th_zune()&&was_screen_off!=g_screen_off){void zsaver_set_visible(int);zsaver_set_visible(!g_screen_off&&screen_current()==SCR_SAVER);quicksettings_zune_visible(!g_screen_off&&screen_current()==SCR_QUICK);}
         /* A's day/night appearance switches at an idle boundary, preserving the user's manual variant. */
-        if(bl_state==2 && theme_auto_supported() && simple_cfg_get_int("theme_auto",0) && !theme_outdoor()){
+        if(bl_state==2 && theme_auto_supported() && (simple_cfg_get_int("theme_variant",0)==2) && !theme_outdoor()){
             static uint32_t checked; uint32_t tick=lv_tick_get();
             if(!checked || lv_tick_elaps(checked)>=60000){
                 checked=tick ? tick : 1;

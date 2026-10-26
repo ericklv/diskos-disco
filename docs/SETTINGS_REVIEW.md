@@ -26,7 +26,7 @@ Source update for dev. The approved reusable hierarchy is in SETTINGS_TEMPLATE.m
 | Playback | Play Mode → Equalizer → Artists → Library seek → Resume Playback → Auto-tag → Play Through Folders → Up Next → SongSphere |
 | Audio | Balance → DAC Filter → DSD Output → Gain → Max Volume → ReplayGain → Working Mode → DRE → Gapless |
 | Music screen | Now Playing style |
-| Appearance | Accent colour → Light / dark → Outdoor mode |
+| Appearance | Accent colour → Outdoor mode |
 | Connectivity | Wi-Fi → Bluetooth → MA Sendspin → Online services |
 | Navigation | Back-swipe distance → Quick settings items → Shortcuts |
 | Text & layout | Text size → Screen rotation → Screen transitions |
@@ -56,7 +56,7 @@ Source update for dev. The approved reusable hierarchy is in SETTINGS_TEMPLATE.m
 | Playback | Play Mode → Equalizer → Artists → Library seek → Resume Playback → Auto-tag → Play Through Folders → Up Next → SongSphere |
 | Audio | Balance → DAC Filter → DSD Output → Gain → Max Volume → ReplayGain → Working Mode → DRE → Gapless |
 | Music screen | Now Playing style |
-| Appearance | Accent colour → Light / dark → Automatic appearance → Outdoor mode |
+| Appearance | Accent colour → Outdoor mode |
 | Connectivity | Wi-Fi → Bluetooth → MA Sendspin → Online services |
 | Navigation | Back-swipe distance → Quick settings items → Shortcuts |
 | Text & layout | Text size → Screen rotation → Screen transitions |
@@ -86,7 +86,7 @@ Source update for dev. The approved reusable hierarchy is in SETTINGS_TEMPLATE.m
 | Playback | Play Mode → Equalizer → Artists → Library seek → Resume Playback → Auto-tag → Play Through Folders → Up Next → SongSphere |
 | Audio | Balance → DAC Filter → DSD Output → Gain → Max Volume → ReplayGain → Working Mode → DRE → Gapless |
 | Music screen | Now Playing style |
-| Appearance | Accent colour → Light / dark → Automatic appearance → Outdoor mode |
+| Appearance | Accent colour → Outdoor mode |
 | Connectivity | Wi-Fi → Bluetooth → MA Sendspin → Online services |
 | Navigation | Back-swipe distance → Quick settings items → Shortcuts |
 | Text & layout | Text size → Screen rotation → Screen transitions |
@@ -115,7 +115,7 @@ Source update for dev. The approved reusable hierarchy is in SETTINGS_TEMPLATE.m
 | Playback | Play Mode → Equalizer → Artists → Library seek → Resume Playback → Auto-tag → Play Through Folders → Up Next → SongSphere |
 | Audio | Balance → DAC Filter → DSD Output → Gain → Max Volume → ReplayGain → Working Mode → DRE → Gapless |
 | Music screen | Controls → Information → Progress → Text |
-| Appearance | Accent colour → Equalizer colours → Light / dark → Volume colours → Automatic appearance → Outdoor mode → Rim sheen |
+| Appearance | Accent colour → Equalizer colours → Volume colours → Outdoor mode → Rim sheen |
 | Music info | Clock and info → Show clock → Track number → Track times |
 | Theme navigation | Gestures → List motion → Menu items → Navigation side |
 | Connectivity | Wi-Fi → Bluetooth → MA Sendspin → Online services |
@@ -186,7 +186,7 @@ Source update for dev. The approved reusable hierarchy is in SETTINGS_TEMPLATE.m
 | Playback | Play Mode → Equalizer → Artists → Library seek → Resume Playback → Auto-tag → Play Through Folders → Up Next → SongSphere |
 | Audio | Balance → DAC Filter → DSD Output → Gain → Max Volume → ReplayGain → Working Mode → DRE → Gapless |
 | Music screen | Background → Information → Progress → Text |
-| Appearance | Equalizer colours → Light / dark → Volume colours → Outdoor mode |
+| Appearance | Equalizer colours → Volume colours → Outdoor mode |
 | Music info | Clock and info → Playback mode → Playback state → Show clock → Track number → Track times |
 | Theme navigation | Gestures → List motion → Menu items |
 | Connectivity | Wi-Fi → Bluetooth → MA Sendspin → Online services |

@@ -47,7 +47,7 @@ complete=out/f'diskos-disco-{version}-complete.zip'
 with zipfile.ZipFile(complete,'w',zipfile.ZIP_DEFLATED) as z:
     z.write(out/'mq_ui','mq_ui');z.write(out/'mq_ui.build.json','mq_ui.build.json')
     z.write(root/'RELEASE_INSTALL.md','INSTALL.md');z.write(root/f'docs/releases/v{version}.md','RELEASE-NOTES.md')
-    for name in ['UPDATING.md','WINDOWS.md','MACOS.md','DISC_SHELF_INSTALL.md','ZUNE.md','RELEASE_3.0.0.md','RELEASE_3.0.1.md','themes/zune.md','IMMERSIVE_CONTROLS.md']:z.write(root/'docs'/name,'docs/'+name)
+    for name in ['UPDATING.md','WINDOWS.md','MACOS.md','DISC_SHELF_INSTALL.md','ZUNE.md','RELEASE_3.0.0.md','RELEASE_3.0.1.md','RELEASE_3.1.0.md','themes/zune.md','IMMERSIVE_CONTROLS.md']:z.write(root/'docs'/name,'docs/'+name)
     for name in ['LICENSE','NOTICE.md']:z.write(root/name,name)
     # Disc Shelf is native now; its standalone archive remains available for older builds.
     # Do not duplicate the executable in the complete firmware ZIP.
