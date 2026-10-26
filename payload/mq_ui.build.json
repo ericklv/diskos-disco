@@ -1,17 +1,17 @@
 {
-  "version": "3.0.1",
-  "revision": "Focus A-Z wheel, unified settings and idle shutdown fixes",
-  "baseline": "v3.0.0",
-  "source_commit": "ad3a03c6b36fed0eee380c964ce9302995a5761a",
-  "ui_source_sha256": "195129cd0d48f769a0271a00c6cebbc7ad046a6208e17b87ff2a63803158c9f9",
+  "version": "3.1.0",
+  "revision": "Automatic appearance, menu fades, Zune medium typography and queue/history reliability",
+  "baseline": "v3.0.1",
+  "source_commit": "fc038a8e46cb2aeed02a1ff61f61a25f9d659173",
+  "ui_source_sha256": "6b878fcb762fe30b5fc2a8f6551e5f2a287434c7fea851d1b301ca0de4415e22",
   "ui_source_hash_recipe": "sorted tracked ui paths: path + NUL + file bytes + NUL",
   "compiler": "musl-cross-make GCC 11.2.0, musl 1.2.6; mipsel-linux-musl, -ffp-contract=off",
   "abi": "static little-endian MIPS32r2, o32, FP64, NaN2008",
-  "status": "Disco 3.0.1. Fresh static MIPS32r2/o32/FP64/NaN2008 build verified. All seven themes / twelve appearances pass Focus wheel and unified settings checks; animation, Home, Music and Quick Settings regressions, idle shutdown, shutdown flow, audio-running and plugged-in checks pass. The pre-existing REVIEW_HINTS overlay assertion remains a known host baseline failure. Physical playback, charging, shutdown, USB-C and NAS acceptance remain unverified. See docs/RELEASE_3.0.1.md.",
+  "status": "Fresh static MIPS32r2/o32/FP64/NaN2008 build. Host rendering and 24-hour appearance schedule checks passed. Queue/history fixes were not validated at user request. Physical acceptance pending user testing. See docs/RELEASE_3.1.0.md.",
   "binary": {
-    "sha256": "5949070c7f03c99eebcb5b216fb910f7cd028fa0d007828f9bcc8bf8fd5436f6",
-    "md5": "9298badc52d782f700af633af60515fa",
-    "bytes": 7160384
+    "bytes": 7169324,
+    "sha256": "096eba809dc7e71bd5e214d73044249543f8c3801b3d1ae8e7e2f12003292ff8",
+    "md5": "0719401246918874172552d68e7845dd"
   },
   "artwork_helper": {
     "bytes": 119424,
@@ -23,5 +23,5 @@
     "commit": "2bcb014b23a8c8cccf534eea8bda2fe5df453cfd",
     "license": "LGPL-2.1-or-later"
   },
-  "baseline_commit": "721e07ee2266466888d84b92e756fd3a4fc778b1"
+  "baseline_commit": "80c504528b1a33c01c8731ed948218b2804c5bb3"
 }
