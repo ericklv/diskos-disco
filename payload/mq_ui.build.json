@@ -1,17 +1,17 @@
 {
   "version": "3.1.0",
-  "revision": "Automatic appearance, menu fades, Zune medium typography and queue/history reliability",
+  "revision": "Completed track action sheets and Zune Dark Light Auto",
   "baseline": "v3.0.1",
-  "source_commit": "fc038a8e46cb2aeed02a1ff61f61a25f9d659173",
-  "ui_source_sha256": "6b878fcb762fe30b5fc2a8f6551e5f2a287434c7fea851d1b301ca0de4415e22",
+  "source_commit": "666cc7d273554057aebd540e228f549c14de085f",
+  "ui_source_sha256": "835654ffc9a38aaa715760756e80b21439641e747f093007dae5b4998c7eafe1",
   "ui_source_hash_recipe": "sorted tracked ui paths: path + NUL + file bytes + NUL",
   "compiler": "musl-cross-make GCC 11.2.0, musl 1.2.6; mipsel-linux-musl, -ffp-contract=off",
   "abi": "static little-endian MIPS32r2, o32, FP64, NaN2008",
-  "status": "Fresh static MIPS32r2/o32/FP64/NaN2008 build. Host rendering and 24-hour appearance schedule checks passed. Queue/history fixes were not validated at user request. Physical acceptance pending user testing. See docs/RELEASE_3.1.0.md.",
+  "status": "Replacement Disco 3.1.0: track action sheets for Disco/Squash/Null; Zune Dark/Light/Auto enabled including Music canvas. Fresh static MIPS build. Device acceptance pending.",
   "binary": {
-    "bytes": 7169324,
-    "sha256": "096eba809dc7e71bd5e214d73044249543f8c3801b3d1ae8e7e2f12003292ff8",
-    "md5": "0719401246918874172552d68e7845dd"
+    "bytes": 7175156,
+    "sha256": "b5071a147964f65712188f25edfacdc34e6926a559551195dd4648f7f240fd35",
+    "md5": "1ba0a9a7d7bcc58e927cd67105d7a898"
   },
   "artwork_helper": {
     "bytes": 119424,
