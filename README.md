@@ -2,7 +2,7 @@
 
 > **Development builds on `dev` are experimental / in testing.** Use tagged releases for the published downloads. [Development notes](docs/DEV.md).
 
-**Disco! 3.1.0:** Automatic light/dark appearance, softer menu edges, clearer Zune menu text and queue reliability fixes. [Release notes](docs/releases/v3.1.0.md) · [Validation notes](docs/RELEASE_3.1.0.md).
+**Disco! 3.1.0:** New track action sheets, Zune Light/Dark/Auto, softer menu edges and queue reliability fixes. [Release notes](docs/releases/v3.1.0.md) · [Validation notes](docs/RELEASE_3.1.0.md).
 
 <p align="center">
   <b>Your music. Your kind of Disco.</b><br>

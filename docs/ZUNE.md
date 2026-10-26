@@ -18,3 +18,7 @@ Open Sans keeps its bundled SIL Open Font License. This is an unofficial fan the
 ## Website preview
 
 ![Zune-first 3.0.0 website hero with original-author credit and walkthrough](zune/website-300-preview.jpg)
+
+## Appearance in 3.1.0
+
+Display > Light / dark offers Dark, Light and Auto for Zune. Auto is dark from 19:00 to 07:00 and light otherwise, using the device clock and switching while the screen is off. Light uses a white canvas, black type and the selected accent.

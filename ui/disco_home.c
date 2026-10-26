@@ -608,6 +608,7 @@ static void ov_mood_pill(lv_obj_t *p, int y){
     }
 }
 static void ov_open(void){
+    if(th_disco()||th_simple()||th_null()){screen_show(SCR_NPMENU);return;}
     if(!g_have || g_ov) return;
     int mood = sphere_ui_enabled(), lift = mood ? 28 : 0;                 /* SongSphere on: smaller buttons, moved up for the mood pill */
     g_ov = lv_obj_create(lv_layer_top());
@@ -675,6 +676,7 @@ static void ov_open(void){
 }
 /* Null shares the track popup without constructing or updating Disco's Home widgets. */
 void disco_track_overlay_open(void){
+    if(th_disco()||th_simple()||th_null()){screen_show(SCR_NPMENU);return;}
     track_state_t st; ipc_get_state(&st);
     if((!th_null() && !th_disco_family()) || !st.have_track) return;
     if(th_disco_family()){ov_open();return;}

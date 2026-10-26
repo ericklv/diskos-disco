@@ -115,9 +115,23 @@ static void zune_menu(const char *title, const int *acts, int n){
     lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 26);
     if(screen_current()==SCR_LIBRARY)onboarding_discovered(HINT_LIBRARY);
 }
+#include "track_sheet.h"
+static void sheet_pick(lv_event_t *e){pick((int)(intptr_t)lv_event_get_user_data(e));}
 static void open_menu(const char *title, const int *acts, int n){
     close_ov();
     if(th_zune()){ zune_menu(title, acts, n); return; }
+    if(!g_is_dir && !g_gcol[0] && (th_disco()||th_simple()||th_null())){
+        static const int order[]={A_FAV,A_ALBUM,A_ARTIST,A_PLAYLIST,A_QUEUE,A_INFO,A_TAGS,A_RENAME,A_COPYMOVE,A_DELETE};
+        static const char *const names[]={"Favourite","Go to album","Go to artist","Add to playlist","Add to queue","Song info","Tags","Rename","Copy/Move","Delete"};
+        static const char *const icons[]={TH_IC_HEART,LV_SYMBOL_IMAGE,LV_SYMBOL_HOME,LV_SYMBOL_PLUS,LV_SYMBOL_LIST,LV_SYMBOL_FILE,LV_SYMBOL_EDIT,LV_SYMBOL_EDIT,LV_SYMBOL_COPY,LV_SYMBOL_TRASH};
+        const char *labels[10],*glyphs[10];g_nact=0;
+        for(int k=0;k<10;k++)for(int j=0;j<n;j++)if(acts[j]==order[k]&&g_nact<8){g_act[g_nact]=order[k];labels[g_nact]=names[k];glyphs[g_nact++]=icons[k];}
+        g_sel_next=NULL;g_sel=NULL;
+        g_ov=lv_obj_create(lv_layer_top());lv_obj_remove_style_all(g_ov);kit_keep(g_ov);lv_obj_set_size(g_ov,360,360);
+        const void *cover=is_current(g_path)?ui_current_cover_dsc():NULL;
+        track_sheet_build(g_ov,title,g_have_song?g_song.artist:"",cover,labels,glyphs,g_nact,sheet_pick,hub_cb);
+        return;
+    }
     g_ov = lv_obj_create(lv_layer_top());
     lv_obj_remove_style_all(g_ov);
     lv_obj_set_size(g_ov, 360, 360);

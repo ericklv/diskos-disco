@@ -187,7 +187,7 @@ going back to Playback (Modes, then Playback). USB DAC needs 2.2.1 or later on t
 
 ## Make it yours
 
-**Change the theme.** Settings > Display > Theme: Disco, Ring, Braun, Stone, Null or Squash. Display > Light / dark sits directly below the theme settings entry and offers Dark, Light and Auto on supported themes. Auto uses Dark from 7pm to 7am and Light otherwise, applying changes while the display is off. Null and Zune remain fixed-dark.
+**Change the theme.** Settings > Display > Theme: Disco, Ring, Braun, Stone, Null or Squash. Display > Light / dark sits directly below the theme settings entry and offers Dark, Light and Auto on supported themes. Auto uses Dark from 7pm to 7am and Light otherwise, applying changes while the display is off. Null remains fixed-dark; Zune supports Dark, Light and Auto.
 
 **Change the accent colour.** Settings > Display > Appearance > Accent colour. **Follow album** takes the colour from each
 cover; or pick a fixed one.

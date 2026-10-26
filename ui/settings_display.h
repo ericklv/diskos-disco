@@ -120,7 +120,6 @@ static const char *display_disabled_reason(const setting_t *s){
     if(!strcmp(k,"imm_scrub_action")&&!simple_cfg_get_int("imm_scrub",0))return "Enable Circular control first.";
     if(s->apply==apply_open_colorpick && (th_simple()||th_null()))return accent_disabled_reason();
     if(!strcmp(k,"disco_qs_style") && th_zune())return "Zune uses six circular quick actions. Choose and reorder them in Items.";
-    if(!strcmp(k,"theme_variant") && th_zune())return "Zune uses a fixed dark appearance. Choose an accent colour instead.";
     if(!strcmp(k,"theme_variant") && th_null())return "Null uses a fixed dark appearance. Choose a colour scheme instead.";
     if(!strcmp(k,"null_side"))return "Null keeps its navigation on the right.";
     if((!strcmp(k,"zlock_src") || !strcmp(k,"zlock_tint")) && !th_zune())return "This option belongs to the Zune lock screen.";

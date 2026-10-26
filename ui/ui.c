@@ -2108,7 +2108,8 @@ static void zune_col_cb(lv_event_t *e){ (void)e; if(!g_zcol_pending){ g_zcol_pen
 void kit_fork_np_zune(void){
     if(!th_zune() || !g_np_scr) return;
     lv_color_t acc = np_col();
-    ui_np_backdrop_enabled(0);                              /* pure black: no blurred cover behind */
+    ui_np_backdrop_enabled(0);                              /* solid theme canvas: no blurred cover behind */
+    lv_obj_set_style_bg_color(g_np_scr, TC(CANVAS), LV_PART_MAIN);
     SHOW(np_dots[0], 0); SHOW(np_dots[1], 0); SHOW(album, 1); SHOW(t_sep, 1);
     if(cover){
         lv_obj_set_size(cover, ZNP_ART, ZNP_ART);

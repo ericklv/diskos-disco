@@ -7,7 +7,7 @@ on:
   push:
     tags: ["v*"]
     branches: ["main"]
-    paths: ["ui/version.h"]
+    paths: ["ui/version.h", "payload/mq_ui.build.json"]
 
 permissions:
   contents: write
@@ -31,8 +31,8 @@ jobs:
             exit 1
           fi
           if git rev-parse -q --verify "refs/tags/$TAG^{commit}" >/dev/null; then
-            test "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$GITHUB_SHA" || {
-              echo "Refusing to replace an existing release tag" >&2
+            git merge-base --is-ancestor "refs/tags/$TAG" "$GITHUB_SHA" || {
+              echo "Existing release must be an ancestor of its replacement" >&2
               exit 1
             }
           fi
@@ -62,9 +62,9 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
         run: |
           set -e
-          if ! git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-            git tag "$TAG" "$GITHUB_SHA"
-            git push origin "refs/tags/$TAG"
+          if [ "$(git rev-parse -q --verify "refs/tags/$TAG^{commit}" || true)" != "$GITHUB_SHA" ]; then
+            git tag -f "$TAG" "$GITHUB_SHA"
+            git push --force origin "refs/tags/$TAG"
           fi
           NOTES="docs/releases/${TAG}.md"
           [ -f "$NOTES" ] || NOTES="CHANGELOG.md"

@@ -2,7 +2,7 @@
 
 Zune theme by **[namastecoconut-imagined](https://github.com/namastecoconut-imagined/diskos-disco-zune/commits?author=namastecoconut-imagined)**, adapted into Disco with a readability and controls polish pass by zmd22. The original theme supplies the design direction: bold lowercase type, deep black, a personal accent and a flowing home menu. Open Sans retains its SIL Open Font License. Unofficial fan theme; not affiliated with Microsoft.
 
-Choose **Settings → Display → Theme → Zune**. Zune is dark; set its accent in the theme’s colour settings. The [website walkthrough](https://zmd22.github.io/diskos-disco/#zune) previews the screens in several colours.
+Choose **Settings → Display → Theme → Zune**. Zune supports Dark, Light and Auto under Display > Light / dark. Auto uses dark from 7pm to 7am and light otherwise, applying changes while the screen is off. Set its accent in the theme’s colour settings. The [website walkthrough](https://zmd22.github.io/diskos-disco/#zune) previews the screens in several colours.
 
 ## Everyday navigation
 

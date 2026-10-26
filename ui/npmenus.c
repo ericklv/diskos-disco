@@ -425,17 +425,33 @@ static void zune_actions(lv_obj_t *box, const track_state_t *st){
     else snprintf(t, sizeof t, "nothing playing");
     zune_header(box, t, 1);
 }
+#include "track_sheet.h"
+static void sheet_pick(lv_event_t *e){
+    int i=(int)(intptr_t)lv_event_get_user_data(e);
+    if(i==ZA_MODE){setlist_open("Playback");settings_open_key("work_mode");return;}
+    if(i==ZA_SLEEP){setlist_open("Battery & power");settings_open_group("Sleep timer");return;}
+    if(i==ZA_FAV){zune_run(ctx_fav_cb);return;}
+    zune_act_pick(i);
+}
+static void track_actions(lv_obj_t *box,const track_state_t *st){
+    g_zbox=box;npmenu_set(st,1,NULL);
+    static const char *const names[]={"Favourite","Go to album","Go to artist","Add to playlist","Queue","Play mode","Lyrics","Song info","Sleep timer","Equalizer","Tags"};
+    static const char *const icons[]={TH_IC_HEART,LV_SYMBOL_IMAGE,LV_SYMBOL_HOME,LV_SYMBOL_PLUS,LV_SYMBOL_LIST,LV_SYMBOL_SHUFFLE,LV_SYMBOL_AUDIO,LV_SYMBOL_FILE,LV_SYMBOL_POWER,LV_SYMBOL_SETTINGS,LV_SYMBOL_EDIT};
+    track_sheet_build(box,st->title,st->artist,ui_current_cover_dsc(),names,icons,ZA_N,sheet_pick,close_cb);
+}
 static int g_zsleep_direct;
 void npmenu_open_sleep(void){ g_zsleep_direct = 1; screen_show(SCR_NPMENU); }   /* Zune Quick Settings: straight to the timer */
 static void build_menu(lv_obj_t *box){
     if(!box) return;
     tags_close();
+    g_fav_lbl=NULL;
     lv_obj_clean(box);
     memset(&g_orb, 0, sizeof g_orb); g_cover_img = g_menu_bg = g_menu_title = NULL;
     track_state_t st; ipc_get_state(&st);
     int book = st.path[0] && mdb_is_book_path(st.path);
     if(th_zune() && g_zsleep_direct){ g_zsleep_direct = 0; g_zbox = box; npmenu_set(&st, 1, NULL);
         lv_obj_set_style_bg_color(box, TC(CANVAS), 0); lv_obj_set_style_bg_opa(box, LV_OPA_COVER, 0); zune_sleep(box); return; }
+    if(!book && (th_disco()||th_simple()||th_null())){track_actions(box,&st);return;}
     if(th_zune() && !book){ zune_actions(box, &st); return; }   /* Zune: the actions as a dial (audiobooks keep their own four) */
     g_menu_bg = lv_image_create(box);                           /* the album's blurred wash, dimmed */
     lv_obj_set_size(g_menu_bg, 360, 360); lv_obj_clear_flag(g_menu_bg, LV_OBJ_FLAG_CLICKABLE); lv_obj_add_flag(g_menu_bg, LV_OBJ_FLAG_HIDDEN);
