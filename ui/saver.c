@@ -347,23 +347,30 @@ static void saver_anim_cb(lv_timer_t *t)
 
 /* vinyl spin - idempotent; main.c calls it each loop with the live condition
  * (vinyl style && saver visible && backlight on). Freezes on stop. */
-/* Throttle the actual rotation to ~20 Hz: on this GPU-less SoC a full-bleed rotate
- * is close to a full-screen software transform, so applying it every LVGL frame
- * (~30 Hz) is wasteful. Skipping a callback causes NO invalidation, so capping to
- * 50 ms keeps the redraw cost down while ~2°/step stays smooth for a slow spin. */
-static void vspin_cb(void *var, int32_t v){
-    static uint32_t last = 0;
-    uint32_t now = lv_tick_get();
-    /* 30 fps. With diskOS's own rotation (vinyl_rotate) a frame costs ~7 ms, so the loop would otherwise run ~60 fps
-     * and spend the saving on frames nobody needs: at 27 s/rev, 30 fps is under half a degree per frame (smooth), and
-     * the cap sits far above the render time, so the cadence stays even. Device: ~58% CPU (old LVGL transform) ->
-     * ~44% uncapped -> see the cap's figure in plans (measured with /proc stat ticks over 10 s). */
-    if (now - last < 33) return;
-    last = now;
+/* The spin is a 15 fps timer, not an LVGL animation: at 27 s per turn that is under one degree per step (still
+ * smooth on a dimmed screensaver), and with no animation running the main loop can rest between frames instead
+ * of polling every 5 ms. The angle comes from elapsed time, so a late frame never slows the turn. Device notes:
+ * ~58% CPU with the old LVGL transform, ~44% with diskOS's own rotation at 30 fps (/proc stat ticks over 10 s). */
+#define VSPIN_REV_MS   27000
+#define VSPIN_FRAME_MS 66
+static lv_timer_t *g_vtimer;
+static uint32_t g_vt0;       /* tick the current turn was measured from */
+static int32_t g_va0;        /* angle at g_vt0, 0.1 degree units */
+static void vspin_apply(lv_obj_t *img, int32_t v){
     g_vangle = v % 3600;
-    if (g_vout && lv_image_get_src((lv_obj_t *)var) == (const void *)&g_vodsc) vinyl_rotate(g_vangle);
-    else lv_image_set_rotation((lv_obj_t *)var, g_vangle);
+    if (g_vout && lv_image_get_src(img) == (const void *)&g_vodsc) vinyl_rotate(g_vangle);
+    else lv_image_set_rotation(img, g_vangle);
 }
+static void vspin_tick(lv_timer_t *t){
+    (void)t;
+    if (!g_vinyl) return;
+    uint32_t el = lv_tick_elaps(g_vt0);
+    vspin_apply(g_vinyl, g_va0 + (int32_t)((uint64_t)el * 3600u / VSPIN_REV_MS % 3600u));
+}
+static void vspin_stop(void){
+    if (g_vtimer) { lv_timer_delete(g_vtimer); g_vtimer = NULL; }
+}
+static void vinyl_deleted(lv_event_t *e){ (void)e; vspin_stop(); g_vspin = 0; }
 void saver_vinyl_spin(int want)
 {
     if(th_braun() || th_disco_family() || th_null() || th_zune()) return;
@@ -372,17 +379,11 @@ void saver_vinyl_spin(int want)
     if (want == g_vspin) return;
     g_vspin = want;
     if (want) {
-        int32_t cur = g_vout ? g_vangle : lv_image_get_rotation(g_vinyl);
-        lv_anim_t a; lv_anim_init(&a);
-        lv_anim_set_var(&a, g_vinyl);
-        lv_anim_set_exec_cb(&a, vspin_cb);
-        lv_anim_set_values(&a, cur, cur + 3600);
-        lv_anim_set_time(&a, 27000);                /* ~27s/rev - slow, calm screensaver spin */
-        lv_anim_set_path_cb(&a, lv_anim_path_linear);   /* constant angular speed */
-        lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-        lv_anim_start(&a);
+        g_va0 = g_vout ? g_vangle : lv_image_get_rotation(g_vinyl);   /* resume from the frozen angle */
+        g_vt0 = lv_tick_get();
+        if (!g_vtimer) g_vtimer = lv_timer_create(vspin_tick, VSPIN_FRAME_MS, NULL);
     } else {
-        lv_anim_delete(g_vinyl, vspin_cb);
+        vspin_stop();                                                  /* freeze at the current angle */
     }
 }
 
@@ -515,6 +516,7 @@ void saver_create(lv_obj_t *root)
      * with AA on (~19fps). On the native-res + bright cover the nearest-neighbour edges
      * are acceptable, and the ~50fps makes the spin much smoother. */
     lv_image_set_antialias(g_vinyl, false);   /* pivot + scale set per-cover in saver_set_track */
+    lv_obj_add_event_cb(g_vinyl, vinyl_deleted, LV_EVENT_DELETE, NULL);   /* the spin timer never outlives its image */
     lv_obj_add_flag(g_vinyl, LV_OBJ_FLAG_HIDDEN);
 
     s_swfont = *TF(UI_16);

@@ -227,7 +227,7 @@ static int parse_id3_at(uint64_t base, uint64_t limit_end){
     if(rd(body_off, g_tag, (size_t)want)){ bfree(g_tag); g_ioerr = 1; return -1; }
     int ncand0 = g_ncand;
     size_t n = (size_t)want, pos = 0;
-    if(ver < 4 && tag_unsync) n = de_unsync(g_tag, n);      /* v2.2/2.3: whole-tag unsynchronisation */
+    if(ver < 4 && tag_unsync) n = de_unsync(g_tag, n);      /* v2.2/whole-tag unsynchronisation */
     if(ext){
         int bad = 0;
         if(ver == 3){

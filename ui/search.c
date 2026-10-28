@@ -262,14 +262,27 @@ static void land_build(void){
     lv_obj_clean(g_land);
     lv_obj_set_style_bg_image_src(g_land, lv_obj_get_style_bg_image_src(g_root, 0), 0);   /* the same blurred cover */
     disco_title(g_land, "Search");
-    lv_obj_t *big = disco_row(g_land, 74, 56, TH_IC_SEARCH, &font_theme_20, "Search library", land_go_cb, NULL);
+    lv_obj_t *big = disco_row(g_land, 74 - library_lift(), 56, TH_IC_SEARCH, &font_theme_20, th_null() ? "Search" : "Search library", land_go_cb, NULL);   /* Null: the wide face fits only the short word */
     lv_obj_set_style_border_width(big, 1, 0); lv_obj_set_style_border_color(big, ui_current_accent(), 0); lv_obj_set_style_border_opa(big, 160, 0);
     char (*r)[96] = g_recent; int n; memset(g_recent, 0, sizeof g_recent); recent_get(g_recent, &n);
     lv_obj_t *cap = lv_label_create(g_land); lv_label_set_text(cap, n ? "Recent" : "Your recent searches show up here");
     lv_obj_set_style_text_font(cap, TF(UI_14), 0); lv_obj_set_style_text_color(cap, TC(TEXT_SECONDARY), 0);
-    lv_obj_align(cap, LV_ALIGN_TOP_MID, 0, 146);
+    lv_obj_align(cap, LV_ALIGN_TOP_MID, 0, 146 - library_lift());
+    if(library_lift()){ lv_label_set_long_mode(cap, LV_LABEL_LONG_WRAP); lv_obj_set_width(cap, 220); lv_obj_set_style_text_align(cap, LV_TEXT_ALIGN_CENTER, 0); }
+    if(!n && library_lift()){   /* nothing yet: a large, quiet magnifier fills the empty page */
+        lv_obj_t *ring = lv_obj_create(g_land); lv_obj_remove_style_all(ring);
+        lv_obj_set_size(ring, 64, 64); lv_obj_align(ring, LV_ALIGN_TOP_MID, -8, th_null() ? 212 : 196);
+        lv_obj_set_style_radius(ring, LV_RADIUS_CIRCLE, 0); lv_obj_set_style_border_width(ring, 6, 0);
+        lv_obj_set_style_border_color(ring, TC(TEXT_SECONDARY), 0); lv_obj_set_style_border_opa(ring, LV_OPA_30, 0);
+        lv_obj_clear_flag(ring, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+        static const lv_point_precise_t H[2] = { { 0, 0 }, { 20, 20 } };
+        lv_obj_t *h = lv_line_create(g_land); lv_line_set_points(h, H, 2); lv_obj_align(h, LV_ALIGN_TOP_MID, 30, th_null() ? 268 : 252);
+        lv_obj_set_style_line_width(h, 8, 0); lv_obj_set_style_line_rounded(h, true, 0);
+        lv_obj_set_style_line_color(h, TC(TEXT_SECONDARY), 0); lv_obj_set_style_line_opa(h, LV_OPA_30, 0);
+        if(th_null()){ lv_obj_set_style_radius(ring, 0, 0); lv_obj_set_style_line_rounded(h, false, 0); }   /* Null: square ends */
+    }
     for(int i = 0; i < n; i++){
-        lv_obj_t *row = disco_row(g_land, 172 + i * 50, 44, LV_SYMBOL_REFRESH, NULL, r[i], land_recent_cb, (void *)(intptr_t)i);
+        lv_obj_t *row = disco_row(g_land, 172 - library_lift() + i * 50, 44, LV_SYMBOL_REFRESH, NULL, r[i], land_recent_cb, (void *)(intptr_t)i);
         lv_obj_set_style_text_font(lv_obj_get_child(row, 1), ui_font_cjk(18), 0);
     }
 }

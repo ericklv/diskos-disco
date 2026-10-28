@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Album Roulette, built in (2.2.0): the album sampler and cover preparation, from the Album Roulette 1.3.1 app,
+/* Album Roulette, built in: the album sampler and cover preparation, from the Album Roulette 1.3.1 app,
  * unchanged in behaviour. A background thread reservoir-samples up to POOL albums (4+ tracks) from the whole library
  * and prepares a round 224 px cover for each: from its SD cache (read-only file mappings, reclaimable), else decoded
  * by the serialised built-in decoder with a 4-16 MiB cap, else a shared placeholder.

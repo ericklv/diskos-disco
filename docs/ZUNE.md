@@ -1,6 +1,6 @@
 # Zune integration — Disco! 3.0.0
 
-The Zune integration is included in Disco! 3.0.0. See [the release](https://github.com/zmd22/diskos-disco/releases/tag/v3.0.0) for downloads.
+The Zune integration is included in Disco! 3.0.0. See [the latest release](https://github.com/zmd22/diskos-disco/releases/latest) for downloads. Since 3.2.0 Zune also uses the letter wheel and works with QS style *Shade*.
 
 - [Theme guide and acknowledgements](themes/zune.md)
 - [3.0.0 release notes](releases/v3.0.0.md)

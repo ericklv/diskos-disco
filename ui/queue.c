@@ -484,7 +484,7 @@ static void separator(void){
     if(th_zune()) return;                                       /* Zune: the colour sets the playing song apart */
     lv_obj_t *r = lv_obj_create(g_list); lv_obj_remove_style_all(r);
     lv_obj_set_size(r, QW - 32, 1);
-    lv_obj_set_style_bg_color(r, TC(BORDER), 0); lv_obj_set_style_bg_opa(r, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(r, TC(BORDER), 0); lv_obj_set_style_bg_opa(r, library_lift() ? LV_OPA_40 : LV_OPA_COVER, 0);   /* a quiet hairline */
     lv_obj_clear_flag(r, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
 }
 /* Zune (Figma 15): rows as text on black - the playing song in magenta with three small bars, the rest in Light 20
@@ -513,10 +513,10 @@ static lv_obj_t *qrow(const char *t, const char *a, int now, int idx){
     if(now){ lv_obj_t *ic = lv_label_create(r); lv_label_set_text(ic, LV_SYMBOL_VOLUME_MAX);
              lv_obj_set_pos(ic, 20, 25); lv_obj_set_style_text_color(ic, ui_current_accent(), 0); x = 48; }
     else lv_obj_add_event_cb(r, row_cb, LV_EVENT_SHORT_CLICKED, (void *)(intptr_t)idx);   /* tap: jump to it */
-    lv_obj_t *tl = lv_label_create(r); lv_label_set_text(tl, t); lv_label_set_long_mode(tl,LV_LABEL_LONG_SCROLL_CIRCULAR);if(now)ui_reveal_title(tl);
+    lv_obj_t *tl = lv_label_create(r); lv_label_set_text(tl, t); lv_label_set_long_mode(tl,LV_LABEL_LONG_SCROLL_CIRCULAR);if(now||library_lift())ui_reveal_title(tl);
     lv_obj_set_pos(tl, x, 10); lv_obj_set_size(tl, QW - x - (now ? 22 : 64), 28);
     lv_obj_set_style_text_font(tl, ui_font_user(20), 0); lv_obj_set_style_text_color(tl, now ? ui_current_accent() : TC(TEXT_PRIMARY), 0);
-    lv_obj_t *al = lv_label_create(r); lv_label_set_text(al, a); lv_label_set_long_mode(al,LV_LABEL_LONG_SCROLL_CIRCULAR);if(now)ui_reveal_title(al);
+    lv_obj_t *al = lv_label_create(r); lv_label_set_text(al, a); lv_label_set_long_mode(al,LV_LABEL_LONG_SCROLL_CIRCULAR);if(now||library_lift())ui_reveal_title(al);
     lv_obj_set_pos(al, x, 39); lv_obj_set_size(al, QW - x - (now ? 22 : 64), 22);
     lv_obj_set_style_text_font(al, ui_font_user(16), 0); lv_obj_set_style_text_color(al, TC(TEXT_SECONDARY), 0);
     if(!now){                                                 /* the drag handle */
@@ -623,6 +623,7 @@ void queue_create(lv_obj_t *root){
     lv_obj_set_style_bg_color(root, TC(CANVAS), 0);
     lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
     lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
+    int modern = library_lift() > 0;                            /* Disco, Squash, Null: the shared header line */
     lv_obj_t *hb = lv_button_create(root);                      /* "< Queue": the back arrow and title */
     lv_obj_remove_style_all(hb);
     lv_obj_set_size(hb, 120, 30); lv_obj_align(hb, LV_ALIGN_TOP_MID, 0, 14);
@@ -638,9 +639,18 @@ void queue_create(lv_obj_t *root){
     g_play_btn = pill(LV_SYMBOL_PLAY, "Play", 44, 104, play_cb, 1);
     g_shuffle_btn = pill(LV_SYMBOL_SHUFFLE, NULL, 156, 48, shuffle_cb, 0);        /* Random: icon only */
     g_clear_btn = pill(LV_SYMBOL_TRASH, "Clear", 212, 104, clear_cb, 0);
+    if(modern){   /* the theme's own header; the sub-line under it; the three buttons narrower, centred, clear of the rim */
+        lv_obj_add_flag(hb, LV_OBJ_FLAG_HIDDEN);
+        ui_header_cb(root, "Queue", back_cb);
+        lv_obj_align(g_sub, LV_ALIGN_TOP_MID, 0, 46);
+        lv_obj_t *b3[3] = { g_play_btn, g_shuffle_btn, g_clear_btn }; int w3[3] = { th_null() ? 100 : 92, 44, th_null() ? 104 : 92 }, x = 180 - (w3[0] + w3[1] + w3[2] + 2 * 8) / 2;   /* Null: its wide face */
+        for(int k = 0; k < 3; k++){ lv_obj_set_size(b3[k], w3[k], 40); lv_obj_set_pos(b3[k], x, 74); x += w3[k] + 8;
+                                    ui_pill_style(b3[k], k == 0); }   /* the shared Play / Shuffle pills */
+    }
     g_list = lv_obj_create(root);
     lv_obj_remove_style_all(g_list);
     lv_obj_set_pos(g_list, (360 - QW) / 2, 122); lv_obj_set_size(g_list, QW, 238);
+    if(modern){ lv_obj_set_y(g_list, 124); lv_obj_set_height(g_list, 236); }
     lv_obj_set_style_pad_bottom(g_list, 40, 0);
     lv_obj_set_style_pad_row(g_list, 8, 0);
     lv_obj_set_flex_flow(g_list, LV_FLEX_FLOW_COLUMN);

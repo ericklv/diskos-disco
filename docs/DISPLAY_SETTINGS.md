@@ -1,16 +1,19 @@
-# Display settings — 3.0.0
+# Display settings
 
 Display uses the same order and names in every theme. Each theme keeps its own look and existing preferences. Dimmed settings say **Disabled**; tap one to learn why it does not apply. Switching themes does not reset saved values.
 
 | Under Display | What you can change |
 |---|---|
 | Brightness | Screen brightness. Outdoor mode overrides it while enabled. |
+| QS style | What the pull from the top opens (all themes). **Classic**: Quick settings, as before. **Shade**: a now-playing shade first (cover tap plays/pauses, previous/next, title/artist tap opens the album, progress, clock, battery); pull again or tap the grab bar for the theme's Quick settings; swipe up to close. Music always opens Quick settings directly. |
 | Theme | Choose the theme directly. |
 | Appearance | Light/dark, automatic appearance, Outdoor mode, Null colour scheme, accent and theme colours. |
 | Music screen | Background and controls; Text, Information, Progress and Immersive subpages; the separate Now Playing style for themes that use it. |
 | Standby | Screensaver delay, screen-off delay and supported screensaver styles. Screen-off delay is additional time after the screensaver. |
 | Navigation | Menu items, Quick settings, Shortcuts, Gestures, interaction hints, navigation side and supported menu timeout. |
 | Layout & extras | General text size, rotation, time format, list motion, transitions, album-list track numbers, album view and startup disc colour. Online & cache contains online artwork, lyrics, cover caching and weather. |
+
+Your theme's settings → **Scroll** sets how lists move: Classic, Straight, Disco, or **Wheel** (Disco, Squash, Null) — the current row large in the middle of the screen, one row above, smaller and greyer rows below under a soft fade, snapping to the middle.
 
 Music screen → Information → Track number changes the Music title. Layout & extras → Album track numbers changes album lists. They are independent.
 

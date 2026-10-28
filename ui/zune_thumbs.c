@@ -103,7 +103,7 @@ static void *worker(void *u){
         uint8_t *out = NULL; int ok = bgr ? load_one(&r, bgr) : -1;
         if(ok == 1){ out = malloc((size_t)r.px * r.px * 2); if(out) shrink(bgr, out, r.px); else ok = -1; }
         pthread_mutex_lock(&g_mu);
-        g_done.r = r; g_done.buf = out; g_done.ok = ok; g_done.ready = 1;
+        g_done.r = r; g_done.buf = out; g_done.ok = ok; g_done.ready = 1; ui_loop_wake();
         pthread_mutex_unlock(&g_mu);
         usleep(ok < 0 ? 150000 : 20000);                               /* leave room for playback (more while art is busy) */
     }
@@ -142,9 +142,13 @@ static void store(int id, int px, uint8_t *buf){
     free(g_cache[v].buf);
     g_cache[v] = (zt_entry_t){ .id = id, .px = px, .none = !buf, .buf = buf, .used = ++g_use };
 }
+static int g_force;   /* a menu needs a cover now, whatever the screen (3.2.0 track menu hub) */
+void zthumb_force(int on){ g_force = on; }
 void zthumb_tick(void){
     if(!g_started)return;
     int library_wall_active(void);int screen_id=screen_current();int on=(th_zune()||(screen_id==SCR_LIBRARY&&library_wall_active()))&&!ui_display_is_off()&&(screen_id==SCR_LIBRARY||screen_id==SCR_PLVIEW||screen_id==SCR_PLPICK||screen_id==SCR_NPMENU||screen_id==SCR_NPHUB);
+    if(g_force && !ui_display_is_off()) on=1;
+    { int curvelist_wheel(void); if(screen_id==SCR_LIBRARY && curvelist_wheel() && !ui_display_is_off()) on=1; }   /* Wheel lists show covers in their rows */
     atomic_store(&z_visible,on);if(!on)return;
     pthread_mutex_lock(&g_mu);
     if(!g_done.ready){ if(g_nreq)pthread_cond_signal(&g_cv); pthread_mutex_unlock(&g_mu); return; }

@@ -43,6 +43,8 @@ lv_color_t LV_ATTRIBUTE_FAST_MEM lv_color_mix(lv_color_t c1, lv_color_t c2, uint
     return ret;
 }
 
+/* diskOS: rounded, exact /255 mixing. LVGL's ">> 8" made every blend up to one step darker - a colour blended
+ * over itself came out darker, which showed as faint bands where a fade meets its own background (all themes). */
 lv_color32_t lv_color_mix32(lv_color32_t fg, lv_color32_t bg)
 {
     if(fg.alpha >= LV_OPA_MAX) {
@@ -52,9 +54,9 @@ lv_color32_t lv_color_mix32(lv_color32_t fg, lv_color32_t bg)
     if(fg.alpha <= LV_OPA_MIN) {
         return bg;
     }
-    bg.red = (uint32_t)((uint32_t)fg.red * fg.alpha + (uint32_t)bg.red * (255 - fg.alpha)) >> 8;
-    bg.green = (uint32_t)((uint32_t)fg.green * fg.alpha + (uint32_t)bg.green * (255 - fg.alpha)) >> 8;
-    bg.blue = (uint32_t)((uint32_t)fg.blue * fg.alpha + (uint32_t)bg.blue * (255 - fg.alpha)) >> 8;
+    bg.red = (uint8_t)(((((uint32_t)fg.red * fg.alpha + (uint32_t)bg.red * (255 - fg.alpha)) + 128) * 257) >> 16);
+    bg.green = (uint8_t)(((((uint32_t)fg.green * fg.alpha + (uint32_t)bg.green * (255 - fg.alpha)) + 128) * 257) >> 16);
+    bg.blue = (uint8_t)(((((uint32_t)fg.blue * fg.alpha + (uint32_t)bg.blue * (255 - fg.alpha)) + 128) * 257) >> 16);
     return bg;
 }
 

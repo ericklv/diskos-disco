@@ -5,7 +5,8 @@
 #include "lvgl/lvgl.h"
 typedef void (*azjump_cb_t)(char letter);       /* 'A'..'Z' or '#' */
 typedef struct { lv_obj_t *btn, *grid, *wheel, *selected, *focus, *letter[27]; lv_timer_t *timeout;
-    azjump_cb_t jump; int library, current, held, tracking; float angle, travel; uint32_t activity; } azjump_t;
+    azjump_cb_t jump; int library, current, held, tracking; float angle, travel; uint32_t activity;
+    const char *first; int nfirst; char at; int moved; } azjump_t;   /* first/nfirst/at: the list's letters and where it is (azjump_index) */
 void azjump_create(azjump_t *a, lv_obj_t *root, azjump_cb_t jump, const char *tag);
 void azjump_show(azjump_t *a, int on);           /* the pill (off also closes the grid) */
 void azjump_destroy(azjump_t *a);
@@ -13,5 +14,7 @@ void azjump_position(azjump_t *,char letter,int x,int y);
 int azjump_active(void);
 int azjump_owns_point(int x,int y);
 int azjump_close_active(void);
-void azjump_letter(azjump_t *a, char letter);   /* Zune: the letter in the jump dot */
+void azjump_letter(azjump_t *a, char letter);
+void azjump_open(azjump_t *a);   /* open the letter picker (wheel or keypad, per the setting) */
+void azjump_index(azjump_t *a, const char *first, int n, char at);   /* the list's first letters (kept, not copied) and its current one */   /* Zune: the letter in the jump dot */
 #endif

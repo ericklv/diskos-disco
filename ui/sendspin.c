@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Sendspin player for Music Assistant ("MA Sendspin"), run by mq_ui as a child: mq_ui --sendspin ...
  * mq_player owns the audio hardware, so the audio goes to the Disc's own AirPlay receiver (loopback, ss_airplay.h).
- * Legacy (unencrypted) Sendspin as accepted by Music Assistant 2.10: player@v1 (raw PCM 44.1/16/2, clock sync,
+ * Legacy (unencrypted) Sendspin as accepted by Music Assistant player@v1 (raw PCM 44.1/16/2, clock sync,
  * volume/mute in software), metadata@v1, artwork@v1 (JPEG cover), controller@v1 (play/pause/next/previous).
  * UI link: /tmp/ma/status (key=value, rewritten atomically), /tmp/ma/cmd (FIFO, one command per line),
  *          /tmp/ma/a<N>/cover.jpg (the current cover; the UI shows <dir>/track as the "song", its sidecar cover).

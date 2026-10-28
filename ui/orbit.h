@@ -34,6 +34,10 @@ void orbit_set_pending(orbit_t *o, int i, lv_color_t accent);           /* ringe
 void orbit_set_glyph(orbit_t *o, int i, const char *glyph);
 /* hub: ring + dark disc with an icon and a caption; hub_cb fires on a tap (Back, by convention) */
 void orbit_hub_create(orbit_t *o, lv_obj_t *root, lv_event_cb_t hub_cb, const char *glyph, const char *cap);
+void orbit_full_ring(void);
+void orbit_spread(void);                             /* the next orbit_popup_polish: wider ring, fixed captions */                          /* the next orbit_create keeps all 360 degrees, even on a Disco screen */
+lv_obj_t *orbit_hub_cover_back(orbit_t *o);          /* hub = cover + round back arrow; returns the cover image */
+void orbit_hub_cover_set(lv_obj_t *img, const void *src);   /* an image descriptor, scaled to fill the hub */
 void orbit_hub_ring(orbit_t *o, int mode, lv_color_t col, int value_permille);
 void orbit_hub_set(orbit_t *o, const char *glyph, lv_color_t col, const char *cap);
 /* a small caption at the top rim (screen title) */

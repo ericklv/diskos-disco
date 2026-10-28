@@ -288,7 +288,16 @@ int  saver_wants_bright(void);/* 1 = keep full brightness (vinyl art showcase), 
 int  ui_run_bounded(char *const argv[], int timeout_ms);  /* external cmd as a killable child w/ hard timeout */
 void ui_decode_lock(void);    /* serialize an ffmpeg artwork decode against the other decoders (OOM guard) */
 void ui_decode_unlock(void);
+void library_open_letter_picker(void);   /* library.c: open the A - Z picker (a hold on the rim scrollbar) */
+void ui_pill_style(lv_obj_t *b, int primary);   /* ui.c: the Play / Shuffle pill look (Disco, Squash, Null) */
+int  library_lift(void);              /* library.c: px the Library headers (and the track sheet) sit higher; 0 = theme unchanged */
+void library_header_lift(lv_obj_t *root, uint32_t from, lv_obj_t *title);   /* library.c: raise header parts added since child `from` */
 void ui_art_set_pending(int pending); /* temporarily faster delivery while artwork is in flight */
+int  ui_art_settling(void);           /* ui.c: a cover is waiting out its settle time */
+void ui_art_wake(void);               /* main.c: a cover started settling - poll at the settle cadence */
+void ui_loop_wake(void);              /* main.c: wake a resting main loop (safe from any thread) */
+int  ui_net_up(void);
+int  ui_battery(int *charging);       /* main.c: battery percent (-1 unknown) and charging, from the last status poll */                 /* main.c: Wi-Fi has a link/address (last status poll) */
 void ui_perf_note(const char *stage); /* opt-in DISKOS_PERF diagnostics, no idle polling */
 void tune_refresh(void);      /* re-sync Tune panel Play Mode/EQ labels on show */
 
@@ -509,7 +518,7 @@ void albumwall_visible(int visible);
 #endif
 
 void roulette_create(lv_obj_t *root);
-/* Album Roulette, built in (2.2.0): the spin behind the vinyl landing page (roulette_spin.c, roulette_backend.c) */
+/* Album Roulette, built in: the spin behind the vinyl landing page (roulette_spin.c, roulette_backend.c) */
 #define APP_BUILTIN_ROULETTE "builtin:roulette"
 void roulette_spin_create(lv_obj_t *root);
 void roulette_spin_open(void);              /* a fresh sample, the wheel while covers are prepared, then the spin */

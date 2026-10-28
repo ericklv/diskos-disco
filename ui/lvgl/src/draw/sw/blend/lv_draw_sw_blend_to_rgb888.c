@@ -941,9 +941,9 @@ static inline void LV_ATTRIBUTE_FAST_MEM lv_color_8_24_mix(const uint8_t src, ui
     }
     else {
         lv_opa_t mix_inv = 255 - mix;
-        dest[0] = (uint32_t)((uint32_t)src * mix + dest[0] * mix_inv) >> 8;
-        dest[1] = (uint32_t)((uint32_t)src * mix + dest[1] * mix_inv) >> 8;
-        dest[2] = (uint32_t)((uint32_t)src * mix + dest[2] * mix_inv) >> 8;
+        dest[0] = (uint8_t)(((((uint32_t)src * mix + dest[0] * mix_inv) + 128) * 257) >> 16);   /* diskOS: rounded /255 */
+        dest[1] = (uint8_t)(((((uint32_t)src * mix + dest[1] * mix_inv) + 128) * 257) >> 16);   /* diskOS: rounded /255 */
+        dest[2] = (uint8_t)(((((uint32_t)src * mix + dest[2] * mix_inv) + 128) * 257) >> 16);   /* diskOS: rounded /255 */
     }
 }
 
@@ -959,9 +959,9 @@ static inline void LV_ATTRIBUTE_FAST_MEM lv_color_24_24_mix(const uint8_t * src,
     }
     else {
         lv_opa_t mix_inv = 255 - mix;
-        dest[0] = (uint32_t)((uint32_t)src[0] * mix + dest[0] * mix_inv) >> 8;
-        dest[1] = (uint32_t)((uint32_t)src[1] * mix + dest[1] * mix_inv) >> 8;
-        dest[2] = (uint32_t)((uint32_t)src[2] * mix + dest[2] * mix_inv) >> 8;
+        dest[0] = (uint8_t)(((((uint32_t)src[0] * mix + dest[0] * mix_inv) + 128) * 257) >> 16);   /* diskOS: rounded /255 */
+        dest[1] = (uint8_t)(((((uint32_t)src[1] * mix + dest[1] * mix_inv) + 128) * 257) >> 16);   /* diskOS: rounded /255 */
+        dest[2] = (uint8_t)(((((uint32_t)src[2] * mix + dest[2] * mix_inv) + 128) * 257) >> 16);   /* diskOS: rounded /255 */
     }
 }
 

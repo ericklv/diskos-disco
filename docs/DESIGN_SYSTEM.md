@@ -120,6 +120,8 @@ must not reach 100% before the home screen is ready. If real progress is unavail
 
 ## Component rules
 
+- **Text never scrolls vertically - in every theme, anywhere, for any reason.** A long single line may scroll sideways (a few passes, then rest) or end in "..."; text taller than its box stays still on its first lines. This is enforced for all themes in the bundled LVGL (`ui/lvgl/src/widgets/label/lv_label.c`, `DISKOS_LABEL_VSCROLL 0`); do not turn it back on, and size boxes so text fits rather than relying on scrolling.
+
 ### Buttons
 
 - Primary: accent fill, dark label, 44 px minimum height.

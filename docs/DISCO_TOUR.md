@@ -1,5 +1,13 @@
 # A tour of diskOS Disco!
 
+## New in 3.2.0
+
+- **Wheel lists.** Display › your theme's settings › Scroll › *Wheel*: the current row sits large in the middle; the rows below shrink and fade.
+- **Shade.** Display › QS style › *Shade*: pull down from the top for what's playing — tap the cover to play or pause, tap the title for the album — and pull again for Quick settings. Swipe up to close.
+- **Letter wheel.** Tap the letter dot at the foot of a list (Squash: on the right edge), or hold the rim scrollbar, then turn: clockwise forward, counter-clockwise back. The A–Z pill opens a round keypad instead, if that's your setting.
+- **Round track menus.** Hold a song, or open the Music pop-up: Favourite, Lyrics, Album, Artist, View queue, Info, +Queue and +Playlist around the cover; the middle takes you back.
+- **Song info › Auto-tag** fetches missing lyrics and artwork for one song.
+
 ## New in 3.0.0: Zune and Immersive 3.0
 
 The [Zune theme](themes/zune.md), by [namastecoconut-imagined](https://github.com/namastecoconut-imagined/diskos-disco-zune), joins Disco, Null and Squash. Choose its accent, configure the main icon’s tap/double-tap/hold and browse shared List, Wall or Coverflow album views. zmd22’s polish pass improves small text, spacing and confirmations.

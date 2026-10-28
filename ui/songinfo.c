@@ -247,6 +247,7 @@ static int si_poll(const char *path, int track, si_tech_t *out, int *changed){
 
 static void zsi_build(lv_obj_t *root, lv_obj_t *list);
 static void sleeve_back_cb(lv_event_t *e){ (void)e; screen_back(); }
+static void autotag_button(lv_obj_t *root, int y);   /* below */
 void songinfo_create(lv_obj_t *root)
 {
     lv_obj_set_style_bg_color(root, TC(CANVAS), 0);
@@ -327,7 +328,7 @@ void songinfo_create(lv_obj_t *root)
          * The existing metadata worker and pinned-track handling stay shared. */
         lv_obj_add_flag(g_ring, LV_OBJ_FLAG_HIDDEN);
         lv_obj_t *back = lv_button_create(root); lv_obj_remove_style_all(back);
-        lv_obj_set_size(back, 152, 36); lv_obj_align(back, LV_ALIGN_TOP_MID, 0, 26);
+        lv_obj_set_size(back, 136, 34); lv_obj_align(back, LV_ALIGN_TOP_MID, 0, 14);   /* higher, a little smaller */
         lv_obj_set_style_radius(back, LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_bg_color(back, TC(SURFACE), 0); lv_obj_set_style_bg_opa(back, 170, 0);
         lv_obj_set_style_bg_color(back, TC(SURFACE_RAISED), LV_STATE_PRESSED); lv_obj_set_style_bg_opa(back, LV_OPA_COVER, LV_STATE_PRESSED);
@@ -337,26 +338,27 @@ void songinfo_create(lv_obj_t *root)
         lv_obj_set_style_text_font(g_header, TF(UI_18), 0); lv_obj_set_style_text_color(g_header, TC(TEXT_PRIMARY), 0); lv_obj_align(g_header, LV_ALIGN_CENTER, 10, 0);
         lv_obj_add_event_cb(back, sleeve_back_cb, LV_EVENT_CLICKED, NULL);
         lv_obj_t *sleeve = lv_obj_create(root); lv_obj_remove_style_all(sleeve);
-        lv_obj_set_pos(sleeve, 44, 72); lv_obj_set_size(sleeve, 272, 246);
+        lv_obj_set_pos(sleeve, 44, 56); lv_obj_set_size(sleeve, 272, 244);
         lv_obj_set_style_radius(sleeve, 20, 0);
         lv_obj_set_style_bg_color(sleeve, TC(SURFACE), 0); lv_obj_set_style_bg_opa(sleeve, 205, 0);
         lv_obj_set_style_border_width(sleeve, 1, 0); lv_obj_set_style_border_color(sleeve, TC(BORDER), 0);
         lv_obj_clear_flag(sleeve, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_move_to_index(sleeve, lv_obj_get_index(g_cover));
-        lv_obj_set_size(g_cover, 52, 52); lv_obj_align(g_cover, LV_ALIGN_TOP_LEFT, 58, 86);
+        lv_obj_set_size(g_cover, 52, 52); lv_obj_align(g_cover, LV_ALIGN_TOP_LEFT, 58, 68);
         lv_obj_set_style_radius(g_cover, 8, 0);
         lv_obj_set_width(g_title, 178); lv_obj_set_style_text_font(g_title, ui_font_cjk(20), 0);
-        lv_obj_set_style_text_align(g_title, LV_TEXT_ALIGN_LEFT, 0); lv_obj_align(g_title, LV_ALIGN_TOP_LEFT, 122, 86);
+        lv_obj_set_style_text_align(g_title, LV_TEXT_ALIGN_LEFT, 0); lv_obj_align(g_title, LV_ALIGN_TOP_LEFT, 122, 68);
         lv_obj_set_width(g_artist, 178); lv_obj_set_style_text_font(g_artist, ui_font_cjk(16), 0);
-        lv_obj_set_style_text_align(g_artist, LV_TEXT_ALIGN_LEFT, 0); lv_obj_align(g_artist, LV_ALIGN_TOP_LEFT, 122, 115);
+        lv_obj_set_style_text_align(g_artist, LV_TEXT_ALIGN_LEFT, 0); lv_obj_align(g_artist, LV_ALIGN_TOP_LEFT, 122, 96);
         lv_obj_t *rule = lv_obj_create(root); lv_obj_remove_style_all(rule);
-        lv_obj_set_pos(rule, 58, 148); lv_obj_set_size(rule, 244, 1);
+        lv_obj_set_pos(rule, 58, 128); lv_obj_set_size(rule, 244, 1);
         lv_obj_set_style_bg_color(rule, TC(BORDER), 0); lv_obj_set_style_bg_opa(rule, LV_OPA_COVER, 0);
         lv_obj_clear_flag(rule, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_pos(list, 58, 156); lv_obj_set_size(list, 244, 146);
-        lv_obj_set_style_pad_row(list, 8, 0); lv_obj_set_style_pad_bottom(list, 8, 0);
+        lv_obj_set_pos(list, 58, 134); lv_obj_set_size(list, 244, 160);
+        lv_obj_set_style_pad_row(list, 4, 0); lv_obj_set_style_pad_bottom(list, 6, 0);
+        autotag_button(root, 308);
         for(int i = 0; i < F_COUNT; i++){
-            lv_obj_set_style_pad_bottom(g_cell[i], 7, 0);
+            lv_obj_set_style_pad_bottom(g_cell[i], 5, 0);
             lv_obj_set_style_border_width(g_cell[i], 1, 0); lv_obj_set_style_border_side(g_cell[i], LV_BORDER_SIDE_BOTTOM, 0);
             lv_obj_set_style_border_color(g_cell[i], TC(BORDER), 0); lv_obj_set_style_border_opa(g_cell[i], 100, 0);
             lv_obj_set_style_text_font(g_key[i], TF(UI_14), 0); lv_obj_set_style_text_color(g_key[i], TC(TEXT_SECONDARY), 0);
@@ -375,7 +377,8 @@ void songinfo_create(lv_obj_t *root)
         lv_obj_set_size(g_cover,56,56);lv_obj_align(g_cover,LV_ALIGN_TOP_LEFT,50,82);lv_obj_set_style_radius(g_cover,0,0);
         lv_obj_set_width(g_title,190);lv_obj_set_style_text_font(g_title,TF(UI_24),0);lv_obj_set_style_text_align(g_title,LV_TEXT_ALIGN_LEFT,0);lv_obj_align(g_title,LV_ALIGN_TOP_LEFT,118,83);
         lv_obj_set_width(g_artist,190);lv_obj_set_style_text_font(g_artist,TF(UI_16),0);lv_obj_set_style_text_align(g_artist,LV_TEXT_ALIGN_LEFT,0);lv_obj_align(g_artist,LV_ALIGN_TOP_LEFT,118,113);
-        lv_obj_set_pos(list,46,158);lv_obj_set_size(list,268,162);lv_obj_set_style_pad_row(list,0,0);
+        lv_obj_set_pos(list,46,150);lv_obj_set_size(list,268,154);lv_obj_set_style_pad_row(list,0,0);
+        autotag_button(root,308);   /* 3.2.0 */
         for(int i=0;i<F_COUNT;i++){
             lv_obj_set_width(g_cell[i],268);lv_obj_set_style_pad_ver(g_cell[i],7,0);
             lv_obj_set_style_border_side(g_cell[i],LV_BORDER_SIDE_BOTTOM,0);lv_obj_set_style_border_width(g_cell[i],1,0);lv_obj_set_style_border_color(g_cell[i],TC(BORDER),0);
@@ -481,9 +484,29 @@ void songinfo_show_song(const track_state_t *st){
     g_pinned = 1; snprintf(g_pin_path, sizeof g_pin_path, "%s", st->path);
     screen_show(SCR_SONGINFO);
 }
+static track_state_t g_si_st;   /* the song shown, for Auto-tag */
+static void autotag_cb(lv_event_t *e){
+    if(lv_event_get_code(e) != LV_EVENT_CLICKED || !g_si_st.have_track || !g_si_st.path[0]) return;
+    tagfix_song(g_si_st.path, g_si_st.title, g_si_st.artist, g_si_st.album, g_si_st.duration_ms);   /* lyrics + artwork it is missing */
+}
+/* Auto-tag: a pill at the foot of the screen (Disco, Squash, Null) */
+static void autotag_button(lv_obj_t *root, int y){
+    lv_obj_t *b = lv_button_create(root); lv_obj_remove_style_all(b);
+    lv_obj_set_size(b, 132, 36); lv_obj_align(b, LV_ALIGN_TOP_MID, 0, y);
+    lv_obj_set_style_radius(b, th_null() ? 0 : LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(b, TC(SURFACE), 0); lv_obj_set_style_bg_opa(b, th_null() ? 0 : 205, 0);
+    lv_obj_set_style_border_width(b, 1, 0); lv_obj_set_style_border_color(b, th_null() ? TC(TEXT_PRIMARY) : TC(BORDER), 0);
+    lv_obj_set_style_bg_color(b, TC(SURFACE_RAISED), LV_STATE_PRESSED); lv_obj_set_style_bg_opa(b, LV_OPA_COVER, LV_STATE_PRESSED);
+    lv_obj_set_ext_click_area(b, 6);
+    lv_obj_add_event_cb(b, autotag_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *l = lv_label_create(b); lv_label_set_text(l, th_null() ? "AUTO-TAG" : LV_SYMBOL_DOWNLOAD "  Auto-tag");
+    lv_obj_set_style_text_font(l, TF(UI_16), 0); lv_obj_set_style_text_color(l, th_null() ? TC(TEXT_PRIMARY) : TC(TEXT_PRIMARY), 0);
+    lv_obj_center(l);
+}
 void songinfo_set(const track_state_t *st)
 {
     if(g_pinned && st && strcmp(st->path, g_pin_path)) return;   /* showing another song: ignore the live updates */
+    if(st && st->have_track) g_si_st = *st;
     if(st) header_update(st);
     if(!g_val[0]) return;
     if(!st || !st->have_track){

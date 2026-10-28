@@ -330,7 +330,7 @@ __attribute__((unused)) static int bt_radio_on_legacy(void){
  * under this X2000 CPU's ceiling: stock's default-quality stereo SBC stutters, but medium
  * quality plays clean STEREO with headroom (on-device: ~86% idle). bluetoothctl's own agent
  * (set up in bt_enable) handles just-works pairing, so no separate bt-agent. */
-/* ---- Born on the right codec (2.6.2) ------------------------------------------------------------------------
+/* ---- Born on the right codec ------------------------------------------------------------------------
  * At connection BlueALSA (v4.0.0 on the Disc, started by Disco) takes the first enabled codec in its own order, and
  * SBC comes first - so every link used to start on SBC and then switch, which rebuilds the link (a short silence).
  * Tested on the Disc: started with --codec=-sbc, headphones connected straight on LDAC and stayed on it through
@@ -619,7 +619,7 @@ int bt_codec_upgrade_step(void){
     }
     else if(g_cq.verifying){ /* probe still running */ }
     else if(g_cq.state == 2){
-        if(g_cq.pcm && g_cq.known) bt_caps_set(mac, g_cq.avail);         /* remember these headphones' codecs (2.6.2) */
+        if(g_cq.pcm && g_cq.known) bt_caps_set(mac, g_cq.avail);         /* remember these headphones' codecs */
         if(g_cq.pcm && g_cq.known){                                      /* the link is there and says what it can do */
             int v = bt_codec_pick(g_cq.choice, g_cq.avail, g_cq.known);  /* unlisted -> SBC = nothing to do */
             const char *want = v == 1 ? "AAC" : v >= 2 ? "LDAC" : "";
@@ -718,7 +718,7 @@ static void bt_enable(void){
     unsigned tok = (unsigned)time(NULL) * 1000u + (++bt_gen % 1000u);
     { FILE *m = fopen("/tmp/bt_enabling", "w"); if(m){ fprintf(m, "%u\n", tok); fclose(m); } }
     char script[3072], alsa_args[256];
-    bt_alsa_args(alsa_args, sizeof alsa_args, bt_born_for(cfg_get_str("bt_last", "")));   /* born on the right codec (2.6.2) */
+    bt_alsa_args(alsa_args, sizeof alsa_args, bt_born_for(cfg_get_str("bt_last", "")));   /* born on the right codec */
     snprintf(script, sizeof script,
         "( A(){ [ \"$(cat /tmp/bt_enabling 2>/dev/null)\" = %u ]; }; "                 /* still the current bring-up? */
         "  T(){ \"$@\" & p=$!; ( sleep 6; kill -9 $p 2>/dev/null ) & w=$!; wait $p; kill $w 2>/dev/null; }; "   /* 6 s cap per bluetoothctl */
@@ -1341,7 +1341,7 @@ static void dev_cb(lv_event_t *e){
 static void add_dev_row(const char *mac, const char *name, int connected, const char *codec){
     lv_obj_t *r = lv_button_create(g_list);
     lv_obj_remove_style_all(r);
-    lv_obj_set_size(r, BROW_W, 64);                       /* 2.6.2 polish: taller rows */
+    lv_obj_set_size(r, BROW_W, 64);                       /* taller rows */
     lv_obj_add_flag(r, LV_OBJ_FLAG_USER_1);                 /* curves with the circle */
     lv_obj_set_style_radius(r, TH_R_ROW, 0);
     lv_obj_set_style_bg_color(r, connected ? TC(SURFACE_RAISED) : TC(SURFACE), 0);
@@ -1410,7 +1410,7 @@ static int             g_scan_done = 0;      /* [g_scan_mu] worker finished -> m
 static int             g_scan_running = 0;   /* [g_scan_mu] a worker is in flight */
 static unsigned        g_scan_gen = 0;       /* [g_scan_mu] bumped per scan; worker tags its result */
 static lv_timer_t     *g_scanpoll_timer;
-/* "Connected: <headphones> - <codec>", once per connection, when the codec is settled (2.6.2): after a tap and when
+/* "Connected: <headphones> - <codec>", once per connection, when the codec is settled: after a tap and when
  * headphones reconnect by themselves. The codec is what BlueALSA reports running; the name comes from the device list,
  * or bluetoothctl if it isn't there. bt_announce_reset() when the link goes, so the next connection is announced. */
 static char g_announced[20];
@@ -1780,7 +1780,7 @@ void bt_create(lv_obj_t *root){
     lv_obj_add_flag(g_list, LV_OBJ_FLAG_SCROLL_MOMENTUM);
     curvelist_attach(&g_bcl, g_list, root, BROW_W);
     hdr_set(BT_OFF, "Bluetooth", "");
-    /* 2.6.2 polish: less empty space at the top, one legible "Connected to ..." line, a larger hint, a taller list.
+    /* less empty space at the top, one legible "Connected to ..." line, a larger hint, a taller list.
      * Shared layout (Disco, Ring, Stone) here; Squash, Null and Braun after their skins below. */
     lv_obj_align(g_hring, LV_ALIGN_TOP_MID, 0, 20); lv_obj_align(g_hglyph, LV_ALIGN_TOP_MID, 0, 48);
     lv_obj_align(g_sw, LV_ALIGN_TOP_MID, 106, 50); lv_obj_align(rb, LV_ALIGN_TOP_MID, -106, 45);

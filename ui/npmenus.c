@@ -109,6 +109,12 @@ __attribute__((unused)) static void ctx_tag_cb(lv_event_t *e){ if(lv_event_get_c
 __attribute__((unused)) static void ctx_tagalb_cb(lv_event_t *e){ if(lv_event_get_code(e)==LV_EVENT_CLICKED){ screen_back(); tagfix_current_album(); } }
 static void ctx_info_cb(lv_event_t *e){
     if(lv_event_get_code(e) == LV_EVENT_CLICKED) songinfo_unpin();   /* the playing track's details */ if(lv_event_get_code(e)==LV_EVENT_CLICKED){ screen_show(SCR_SONGINFO); } }
+static void ctx_queue_add_cb(lv_event_t *e){   /* +Queue - the playing song to the end of the queue */
+    if(lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    int r = g_path[0] ? queue_add_path(g_path) : 0;
+    ui_toast_icon(LV_SYMBOL_LIST, ui_current_accent(), r > 0 ? "Added to the queue" : r < 0 ? "The queue is full" : "Can't queue that");
+}
+static void ctx_queue_open_cb(lv_event_t *e){ if(lv_event_get_code(e) == LV_EVENT_CLICKED) queue_open(); }   /* View queue */
 static void ctx_lyrics_cb(lv_event_t *e){ if(lv_event_get_code(e)==LV_EVENT_CLICKED){ lyrics_open(); } }
 static void ctx_album_cb(lv_event_t *e){
     if(lv_event_get_code(e)!=LV_EVENT_CLICKED) return;
@@ -426,18 +432,27 @@ static void zune_actions(lv_obj_t *box, const track_state_t *st){
     zune_header(box, t, 1);
 }
 #include "track_sheet.h"
+/* The sheet's own order: Immersive sits after Lyrics. Entries map to the shared ZA_ actions; SHEET_IMM is the sheet's
+ * one extra (the Zune dial keeps its own list). */
+#define SHEET_IMM ZA_N
+static const int SHEET_ORDER[]={ZA_FAV,ZA_ALBUM,ZA_ARTIST,ZA_PLAYLIST,ZA_QUEUE,ZA_MODE,ZA_LYRICS,SHEET_IMM,ZA_INFO,ZA_SLEEP,ZA_EQ,ZA_TAGS};
+#define SHEET_N ((int)(sizeof SHEET_ORDER/sizeof SHEET_ORDER[0]))
 static void sheet_pick(lv_event_t *e){
-    int i=(int)(intptr_t)lv_event_get_user_data(e);
+    int k=(int)(intptr_t)lv_event_get_user_data(e);
+    if(k<0||k>=SHEET_N) return;
+    int i=SHEET_ORDER[k];
+    if(i==SHEET_IMM){void disco_open_np_immersive(void);disco_open_np_immersive();return;}
     if(i==ZA_MODE){setlist_open("Playback");settings_open_key("work_mode");return;}
     if(i==ZA_SLEEP){setlist_open("Battery & power");settings_open_group("Sleep timer");return;}
     if(i==ZA_FAV){zune_run(ctx_fav_cb);return;}
     zune_act_pick(i);
 }
-static void track_actions(lv_obj_t *box,const track_state_t *st){
+__attribute__((unused)) static void track_actions(lv_obj_t *box,const track_state_t *st){
     g_zbox=box;npmenu_set(st,1,NULL);
-    static const char *const names[]={"Favourite","Go to album","Go to artist","Add to playlist","Queue","Play mode","Lyrics","Song info","Sleep timer","Equalizer","Tags"};
-    static const char *const icons[]={TH_IC_HEART,LV_SYMBOL_IMAGE,LV_SYMBOL_HOME,LV_SYMBOL_PLUS,LV_SYMBOL_LIST,LV_SYMBOL_SHUFFLE,LV_SYMBOL_AUDIO,LV_SYMBOL_FILE,LV_SYMBOL_POWER,LV_SYMBOL_SETTINGS,LV_SYMBOL_EDIT};
-    track_sheet_build(box,st->title,st->artist,ui_current_cover_dsc(),names,icons,ZA_N,sheet_pick,close_cb);
+    static const char *const names[]={"Favourite","Go to album","Go to artist","Add to playlist","Queue","Play mode","Lyrics","Immersive","Song info","Sleep timer","Equalizer","Tags"};
+    static const char *const icons[]={TH_IC_HEART,LV_SYMBOL_IMAGE,LV_SYMBOL_HOME,LV_SYMBOL_PLUS,LV_SYMBOL_LIST,LV_SYMBOL_SHUFFLE,LV_SYMBOL_AUDIO,LV_SYMBOL_EYE_OPEN,LV_SYMBOL_FILE,LV_SYMBOL_POWER,LV_SYMBOL_SETTINGS,LV_SYMBOL_EDIT};
+    _Static_assert(sizeof names/sizeof names[0]==SHEET_N && sizeof icons/sizeof icons[0]==SHEET_N,"sheet tables");
+    track_sheet_build(box,st->title,st->artist,ui_current_cover_dsc(),names,icons,SHEET_N,sheet_pick,close_cb);
 }
 static int g_zsleep_direct;
 void npmenu_open_sleep(void){ g_zsleep_direct = 1; screen_show(SCR_NPMENU); }   /* Zune Quick Settings: straight to the timer */
@@ -451,7 +466,7 @@ static void build_menu(lv_obj_t *box){
     int book = st.path[0] && mdb_is_book_path(st.path);
     if(th_zune() && g_zsleep_direct){ g_zsleep_direct = 0; g_zbox = box; npmenu_set(&st, 1, NULL);
         lv_obj_set_style_bg_color(box, TC(CANVAS), 0); lv_obj_set_style_bg_opa(box, LV_OPA_COVER, 0); zune_sleep(box); return; }
-    if(!book && (th_disco()||th_simple()||th_null())){track_actions(box,&st);return;}
+    int ring = !book && (th_disco()||th_simple()||th_null());   /* the round menu, as the Library's album menu */
     if(th_zune() && !book){ zune_actions(box, &st); return; }   /* Zune: the actions as a dial (audiobooks keep their own four) */
     g_menu_bg = lv_image_create(box);                           /* the album's blurred wash, dimmed */
     lv_obj_set_size(g_menu_bg, 360, 360); lv_obj_clear_flag(g_menu_bg, LV_OBJ_FLAG_CLICKABLE); lv_obj_add_flag(g_menu_bg, LV_OBJ_FLAG_HIDDEN);
@@ -472,6 +487,19 @@ static void build_menu(lv_obj_t *box){
         static lv_event_cb_t const CB[4] = { hub_chapters_cb, ctx_info_cb, hub_eq_open_cb, hub_fsart_cb };
         orbit_create(&g_orb, box, it, 4, -45, NULL);
         for(int i = 0; i < 4; i++) lv_obj_add_event_cb(g_orb.btn[i], CB[i], LV_EVENT_CLICKED, NULL);
+    } else if(ring){   /* clockwise from 12 */
+        /* "View ..." opens somewhere, "+..." adds: the views together on the right, the adds together lower left */
+        static const orbit_item_t it[8] = {
+            { TH_IC_HEART, "Favourite" }, { LV_SYMBOL_AUDIO, "Lyrics" }, { LV_SYMBOL_IMAGE, "Album" }, { LV_SYMBOL_HOME, "Artist" },
+            { LV_SYMBOL_BARS, "View queue" }, { LV_SYMBOL_FILE, "Info" }, { LV_SYMBOL_LIST, "+Queue" }, { LV_SYMBOL_PLUS, "+Playlist" } };
+        static lv_event_cb_t const CB[8] = { ctx_fav_cb, ctx_lyrics_cb, ctx_album_cb, ctx_artist_cb, ctx_queue_open_cb, ctx_info_cb, ctx_queue_add_cb, ctx_addpl_cb };
+        static const orbit_item_t nit[8] = {   /* Null: its wide face takes short words; the open-queue button an arrow */
+            { TH_IC_HEART, "Fav" }, { LV_SYMBOL_AUDIO, "Lyrics" }, { LV_SYMBOL_IMAGE, "Album" }, { LV_SYMBOL_HOME, "Artist" },
+            { LV_SYMBOL_RIGHT, "Queue" }, { LV_SYMBOL_FILE, "Info" }, { LV_SYMBOL_LIST, "+Queue" }, { LV_SYMBOL_PLUS, "+List" } };
+        orbit_full_ring();
+        orbit_create(&g_orb, box, th_null() ? nit : it, 8, -90, NULL);
+        lv_obj_set_style_text_font(g_orb.icon[0], &font_theme_20, 0);
+        for(int i = 0; i < 8; i++) lv_obj_add_event_cb(g_orb.btn[i], CB[i], LV_EVENT_CLICKED, NULL);
     } else {
         static const orbit_item_t it[8] = {
             { TH_IC_HEART, "Favourite" }, { LV_SYMBOL_PLUS, "Playlist" }, { LV_SYMBOL_AUDIO, "Lyrics" }, { LV_SYMBOL_SETTINGS, "Equalizer" },
@@ -481,7 +509,11 @@ static void build_menu(lv_obj_t *box){
         lv_obj_set_style_text_font(g_orb.icon[0], &font_theme_20, 0);
         for(int i = 0; i < 8; i++) lv_obj_add_event_cb(g_orb.btn[i], CB[i], LV_EVENT_CLICKED, NULL);
     }
+    if(ring) orbit_spread();
     orbit_popup_polish(&g_orb);
+    if(ring){ void disco_vec_icon(lv_obj_t *, const char *, int);   /* album: a record; artist: a microphone */
+              disco_vec_icon(g_orb.icon[2], "@vinyl", 24); disco_vec_icon(g_orb.icon[3], "@mic", 24);
+              if(g_menu_title) lv_obj_add_flag(g_menu_title, LV_OBJ_FLAG_HIDDEN); }   /* the wider ring reaches the top: the cover says which song */
     orbit_hub_create(&g_orb, box, close_cb, "", "");            /* the hub: the cover inside its progress ring */
     lv_obj_set_style_clip_corner(g_orb.hub, true, 0);
     g_cover_img = lv_image_create(g_orb.hub);
@@ -490,7 +522,7 @@ static void build_menu(lv_obj_t *box){
     lv_obj_remove_style_all(x); lv_obj_set_size(x, 32, 32); lv_obj_center(x);
     lv_obj_set_style_radius(x, LV_RADIUS_CIRCLE, 0); lv_obj_set_style_bg_color(x, TC(CANVAS), 0);
     lv_obj_set_style_bg_opa(x, 190, 0); lv_obj_clear_flag(x, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_t *xl = lv_label_create(x); lv_label_set_text(xl, LV_SYMBOL_CLOSE);
+    lv_obj_t *xl = lv_label_create(x); lv_label_set_text(xl, ring ? LV_SYMBOL_LEFT : LV_SYMBOL_CLOSE);   /* a back arrow */
     lv_obj_set_style_text_font(xl, TF(UI_14), 0); lv_obj_set_style_text_color(xl, TC(TEXT_PRIMARY), 0); lv_obj_center(xl);
     orbit_hub_ring(&g_orb, ORBIT_RING_PROGRESS, ui_media_accent(), 0);
     if(book) g_fav = 0;

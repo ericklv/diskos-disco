@@ -14,6 +14,7 @@
 #include "scanner.h"
 #include "screens.h"
 #include "theme.h"
+#include "anim.h"
 #include "theme_kit.h"
 #include <math.h>
 #include <time.h>
@@ -336,7 +337,7 @@ static void layout_music(void)
 }
 static void nav_paint(void)
 {
-    {   /* the title lifts into the clock's space as the menu opens: the clock fades out with the weather (2.6.2) */
+    {   /* the title lifts into the clock's space as the menu opens: the clock fades out with the weather */
         int o = nav_value >= 400 ? 0 : 255 * (400 - nav_value) / 400;
         if(music_weather)lv_obj_set_style_opa(music_weather,o,0);
         if(music_clock)lv_obj_set_style_opa(music_clock,o,0);
@@ -541,7 +542,7 @@ void null_home_create(lv_obj_t *r)
     lv_obj_add_event_cb(clock_hit, clock_event, LV_EVENT_SHORT_CLICKED, NULL);
     clock_box = box(r, 72, 10, 216, 94);
     lv_obj_set_style_bg_opa(clock_box, 0, 0);
-    music_status = text(clock_box, "", 0, 5, 216, TF(UI_16), TC(TEXT_SECONDARY));   /* 2.6.2: icons a touch larger */
+    music_status = text(clock_box, "", 0, 5, 216, TF(UI_16), TC(TEXT_SECONDARY));   /* icons a touch larger */
     music_clock = text(clock_box, "--:--", 0, 34, 216, music_font(4), TC(TEXT_PRIMARY));
 
     lv_obj_set_style_text_align(music_status, LV_TEXT_ALIGN_CENTER, 0);
@@ -549,7 +550,7 @@ void null_home_create(lv_obj_t *r)
     music_weather=text(clock_box,"",0,70,216,TF(UI_16),TC(TEXT_SECONDARY));
     static lv_font_t weather_font;
     extern const lv_font_t font_weather16;
-    weather_font=*TF(UI_16);weather_font.fallback=&font_weather16;   /* 2.6.2: a touch larger */
+    weather_font=*TF(UI_16);weather_font.fallback=&font_weather16;   /* a touch larger */
     lv_obj_set_style_text_font(music_weather,&weather_font,0);
     title = text(r, "GO TO LIBRARY", 36, 116, 288, TF(HEADER), TC(TEXT_PRIMARY));
     artist = text(r, "", 36, 157, 288, &pixel14, TC(TEXT_SECONDARY));
@@ -1512,6 +1513,10 @@ void null_volume_show(int value)
         lv_obj_set_style_border_side(volume_panel, LV_BORDER_SIDE_TOP | LV_BORDER_SIDE_BOTTOM, 0);
         lv_obj_set_style_border_width(volume_panel, 1, 0);
         lv_obj_set_style_border_color(volume_panel, TC(BORDER), 0);
+        /* the screen above and below the band recedes (an outline as wide as the screen, in the canvas colour), so
+         * half-hidden text never peeks out from behind the band */
+        lv_obj_set_style_outline_width(volume_panel, 180, 0); lv_obj_set_style_outline_pad(volume_panel, 0, 0);
+        lv_obj_set_style_outline_color(volume_panel, TC(CANVAS), 0); lv_obj_set_style_outline_opa(volume_panel, 190, 0);
         ui_on(volume_panel, volume_dismiss, LV_EVENT_CLICKED, NULL, "null.volume.dismiss", UI_CORE);
         lv_obj_t *badge = box(volume_panel, 140, 5, 80, 34);
         lv_obj_set_style_bg_opa(badge, 0, 0);
@@ -1550,6 +1555,7 @@ void null_volume_show(int value)
         text_set(volume_value, b);
     }
     int hidden=lv_obj_has_flag(volume_panel,LV_OBJ_FLAG_HIDDEN),reopening=volume_closing;
+    if(lv_obj_has_flag(volume_panel,LV_OBJ_FLAG_HIDDEN))anim_pop_in(volume_panel);
     lv_obj_remove_flag(volume_panel,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(volume_panel);
     if(hidden || reopening){
         lv_anim_delete(volume_panel,NULL);volume_closing=0;

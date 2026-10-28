@@ -142,6 +142,23 @@ static kit_role_t classify(lv_obj_t *o, kit_role_t parent_role, int is_root, int
     if(lv_obj_get_style_bg_opa(o, 0) > LV_OPA_10 && lv_obj_get_child_count(o) > 0) return on_top ? KIT_POPUP : KIT_CARD;
     return KIT_OTHER;
 }
+/* rows and buttons ease into and out of their pressed look instead of snapping,
+ * and small round buttons give a little under the finger. A style transition per object - no extra objects, no
+ * timers while idle. */
+static void press_polish(lv_obj_t *o, kit_role_t r){
+    if(th_zune() || !(th_disco_family() || th_null())) return;
+    static const lv_style_prop_t props[] = { LV_STYLE_BG_COLOR, LV_STYLE_BG_OPA, LV_STYLE_BORDER_COLOR,
+                                             LV_STYLE_TRANSFORM_SCALE_X, LV_STYLE_TRANSFORM_SCALE_Y, 0 };
+    static lv_style_transition_dsc_t tr; static int ready;
+    if(!ready){ lv_style_transition_dsc_init(&tr, props, lv_anim_path_ease_out, 90, 0, NULL); ready = 1; }
+    lv_obj_set_style_transition(o, &tr, 0);
+    lv_obj_set_style_transition(o, &tr, LV_STATE_PRESSED);
+    int32_t w = lv_obj_get_width(o), h = lv_obj_get_height(o);
+    if(r == KIT_ICON_BUTTON && w > 0 && w <= 80 && h <= 80){
+        lv_obj_set_style_transform_pivot_x(o, w / 2, 0); lv_obj_set_style_transform_pivot_y(o, h / 2, 0);
+        lv_obj_set_style_transform_scale_x(o, 240, LV_STATE_PRESSED); lv_obj_set_style_transform_scale_y(o, 240, LV_STATE_PRESSED);
+    }
+}
 static lv_obj_t *media_scope;
 void kit_media_scope(lv_obj_t *root){ media_scope=root; }
 static void pass(lv_obj_t *o, kit_role_t parent_role, int is_root, int on_top, int force){
@@ -156,6 +173,7 @@ static void pass(lv_obj_t *o, kit_role_t parent_role, int is_root, int on_top, i
             if(f) lv_obj_set_style_text_font(o, f, 0);
         }
         style(o, r);
+        if(r == KIT_ROW || r == KIT_BUTTON || r == KIT_ICON_BUTTON) press_polish(o, r);
         /* a one-line label with a fixed height shorter than the theme's face: grow it to the face (accents and
          * descenders are not cut off) */
         if(lv_obj_check_type(o, &lv_label_class) && lv_label_get_long_mode(o) != LV_LABEL_LONG_WRAP){

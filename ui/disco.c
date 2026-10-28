@@ -116,8 +116,38 @@ static void shelf_icon(lv_obj_t *label,int size){
         if(i==3){int d=size/6;if(d<3)d=3;lv_obj_set_size(o,d,d);lv_obj_align(o,LV_ALIGN_CENTER,size/12,0);}
     }
 }
+/* A microphone: a rounded head, the U of its holder, a short stem and a foot (3.2.0 track menus: artist) */
+static void mic_icon(lv_obj_t *label, int size){
+    if((intptr_t)lv_obj_get_user_data(label) != 7){ lv_obj_clean(label); lv_obj_set_user_data(label, (void *)(intptr_t)7); }
+    lv_label_set_text(label, ""); lv_obj_set_size(label, size, size);
+    lv_color_t color = lv_obj_get_style_text_color(label, 0);
+    int bw = size >= 24 ? 2 : 1;
+    for(int i = 0; i < 4; i++){
+        lv_obj_t *o = lv_obj_get_child(label, i);
+        if(!o){ o = i == 1 ? lv_arc_create(label) : lv_obj_create(label);
+                if(i == 1){ lv_obj_remove_style(o, NULL, LV_PART_KNOB); lv_obj_remove_style(o, NULL, LV_PART_MAIN); }
+                else lv_obj_remove_style_all(o);
+                lv_obj_remove_flag(o, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE); }
+        if(i == 0){   /* the head: filled capsule */
+            lv_obj_set_size(o, size * 2 / 5, size * 3 / 5); lv_obj_align(o, LV_ALIGN_TOP_MID, 0, 0);
+            lv_obj_set_style_radius(o, LV_RADIUS_CIRCLE, 0); lv_obj_set_style_bg_color(o, color, 0); lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
+        } else if(i == 1){   /* the U holder: the lower half of a ring */
+            lv_obj_set_size(o, size * 2 / 3, size * 2 / 3); lv_obj_align(o, LV_ALIGN_TOP_MID, 0, size / 8);
+            lv_arc_set_bg_angles(o, 0, 180); lv_arc_set_value(o, 0);
+            lv_obj_set_style_arc_width(o, bw, LV_PART_MAIN); lv_obj_set_style_arc_color(o, color, LV_PART_MAIN);
+            lv_obj_set_style_arc_opa(o, LV_OPA_COVER, LV_PART_MAIN); lv_obj_set_style_arc_opa(o, LV_OPA_TRANSP, LV_PART_INDICATOR);
+        } else if(i == 2){   /* the stem */
+            lv_obj_set_size(o, bw, size / 6); lv_obj_align(o, LV_ALIGN_TOP_MID, 0, size * 19 / 24);
+            lv_obj_set_style_bg_color(o, color, 0); lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
+        } else {             /* the foot */
+            lv_obj_set_size(o, size * 2 / 5, bw); lv_obj_align(o, LV_ALIGN_TOP_MID, 0, size * 23 / 24 - bw);
+            lv_obj_set_style_bg_color(o, color, 0); lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0); lv_obj_set_style_radius(o, 1, 0);
+        }
+    }
+}
 static void roulette_icon(lv_obj_t *label, const char *icon, int size){
     if(!strcmp(icon,"@shelf")){shelf_icon(label,size);return;}
+    if(!strcmp(icon,"@mic")){mic_icon(label,size);return;}
     if(!strcmp(icon, IC_STATS)){ stats_icon(label, size); return; }
     if(!strcmp(icon, IC_SPHERE)){ sphere_icon(label, size); return; }
     if(!strcmp(icon, IC_APPS)){ apps_icon(label, size); return; }
@@ -930,7 +960,8 @@ lv_obj_t *squash_menu_row(lv_obj_t *root,int slot,const char *glyph,const lv_fon
 lv_obj_t *disco_title(lv_obj_t *root, const char *t){
     lv_obj_t *l = lv_label_create(root); lv_label_set_text(l, t);
     lv_obj_set_style_text_font(l, th_simple()?TF(UI_26):th_null()?TF(HEADER):TF(UI_20), 0); lv_obj_set_style_text_color(l, TC(TEXT_PRIMARY), 0);
-    lv_obj_align(l, LV_ALIGN_TOP_MID, 0, th_null()?36:28);
+    lv_obj_align(l, LV_ALIGN_TOP_MID, 0, (th_null()?36:28) - library_lift());   /* on the raised header line */
+    if(th_simple()) lv_obj_set_style_text_color(l, TC(ACCENT_PRIMARY), 0);           /* Squash titles are orange */
     if(th_simple())simple_keep_label(l);
     if(th_null()){char upper[192];theme_upper(upper,sizeof upper,t);lv_label_set_text(l,upper);lv_obj_add_flag(l,THEME_TITLE_STEPPED);kit_keep(l);}
     return l;

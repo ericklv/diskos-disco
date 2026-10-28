@@ -208,12 +208,16 @@ static uint32_t g_key_ms; static int g_have_key;   /* physical-key input the mai
 static pw_take_t g_take; static int g_take_ok; static unsigned g_take_gen; static int g_take_gen_set;
 static int g_idle_active, g_idle_busy, g_idle_launch;
 static uint32_t g_idle_input, g_idle_request_input;
+uint32_t ui_position_still_ms(void);   /* main.c: how long the song position has not moved */
+/* "Nothing is playing" for idle power-off: the song position has not moved for the whole idle period. The sound
+ * chip's own state is no help on this Disc - it reports running while paused (it keeps playing silence). */
+static int idle_position_still(int secs){ return secs > 0 && ui_position_still_ms() >= (uint32_t)secs * 1000u; }
 static int idle_allow_shutdown(void *ctx, int handoff){
     (void)ctx;
-    int ui_audio_running(void);
+    int secs = power_idle_secs(cfg_get_int("idle_off_idx", 0));
     if(g_idle_busy || g_idle_input != g_idle_request_input || !g_take_ok ||
-       ipc_generation() != g_take_gen || power_idle_secs(cfg_get_int("idle_off_idx", 0)) <= 0) return 0;
-    return !handoff || ui_audio_running() != 1;
+       ipc_generation() != g_take_gen || secs <= 0) return 0;
+    return !handoff || idle_position_still(secs);   /* fresh evidence right before the hand-off */
 }
 static int take_read(void){ return power_read_sysconfig(POWER_SYSCONFIG, "POWER_SAVE"); }
 /* diskOS owns idle power-off (see power.h): the player's own must be off, CONFIRMED by a POWER_SAVE re-read, before
@@ -238,11 +242,12 @@ static void idle_takeover(void){
         ui_toast("Idle power-off unavailable - player setup not confirmed");
     }
 }
-/* Idle power-off fires only when no sound is going out either: Disco's "nothing playing" is a guess from the song
- * position, and a guess must never switch the Disc off under running music. Refused: the idle period starts again. */
+/* Idle power-off fires only when the song position has stood still for the whole idle period - not just "not
+ * playing right now". Refused: the idle period starts again. */
 static int idle_request(void){
-    int ui_audio_running(void);
-    if(ui_audio_running() == 1){ fprintf(stderr, "idle power-off postponed: audio is running\n"); fflush(stderr); return -1; }
+    if(!idle_position_still(power_idle_secs(cfg_get_int("idle_off_idx", 0)))){
+        fprintf(stderr, "idle power-off postponed: the song position moved during the idle period\n"); fflush(stderr); return -1;
+    }
     g_idle_launch = 1; g_idle_request_input = g_idle_input;
     int r = power_shutdown_request();
     g_idle_launch = 0; g_idle_active = r == 0;

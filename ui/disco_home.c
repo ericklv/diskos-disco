@@ -241,7 +241,7 @@ void dhome_controls_apply(void){
 static int gz_owns(int x, int y){ if(th_simple())return g_gz&&!lv_obj_has_flag(g_gz,LV_OBJ_FLAG_HIDDEN)&&x>=lv_obj_get_x(g_gz)&&x<lv_obj_get_x(g_gz)+lv_obj_get_width(g_gz)&&y>=lv_obj_get_y(g_gz)&&y<lv_obj_get_y(g_gz)+lv_obj_get_height(g_gz)&&!gz_arc_point(x,y); return g_gz && ctl_mode() == 2 && !lv_obj_has_flag(g_gz, LV_OBJ_FLAG_HIDDEN)
                                          && x >= lv_obj_get_x(g_gz) && x < lv_obj_get_x(g_gz) + GZ_W && y >= GZ_Y && y < GZ_Y + GZ_H && !gz_arc_point(x, y); }
 /* ---- the progress underline: a rainbow (the CD's sheen) that fills from left to right; drag or tap it to seek ---- */
-/* 1.4.1: wider now that a swipe can't press - from near the free edge to just short of the closed shard */
+/* wider now that a swipe can't press - from near the free edge to just short of the closed shard */
 #define UL_W 276
 #define UL_X (disco_mirror() ? 360 - 34 - UL_W : 34)
 #define UL_Y (th_simple()?SIMPLE_SEEK_Y:214)
@@ -525,7 +525,7 @@ static void ov_swipe_cb(lv_event_t *e){
     int mirrored=disco_mirror(),edge=mirrored?ov_swipe_start.x>=296:ov_swipe_start.x<=64;
     extern int ui_get_swipe_thresh(void); void ui_back_hint(int y,int dx);
     int inward=mirrored?-dx:dx, sideways=edge && abs(dx)>2*abs(dy);
-    /* 2.6.2: the same back feedback as everywhere else - the arrow follows the finger and arms at the threshold, and the
+    /* the same back feedback as everywhere else - the arrow follows the finger and arms at the threshold, and the
      * popup closes on release with the arrow armed (it used to close mid-swipe, with no arrow to see) */
     if(code==LV_EVENT_PRESSING){ ui_back_hint(sideways?p.y:0, sideways?inward:0); return; }
     ui_back_hint(0,0);
@@ -833,8 +833,8 @@ void dhome_create(lv_obj_t *root){
     dl_scroll5(&L_TITLE); dl_scroll5(&L_ARTIST);
     dhome_title_apply();
     underline_create(root);
-    dl_make(root, &L_EL, TF(UI_12), -1, 0, LV_ALIGN_TOP_LEFT, UL_X, UL_Y + 9, 1);
-    dl_make(root, &L_RM, TF(UI_12), -1, 0, LV_ALIGN_TOP_RIGHT, -(360 - UL_X - UL_W), UL_Y + 9, 1);
+    dl_make(root, &L_EL, TF(UI_14), -1, 0, LV_ALIGN_TOP_LEFT, UL_X + 8, UL_Y + 8, 1);                /* a size up, in from the rim */
+    dl_make(root, &L_RM, TF(UI_14), -1, 0, LV_ALIGN_TOP_RIGHT, -(360 - UL_X - UL_W) - 8, UL_Y + 8, 1);
     dhome_times_apply();                                            /* the seekable rainbow progress under them */
     /* previous / play-pause / next below, on an arc centred on the screen's middle */
     static const int ANG[3] = { 139, 90, 41 }, RAD[3] = { 134, 136, 134 }, DIA[3] = { 56, 60, 56 };   /* prev/next out to the sides, play/pause low (the bottom edge is safe here) */
@@ -1072,7 +1072,7 @@ static void simple_music_layout(void){
  g_acc=TC(ACCENT_PRIMARY);
  kit_keep(g_pill);kit_keep(g_trk);lv_obj_set_style_border_width(g_pill,0,0);lv_obj_set_style_bg_opa(g_pill,0,0);lv_obj_set_style_border_width(g_trk,0,0);lv_obj_set_style_bg_opa(g_trk,0,0);kit_keep(g_top_hit);lv_obj_set_align(g_pill,LV_ALIGN_TOP_LEFT);lv_obj_set_align(g_top_hit,LV_ALIGN_TOP_LEFT);
  lv_obj_set_pos(g_pill,80,14);lv_obj_set_size(g_pill,200,82);lv_obj_set_pos(g_top_hit,80,14);lv_obj_set_size(g_top_hit,200,82);
- simple_label_pair(&L_STAT,0,0,200,20,TF(UI_16));simple_label_pair(&L_TIME,0,20,200,35,TF(UI_30));simple_label_pair(&L_WX,0,56,200,26,&g_wfont);   /* 2.6.2: a touch larger, still inside the 82 px field */
+ simple_label_pair(&L_STAT,0,0,200,20,TF(UI_16));simple_label_pair(&L_TIME,0,20,200,35,TF(UI_30));simple_label_pair(&L_WX,0,56,200,26,&g_wfont);   /* a touch larger, still inside the 82 px field */
  int aligned_left=simple_cfg_get_int("disco_title_al",0)==1;
  lv_obj_set_pos(g_trk,36,94);lv_obj_set_size(g_trk,288,136);
  simple_label_pair(&L_TITLE,0,0,288,92,TF(MUSIC_TITLE));simple_label_pair(&L_ARTIST,0,92,288,39,TF(MUSIC_ARTIST));lv_label_set_long_mode(L_ARTIST.fg,LV_LABEL_LONG_DOT);
@@ -1080,7 +1080,7 @@ static void simple_music_layout(void){
  lv_obj_set_style_text_align(L_ARTIST.fg,aligned_left?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER,0);
  if(!simple_album){simple_album=lv_label_create(lv_obj_get_parent(g_trk));lv_label_set_long_mode(simple_album,LV_LABEL_LONG_DOT);kit_keep(simple_album);}
  lv_obj_set_style_text_font(simple_album,TF(MUSIC_ALBUM),0);lv_obj_set_style_text_color(simple_album,TC(TEXT_SECONDARY),0);
- lv_obj_set_style_text_align(simple_album,aligned_left?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER,0);lv_obj_set_pos(simple_album,36,230);lv_obj_set_size(simple_album,288,35);
+ lv_obj_set_style_text_align(simple_album,aligned_left?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER,0);lv_obj_set_pos(simple_album,36,224);lv_obj_set_size(simple_album,288,35);   /* clear of the progress line */
  simple_music_content(1);
  lv_obj_set_pos(g_gz,36,94);lv_obj_set_size(g_gz,288,171);lv_obj_move_foreground(g_gz);
  lv_label_set_text(g_gz_hint[0],LV_SYMBOL_LEFT LV_SYMBOL_LEFT);lv_obj_set_pos(g_gz_hint[0],112,306);

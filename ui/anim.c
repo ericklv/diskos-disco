@@ -65,6 +65,19 @@ static void press_up(lv_anim_t *a){ /* second leg: back to full size */
 void anim_press(lv_obj_t *o){
     start(o, exec_zoom, 256, 240, 90, anim_path_spring, press_up);
 }
+/* 3.2.0 polish (Disco, Squash, Null; Ring, Braun and Zune keep their motion) */
+static int polish_on(void){ return (th_disco_family() || th_null()) && !th_zune(); }
+static void exec_ty(void *o, int32_t v){ lv_obj_set_style_translate_y((lv_obj_t*)o, (int)v, 0); }
+static void pop_done(lv_anim_t *a){ lv_obj_remove_local_style_prop((lv_obj_t*)a->var, LV_STYLE_OPA, 0); }
+void anim_pop_in(lv_obj_t *o){
+    if(!o || !polish_on()) return;
+    start(o, exec_ty, 10, 0, 140, anim_path_spring, NULL);              /* rises 10 px into place */
+    start(o, exec_opa, LV_OPA_TRANSP, LV_OPA_COVER, 140, anim_path_spring, pop_done);   /* and fades in */
+}
+void anim_toast_in(lv_obj_t *o){
+    if(!o || !polish_on()) return;
+    start(o, exec_ty, -14, 0, 200, anim_path_spring, NULL);             /* eases down from under the header */
+}
 
 /* Leading-edge card definition for a sliding full-screen panel. On a near-black UI a black drop-
  * shadow is invisible, so a slide reads as "content sprites sliding," not a clean card. Instead we

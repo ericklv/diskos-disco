@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <poll.h>          /* main loop rest: sleep until a touch, player news or the next timer */
 #include <sys/mount.h>     /* mount(): direct SD mount fallback when the player's uevent listener won't (V2.40) */
 #include <sys/stat.h>
 #include <dirent.h>      /* mkdir() for the SD mount point */
@@ -33,6 +34,7 @@
 #include "fb_pan.h"
 #include "controls.h"
 #include "screens.h"
+#include "npshade.h"
 #include "ma.h"
 #include "modes.h"
 #include "anim.h"
@@ -58,6 +60,10 @@ int ds_fetch_entry(int argc,char **argv);
 #include "braun.h"
 
 static lv_indev_t *g_touch = NULL;
+static _Atomic int g_net_up = 0;          /* Wi-Fi has a link/address (status poll, every 3 s) */
+int ui_net_up(void){ return atomic_load(&g_net_up); }
+static int g_batt_pct = -1, g_batt_chg;   /* last status poll: battery level and charging (the shade's icon) */
+int ui_battery(int *charging){ if(charging) *charging = g_batt_chg; return g_batt_pct; }
 static int         g_screen_off = 0;   /* mirrors (bl_state==2) each main-loop iteration; read by the
                                           slow polls (status/clock) so screen-off work can be skipped
                                           without exposing main()'s local bl_state. */
@@ -212,6 +218,7 @@ static void status_poll_cb(lv_timer_t *t){
      * from under us (icon/tile said off while BT was really on). rfkill reflects reality either way. */
     bt = bt_radio_on();
 
+    atomic_store(&g_net_up, wifi); g_batt_pct = batt; g_batt_chg = charging;
     usage_note_battery(batt,charging);
     home_set_status(batt, charging, wifi, bt);
     quicksettings_set_battery(batt,charging);
@@ -321,6 +328,11 @@ void ui_set_balance(int v){ if(v < -10 || v > 10) return;   /* enforce UI range;
  * frame shape matches stock. Pause/seek/play resumes the current track after routing.
  * g_route_mac = the MAC we've routed to ("" = local/analog; kept for validation + dedup). */
 static char g_route_mac[20] = "";
+/* When the song position last moved (a new position, or a new song). The idle power-off asks for it: on this Disc the
+ * sound chip reports "running" even while paused (it plays silence), so the chip cannot tell paused from playing,
+ * but a position that has not moved for the whole idle period can. */
+static uint32_t g_pos_moved_at; static long g_pos_last = -1; static unsigned g_pos_path;
+uint32_t ui_position_still_ms(void){ return g_pos_moved_at ? lv_tick_elaps(g_pos_moved_at) : lv_tick_get(); }
 static int g_playing = 0;   /* published each tick by the main loop's play/pause inference; the routing
                              * fns read THIS, not the raw st.state (which reports 0 while playing). */
 /* After a player restart, the fresh player runs a ~7s late-init on its mode-control thread that can
@@ -539,7 +551,20 @@ static sd_phase_t g_sd_phase = SD_LOCAL;
 static uint32_t g_sd_deadline;
 static int g_sd_return_mode;
 static int g_sd_reissue;
+/* Main loop rest. When no finger is down the loop sleeps until the next LVGL timer (animation frames included), a
+ * touch on the panel, or news from the player or a worker thread - instead of waking every 30 ms to look. Workers
+ * that hand results to the loop body (not to a timer) call ui_loop_wake(). The write end is non-blocking: a full
+ * pipe already means "wake up". */
+static int g_wake_pipe[2] = { -1, -1 };
+void ui_loop_wake(void){
+    if(g_wake_pipe[1] >= 0){ char c = 1; ssize_t r = write(g_wake_pipe[1], &c, 1); (void)r; }
+}
 static void storage_tick(lv_timer_t *t);
+/* storage_tick runs every 100 ms while a card handoff is moving, and once a second when there is nothing to do (a
+ * settled local card, USB storage handed over, or a held card). Each transition into a moving phase calls
+ * storage_fast(), so the first step after it is as prompt as before. */
+static lv_timer_t *g_t_storage;
+static void storage_fast(void){ if(g_t_storage) lv_timer_set_period(g_t_storage, 100); }
 static int storage_media_local(void);
 static int storage_host_confirmed(void);
 int ui_local_playback_allowed(void){
@@ -673,7 +698,7 @@ int ui_set_source_mode(int mode){
         if(pthread_mutex_timedlock(&g_sd_mode_mu, &ts) != 0){ ui_toast("SD card is busy - try again"); return -1; }
         if(!storage_mark('D', 3)){ pthread_mutex_unlock(&g_sd_mode_mu); ui_toast("Couldn't prepare USB storage"); return -1; }
         sd_io_hold(); atomic_store(&g_sd_writable, 0); g_source_mode = 3;
-        g_sd_phase = SD_DRAIN; g_sd_deadline = lv_tick_get() + 20000;
+        g_sd_phase = SD_DRAIN; g_sd_deadline = lv_tick_get() + 20000; storage_fast();
         art_cancel();
         pthread_mutex_unlock(&g_sd_mode_mu);
         return 0;
@@ -681,7 +706,7 @@ int ui_set_source_mode(int mode){
     if(g_sd_phase == SD_HOST){
         if(!storage_mark('R', mode)){ ui_toast("Couldn't leave USB storage"); return -1; }
         g_sd_return_mode = mode; g_sd_phase = SD_WAIT_LOCAL;
-        g_sd_deadline = lv_tick_get() + 20000;
+        g_sd_deadline = lv_tick_get() + 20000; storage_fast();
         if(source_send(mode) < 0){ storage_unknown("return request failed"); return -1; }
         return 0;
     }
@@ -701,7 +726,11 @@ static void storage_resume_local(void){
     fprintf(stderr, "storage: local mount confirmed; SD readers and artwork cache resumed\n"); fflush(stderr);
 }
 static void storage_tick(lv_timer_t *t){
-    (void)t;
+    if(t){
+        int moving = g_sd_phase == SD_DRAIN || g_sd_phase == SD_WAIT_HOST || g_sd_phase == SD_WAIT_LOCAL ||
+                     (g_sd_phase == SD_LOCAL && !sd_io_allowed());
+        lv_timer_set_period(t, moving ? 100 : 1000);
+    }
     if(g_sd_hold || atomic_load(&g_sd_quiesce)) return;   /* a Restart is draining the card: never reopen it here */
     if(!sd_io_healthy()){
         if(g_sd_phase != SD_UNKNOWN) storage_unknown("artwork decoder did not exit");
@@ -1106,7 +1135,7 @@ static uint32_t g_book_noadopt_until = 0;  /* after an explicit play, don't let 
 static int g_ctx_type=-1, g_q_internal; static char g_ctx_name[380]; static long g_ctx_pid, g_active_pid;
 static lv_obj_t *g_sd_ov;
 void ui_invalidate_play_scope(void){ /* v1.2 always rebuilds; no scope cache to invalidate */ }
-/* ---- Is sound actually going out? (2.6.1) -----------------------------------------------------------------------
+/* ---- Is sound actually going out? -----------------------------------------------------------------------
  * Disco's "playing" is a guess from the song position moving; it can miss real playback (position reports late).
  * Before any action that would stop or interrupt music because it "isn't playing" - powering off, resetting the
  * output for a route, a play/pause toggle - ask the audio system as well: the kernel's playback state for the
@@ -1144,7 +1173,7 @@ int ui_audio_running(void){
     if(g_route_mac[0]) return bt_audio_running() == 1 ? 1 : (ui_alsa_running() == 0 ? 0 : -1);
     return ui_alsa_running();
 }
-/* ---- Start on the right codec (2.6.1) ----------------------------------------------------------------------------
+/* ---- Start on the right codec ----------------------------------------------------------------------------
  * Right after headphones connect, the AAC/LDAC switch is still to come; switching rebuilds the Bluetooth link, which
  * stops a playing song. So a play request made in that moment waits: the switch goes ahead with nothing playing,
  * and the music starts once BlueALSA confirms the codec (or after 10 s, or if the route goes away). A second Play
@@ -1447,6 +1476,7 @@ int ui_play_song_by_path(const char *path){
  * its bookmark overwritten. A single ~400ms tick drives the state machine: it waits for the player to
  * actually load THIS book (not a blind delay), applies the resume seek once, then checkpoints at a ~10s
  * cadence and detects the end. Ending the session on any explicit track change keeps the last save. */
+static lv_timer_t *g_t_book;              /* book_tick: 400 ms during a book session, 1 s otherwise */
 static char     g_book_sess[256];        /* the book of the active session ("" = none) */
 static long     g_book_resume_ms = -1;   /* resume position owed, or <=0 = none */
 static int      g_book_resume_done;      /* 1 once resume is applied (or not needed) -> checkpoint may run */
@@ -1548,6 +1578,7 @@ int ui_play_book(const char *path, long resume_ms){
     /* Arm the session AFTER the play call: ui_play_list clears the session, so setting it here makes
      * THIS book the active context. */
     snprintf(g_book_sess, sizeof g_book_sess, "%s", path);
+    if(g_t_book) lv_timer_set_period(g_t_book, 400);
     g_book_resume_ms   = (resume_ms > 1000) ? resume_ms : 0;
     g_book_resume_done = (g_book_resume_ms > 0) ? 0 : 1;
     g_book_resume_target = g_book_resume_ms;                 /* checkpointing waits until a position confirms the seek reached here */
@@ -1560,7 +1591,7 @@ int ui_play_book(const char *path, long resume_ms){
 
 /* ~400ms: confirm the book loaded, apply resume once, then checkpoint + detect finish. */
 static void book_tick(lv_timer_t *t){
-    (void)t;
+    if(t) lv_timer_set_period(t, g_book_sess[0] ? 400 : 1000);   /* close follow-up only while a book session runs */
     if(!ui_local_playback_allowed()) return;
     if(!g_book_sess[0]){
         /* Adopt an orphaned book: after a UI-only restart the player still plays the book but our
@@ -1798,7 +1829,7 @@ static int volup_held(void){
     volatile uint32_t *pin = gpio_gpb_pin();
     return pin ? (((*pin >> 13) & 1u) ? 0 : 1) : 0;
 }
-/* ---- add-on app API (2.1.0) ----
+/* ---- add-on app API ----
  * Before an installed app starts, /tmp/diskos-app-env gets the look it should use (the theme's own colours, dark or
  * light, the text size and the screen rotation), so an app matches the theme without carrying the theme engine.
  * When it exits it may leave /tmp/diskos-app-request to have the music played or kept as a playlist:
@@ -2220,6 +2251,7 @@ static void rim_press(int x, int y){
     rim_accum=0; rim_last_ms=lv_tick_get(); rim_state=RIM_CAND;
 }
 /* returns 1 once OWNED so the caller skips other gestures */
+static uint32_t rim_own_ms;   /* when the rim drag was taken over (a hold opens the letter picker) */
 static int rim_move(int x, int y){
     if(rim_state==RIM_IDLE) return 0;
     int rdx=x-180, rdy=y-180; float r=sqrtf((float)(rdx*rdx+rdy*rdy)); if(r<1) r=1;
@@ -2231,7 +2263,7 @@ static int rim_move(int x, int y){
         if(r < RIM_REL_R_MIN){ rim_state=RIM_IDLE; rim_scroller=NULL; return 0; }  /* wandered off the rim before committing -> let normal handling have it */
         lv_indev_wait_release(g_touch);               /* LVGL: drop this touch, we own it now */
         if(rim_scroller) lv_obj_scroll_to_y(rim_scroller, lv_obj_get_scroll_y(rim_scroller), LV_ANIM_OFF); /* stop any momentum */
-        rim_state=RIM_OWN; rim_last_ang=rim_ang(x,y); rim_last_ms=lv_tick_get(); rim_accum=0;
+        rim_state=RIM_OWN; rim_last_ang=rim_ang(x,y); rim_last_ms=lv_tick_get(); rim_accum=0; rim_own_ms=lv_tick_get();
         return 1;
     }
     /* OWNED */
@@ -2245,6 +2277,15 @@ static int rim_move(int x, int y){
     }
     if(rim_scroller != ui_active_scroller()) return 1;  /* screen changed under us: hold gesture, don't scroll a stale list */
     if(r < RIM_REL_R_MIN) return 1;                   /* drifted inward: hold gesture, no scroll this frame */
+    {   /* a hold on the Library's rim scrollbar (still for 0.6 s) opens the letter picker instead of a lone letter */
+        static uint32_t still_since; static float still_ang; static int still_done;
+        float a0=rim_ang(x,y);
+        if(rim_accum==0 && lv_tick_elaps(rim_own_ms) < 40){ still_since=lv_tick_get(); still_ang=a0; still_done=0; }
+        if(fabsf(rim_wrap(a0-still_ang)) > 0.06f){ still_since=lv_tick_get(); still_ang=a0; }
+        if(!still_done && rim_scroller==library_scroller() && lv_tick_elaps(still_since) > 600){
+            still_done=1; rim_state=RIM_IDLE; rim_scroller=NULL; library_open_letter_picker(); return 1;
+        }
+    }
     float ang=rim_ang(x,y); float dAng=rim_wrap(ang-rim_last_ang); rim_last_ang=ang;
     uint32_t now=lv_tick_get(); uint32_t dt=now-rim_last_ms; rim_last_ms=now;
     if(dAng > 1.2f || dAng < -1.2f) return 1;         /* clamp coalesced jumps (>~70deg/frame = noise) */
@@ -2985,16 +3026,21 @@ void ui_publish_art_surfaces(const track_state_t *st,int playing){
  saver_set_track(st->have_track?st->title:NULL,st->have_track?st->artist:NULL,ui_current_backdrop_src(),st->have_track?st->path:NULL);
  npmenu_set(st->have_track?st:NULL,playing,ui_current_thumb_src());
 }
-void ui_art_set_pending(int pending){
-    if(!g_t_art) return;
-    static uint32_t last_period = 120;
-    uint32_t period = pending ? 30 : 120;
-    if(last_period != period){
-        last_period = period;
-        lv_timer_set_period(g_t_art, period);
-        if(pending) lv_timer_reset(g_t_art);
-    }
+/* Art poll cadence: 30 ms while a decode runs, 120 ms while a song's cover is settling, once a second otherwise
+ * (only an online-art download, which takes seconds anyway, can land then). ui_art_wake() is called the moment a
+ * cover starts settling, so a track change is picked up as quickly as before. */
+static uint32_t g_art_period = 120;
+static void art_period(uint32_t period, int reset){
+    if(!g_t_art || g_art_period == period) return;
+    g_art_period = period;
+    lv_timer_set_period(g_t_art, period);
+    if(reset) lv_timer_reset(g_t_art);
 }
+void ui_art_set_pending(int pending){
+    if(pending) art_period(30, 1);
+    else art_period(ui_art_settling() ? 120 : 1000, 0);
+}
+void ui_art_wake(void){ if(g_art_period > 120) art_period(120, 0); }
 
 /* fork: feedback for the back swipe. A dark bubble with a back chevron slides in from the left edge under the finger,
  * following it; once the swipe has gone far enough to count it fills with the accent. Hidden on release. */
@@ -3019,7 +3065,7 @@ static void back_hint_at(int y, int dx, int mirrored,int late){
     if(y > 290) y = 290;
     int bx = -64 + 8 + reach * 40 / (thresh * 3 / 2);
     lv_obj_set_pos(g_bh, (mirrored ? 360-bx-64 : bx), y - 32);                     /* Disco Left: in from the right edge */
-    {   /* always frontmost while showing: overlays on the same layer (the track popup) can rise above it (2.6.2) */
+    {   /* always frontmost while showing: overlays on the same layer (the track popup) can rise above it */
         lv_obj_t *par = lv_obj_get_parent(g_bh);
         if(par && lv_obj_get_index(g_bh) != (int32_t)lv_obj_get_child_count(par) - 1) lv_obj_move_foreground(g_bh);
     }
@@ -3095,6 +3141,26 @@ void ui_home_hint(int x, int dy){
 int ui_zune_home_swipe(int from,int sx,int sy,int x,int y,uint32_t dt){
     return th_zune()&&from!=SCR_SAVER&&sy>320&&sy-y>=g_swipe_thresh*2&&sy-y>2*abs(x-sx)&&dt<700;
 }
+/* One rest of the main loop (screen on, no finger down). LVGL's touch-read timer is paused for the rest, so the
+ * next due timer decides how long to sleep; a second lv_timer_handler() pass draws anything the loop body changed
+ * and returns that time. The raw touch fd and the wake pipe cut the sleep short. Capped at 200 ms, the cadence the
+ * screen-off loop has always used, so every per-loop check still runs at least five times a second. */
+#define LOOP_REST_MAX_MS 200
+static void loop_rest(void){
+    lv_timer_t *rt = lv_indev_get_read_timer(g_touch);
+    if(rt) lv_timer_pause(rt);
+    uint32_t wait = lv_timer_handler();
+    if(wait > LOOP_REST_MAX_MS) wait = LOOP_REST_MAX_MS;
+    if(wait > 0){
+        struct pollfd pf[2]; nfds_t n = 0;
+        pf[n].fd = g_touch_raw; pf[n].events = POLLIN; pf[n].revents = 0; n++;
+        if(g_wake_pipe[0] >= 0){ pf[n].fd = g_wake_pipe[0]; pf[n].events = POLLIN; pf[n].revents = 0; n++; }
+        (void)poll(pf, n, (int)wait);
+    }
+    if(g_wake_pipe[0] >= 0){ char buf[64]; while(read(g_wake_pipe[0], buf, sizeof buf) > 0){} }
+    if(rt) lv_timer_resume(rt);   /* overdue now, so the next pass reads the panel straight away */
+}
+
 int main(int argc, char **argv){
     {int f=ds_fetch_entry(argc,argv);if(f>=0)return f;}
     /* fork: fiio_init starts us with stdin/stdout closed. Fill 0..2 with /dev/null first, so no descriptor opened later
@@ -3251,7 +3317,7 @@ int main(int argc, char **argv){
       run_bounded(a, 6000); }                    /* load system clock from RTC; bounded so a busy I2C/RTC can't wedge boot */
     lv_timer_create(hwclock_save_tick, 300000, NULL); /* write system time back to the RTC every 5 min */
     lv_timer_create(clock_tick, 10000, NULL);   /* refresh wall clock every 10s */
-    lv_timer_create(book_tick, 400, NULL);   /* drive the audiobook session: confirm load, resume, checkpoint */
+    g_t_book = lv_timer_create(book_tick, 400, NULL);   /* drive the audiobook session: confirm load, resume, checkpoint */
     clock_tick(NULL);                           /* set immediately */
     g_t_status = lv_timer_create(status_poll_cb, 3000, NULL); /* battery/status hardware keep-alive: deliberately continues at screen-off */
     status_poll_cb(NULL);                        /* populate immediately */
@@ -3274,6 +3340,8 @@ int main(int argc, char **argv){
     /* auto-scan + prewarm now start from sd_features_gate_cb, once the launcher verdict is known */
     /* Try to connect now; if the player's /ui queue isn't up yet (cold boot),
      * keep retrying in the background so the UI still comes up immediately. */
+    if(pipe2(g_wake_pipe, O_NONBLOCK | O_CLOEXEC) != 0){ g_wake_pipe[0] = g_wake_pipe[1] = -1; }
+    ipc_set_rx_notify(ui_loop_wake);   /* a player frame wakes a resting loop at once */
     if(ipc_start()!=0){
         fprintf(stderr,"ipc not ready, retrying in background\n"); fflush(stderr);
         lv_timer_create(ipc_connect_retry_cb, 1000, NULL);
@@ -3376,7 +3444,7 @@ int main(int argc, char **argv){
      * blocking init (the loop isn't ticking yet) and get skipped. Here it animates cleanly in the
      * loop from t=0. It's on lv_layer_top so it covers whatever's already drawn, then reveals it. */
     if(ui_source_switch_pending()) g_sd_deadline = lv_tick_get() + 20000;
-    lv_timer_create(storage_tick, 100, NULL);
+    g_t_storage = lv_timer_create(storage_tick, 100, NULL);
     { void system_ota_health_init(void); system_ota_health_init(); }   /* system.c: proves a trial OTA build healthy after 15 s */
     if(getenv("DISKOS_THEME_RELOAD")) unsetenv("DISKOS_THEME_RELOAD");   /* a theme re-launch: no boot splash */
     else splash_start();
@@ -3465,6 +3533,9 @@ int main(int argc, char **argv){
          * original heuristic except a backward/rewind jump no longer counts as advancing. max_adv_ms=0
          * keeps "any forward change counts"; the paused-forward-seek bound is device-tunable. */
         int playing = playstate_playing(&g_ps, st.have_track, st.position_ms, lv_tick_get(), 1600, 0);
+        if(st.position_ms != g_pos_last || st.path_seq != g_pos_path){
+            g_pos_last = st.position_ms; g_pos_path = st.path_seq; g_pos_moved_at = lv_tick_get() | 1;
+        }
         if(playing) g_play_sent_gen = ipc_generation();   /* playback observed this generation (any start, incl. hardware keys): its one-shot is moot */
         queue_tick(&st, playing);
         {void zthumb_tick(void);zthumb_tick();} if(th_zune()){void zune_ui_tick(void);zune_ui_tick();}
@@ -3703,6 +3774,11 @@ int main(int argc, char **argv){
                     if(lvgl_owned || ui_np_fsart_active()){
                         /* swallow - LVGL handled (or will handle) the open/close */
                     } else if(!seek_consumed){
+                    if(npshade_active()){   /* the shade: swipes start anywhere on it, even on the cover */
+                        if(sy>320 && vert && dy<0 && ady>=g_swipe_thresh*2 && dt<900){ npshade_dismiss(); screen_show(SCR_HOME); }   /* Home, as everywhere */
+                        else if(vert && dy<0 && ady>=g_swipe_thresh && dt<900) npshade_close();       /* up: away */
+                        else if(vert && dy>0 && ady>=g_swipe_thresh && dt<900) npshade_grow();        /* down: Quick settings */
+                    } else
                     if(cur==SCR_QUICK && vert && dy<0 && ady>=g_swipe_thresh && dt<700){
                         onboarding_discovered(HINT_QUICK);screen_back();                       /* swipe up closes quick settings */
                     } else if(cur!=SCR_HOME && cur!=SCR_SAVER && cur!=SCR_NOWPLAYING && sy>320 &&
@@ -3713,8 +3789,9 @@ int main(int argc, char **argv){
                         screen_show(SCR_HOME);
                     } else if(cur!=SCR_QUICK && cur!=SCR_SAVER && sy<40 &&
                               vert && dy>0 && dy>=g_swipe_thresh && dt<700){
-                        onboarding_discovered(HINT_QUICK);screen_show(SCR_QUICK);              /* pull down from top edge */
-                        quicksettings_refresh(playing);
+                        onboarding_discovered(HINT_QUICK);
+                        if(npshade_style() && cur!=SCR_HOME && cur!=SCR_NOWPLAYING) npshade_open();   /* QS style "Shade": now playing first */
+                        else { screen_show(SCR_QUICK); quicksettings_refresh(playing); }       /* pull down from top edge */
                     } else if(cur==SCR_NOWPLAYING){
                         /* On Now Playing a nav swipe must be a LONG, STRAIGHT,
                          * horizontal slide (so it's not confused with a seek drag
@@ -3978,6 +4055,10 @@ int main(int argc, char **argv){
         }
         g_bl_idle = (bl_state >= 1);   /* prewarm worker reads this: only work while dimmed/off */
         int busy = lv_anim_count_running() > 0 || prev_ts == LV_INDEV_STATE_PRESSED;
+        /* Rest (see ui_loop_wake): no finger down and a raw touch fd to wake on. Disc Shelf keeps the old cadence
+         * (its tick applies network results), and so do frames waiting for a busy player. */
+        int rest = bl_state != 2 && g_touch && g_touch_raw >= 0 && prev_ts != LV_INDEV_STATE_PRESSED &&
+                   !lv_indev_get_scroll_obj(g_touch) && screen_current() != SCR_SHELF && !ipc_tx_waiting();
         if(bl_state == 2){
             /* deep idle (panel off): sleep ~5x/s REGARDLESS of any running animation. Nothing is
              * visible, so a stray infinite anim (e.g. a Wi-Fi/BT scan glyph left spinning, or the
@@ -3995,7 +4076,12 @@ int main(int argc, char **argv){
           unsigned long long body = (unsigned long long)(pc.tv_sec - pa.tv_sec) * 1000000000ULL + (unsigned long long)(pc.tv_nsec - pa.tv_nsec) - prof_h;
           prof_loop(busy, bl_state, lv_anim_count_running(), prof_h, body); }
 #endif
-        usleep(wait*1000);
+        if(rest) loop_rest();
+        else if(g_touch_raw >= 0 && bl_state == 2){   /* screen off: same 200 ms rhythm, but a touch wakes at once */
+            struct pollfd pf = { .fd = g_touch_raw, .events = POLLIN };
+            (void)poll(&pf, 1, (int)wait);
+        }
+        else usleep(wait*1000);
     }
     return 0;
 }

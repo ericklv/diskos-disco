@@ -28,6 +28,10 @@ static void profile_paint(int p,int read,int graphic,const int hz[10]){
  int user=p>=11 && read>=0 && graphic;
  if(user){lv_obj_remove_state(edit_button,LV_STATE_DISABLED);lv_obj_remove_state(rename_button,LV_STATE_DISABLED);}
  else {lv_obj_add_state(edit_button,LV_STATE_DISABLED);lv_obj_add_state(rename_button,LV_STATE_DISABLED);}
+ if(th_simple()){   /* Squash paints button text once, from the state at creation: repaint it when the state changes */
+  lv_obj_t *b2[2]={edit_button,rename_button};
+  for(int k=0;k<2;k++){lv_obj_t *l=lv_obj_get_child(b2[k],0);if(l)lv_obj_set_style_text_color(l,user?TC(TEXT_PRIMARY):TC(TEXT_DISABLED),0);}
+ }
  lv_label_set_text(note_label,read==-2?"Loading profile...":read<0?"Profile unavailable":p<11?"Built-in preset":!graphic?"Parametric profile":!fw_custom_peq_curve_writable(hz,10)?"Custom editing unavailable":"Editable profile");
 }
 static void profile_poll(lv_timer_t *timer){
@@ -124,6 +128,11 @@ static void zeq_build(void){
 void eqpreset_refresh(void){
  if(th_zune()){ if(fw_os_ver()==257)eq_rate_request(); zeq_build(); return; }
  if(!name_label)return;if(fw_os_ver()==257)eq_rate_request();int p=selected();char b[80];name_for(p,b,sizeof b);if(th_null()){char up[80];theme_upper(up,sizeof up,b);lv_label_set_text(name_label,up);}else lv_label_set_text(name_label,b);
+ if(library_lift()&&!th_null()){   /* a name wider than its space steps down a size before it has to scroll */
+  const lv_font_t *steps[3]={TF(UI_24),TF(UI_20),TF(UI_18)},*f=steps[0];int room=lv_obj_get_style_width(name_label,0);
+  for(int k=0;k<3;k++){lv_point_t sz;f=steps[k];lv_text_get_size(&sz,lv_label_get_text(name_label),f,0,0,LV_COORD_MAX,LV_TEXT_FLAG_NONE);if(sz.x<=room)break;}
+  lv_obj_set_style_text_font(name_label,f,0);
+ }
  profile_ticket=0;
  if(p>=11){profile_ticket=eq_profile_request(p);profile_paint(p,profile_ticket?-2:-1,0,NULL);}
  else profile_paint(p,0,0,NULL);
@@ -161,7 +170,7 @@ void eqpreset_create(lv_obj_t *root){
  name_label=lv_label_create(root);lv_obj_set_width(name_label,178);lv_label_set_long_mode(name_label,LV_LABEL_LONG_SCROLL_CIRCULAR);lv_obj_align(name_label,LV_ALIGN_TOP_MID,0,128);
  lv_obj_set_style_text_align(name_label,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_font(name_label,TF(UI_24),0);lv_obj_set_style_text_color(name_label,TC(TEXT_PRIMARY),0);
  edit_button=button(root,"Edit",-60,183,104,44,edit,NULL,"eq.edit");rename_button=button(root,"Rename",60,183,104,44,rename_cb,NULL,"eq.rename");
- note_label=lv_label_create(root);lv_obj_set_width(note_label,280);lv_obj_align(note_label,LV_ALIGN_TOP_MID,0,244);lv_obj_set_style_text_align(note_label,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_font(note_label,TF(UI_12),0);lv_obj_set_style_text_color(note_label,TC(TEXT_SECONDARY),0);
+ note_label=lv_label_create(root);lv_obj_set_width(note_label,280);lv_obj_align(note_label,LV_ALIGN_TOP_MID,0,244);lv_obj_set_style_text_align(note_label,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_font(note_label,library_lift()?TF(UI_14):TF(UI_12),0);lv_obj_set_style_text_color(note_label,TC(TEXT_SECONDARY),0);
  switch_button=button(root,"Off",0,274,58,58,toggle,NULL,"eq.toggle");switch_label=lv_obj_get_child(switch_button,0);
  switch_pointer=lv_obj_create(switch_button);lv_obj_remove_style_all(switch_pointer);
  lv_obj_set_size(switch_pointer,3,9);lv_obj_align(switch_pointer,LV_ALIGN_TOP_MID,10,4);

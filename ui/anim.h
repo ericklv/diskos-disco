@@ -20,7 +20,9 @@ void anim_slide_x(lv_obj_t *o, int from, int to, uint32_t ms, lv_anim_completed_
 void anim_slide_y(lv_obj_t *o, int from, int to, uint32_t ms, lv_anim_completed_cb_t done);
 void anim_fade(lv_obj_t *o, lv_opa_t from, lv_opa_t to, uint32_t ms, lv_anim_completed_cb_t done);
 void anim_scale(lv_obj_t *o, int from_pct, int to_pct, uint32_t ms); /* 256 = 1.0 (LVGL zoom) */
-void anim_press(lv_obj_t *o);  /* quick 100%->94%->100% tactile feedback */
+void anim_press(lv_obj_t *o);
+void anim_pop_in(lv_obj_t *o);    /* pop-ups: a quick fade-and-rise (Disco, Squash, Null) */
+void anim_toast_in(lv_obj_t *o);  /* notices: ease down into place (Disco, Squash, Null) */  /* quick 100%->94%->100% tactile feedback */
 
 /* Give a full-screen panel a crisp 1px hairline on its LEADING (left) edge - the card boundary for
  * a push transition, visible on a near-black UI where a drop-shadow would not be. */

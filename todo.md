@@ -1,10 +1,18 @@
 # diskOS Disco! - to do
 
-Live list. Released: 2.6.2 (tag v2.6.2). Older notes: `todo-history.md`.
+Live list. Released: 3.2.0 (tag v3.2.0). Older notes: `todo-history.md`.
 How we work: owner suggests -> Claude offers fixes -> host renders for big visual changes -> owner's go ->
-batch -> one test build -> a few days on the Disc -> one release, one bundle, owner pushes + tags.
+batch -> one test build -> a few days on the Disc -> one release; Claude hands over patch files, ChatGPT applies them.
 List words: "add to the list" pins an item; "major" / "minor" sorts it; "priority" puts it first.
 Links always point to releases/latest. No upstream diskOS version shown to users.
+
+## Released: 3.2.0 (2026-10-28)
+- Wheel lists, QS style Shade, letter wheel and A-Z keypad, round track menus, header line, pills, fades, idle
+  power-off fix, battery work. Owner tested preview builds; the final build to be confirmed on the Disc.
+
+## Next
+- Shade following the finger while pulling (now it animates after the swipe).
+- Covers in wheel list rows for albums/playlists (only the album view and artist albums have them).
 
 ## Released: 2.6.2 (2026-10-21)
 - Born on the right codec: tested by hand on the owner's Disc (LDAC), automatic version covered by bt_born_test only.
@@ -37,6 +45,10 @@ Links always point to releases/latest. No upstream diskOS version shown to users
   go (one transaction, off the screen's thread) instead of item by item.
 
 ## Major
+- **Ratings & smart playlists** (owner, 2026-10-26; one release, after 3.2.0 has had its days on the Disc):
+  1-5 star song ratings set from the track actions sheet, plus smart playlists built from ratings and listening
+  stats ("most played this month", "added recently", "never played", "forgotten favourites", "4+ stars not played
+  in 60 days"). Reuses existing stats data; nothing online. Renders first.
 - **Dyslexic-friendly font** (owner, 2026-10-19): OpenDyslexic 3 under Display > Layout & extras, overriding text
   fonts in every theme at every size; icons, clocks, big numbers and non-Latin scripts keep their fonts. LVGL's
   runtime TTF renderer (one ~0.1-0.15 MB font file). Needs renders of all themes and a real Disc test.

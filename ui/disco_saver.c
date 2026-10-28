@@ -86,11 +86,12 @@ void dsaver_create(lv_obj_t *root){
     if(src) lv_image_set_src(g_img, src); else lv_obj_add_flag(g_img, LV_OBJ_FLAG_HIDDEN);
     lv_obj_t *veil = lv_obj_create(root); lv_obj_remove_style_all(veil);   /* standby: the cover far down */
     lv_obj_set_size(veil, 360, 360); lv_obj_set_style_bg_color(veil, th_simple()?TC(CANVAS):TC(FIXED_MEDIA_BLACK), 0);
-    lv_obj_set_style_bg_opa(veil, th_simple()?(simple_cfg_get_int("simple_background",0)==1?51:77):175, 0); lv_obj_clear_flag(veil, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_bg_opa(veil, th_simple()?(simple_cfg_get_int("simple_background",0)==1?153:166):175, 0);   /* 3.2.0 Squash: the picture at half its old brightness */ lv_obj_clear_flag(veil, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
     g_tr = rim_arc(root, TC(FIXED_MEDIA_WHITE), 3, 40); lv_arc_set_angles(g_tr, 0, 360);
     for(int i = 0; i < NSEG; i++) g_seg[i] = rim_arc(root, theme_color_from_rgb(IRI[i]), 3, 200);
-    pair(root, g_t, th_simple()?TF(UI_28):TF(UI_48), -1, 68, 0);
-    lv_obj_set_style_transform_scale(g_t[0], th_simple()?256:380, 0); lv_obj_set_style_transform_scale(g_t[1], th_simple()?256:380, 0);
+    LV_FONT_DECLARE(font_simple_nunito_38)
+    pair(root, g_t, th_simple()?&font_simple_nunito_38:TF(UI_48), -1, 68, 0);   /* 3.2.0 Squash: its own bold face, */
+    lv_obj_set_style_transform_scale(g_t[0], th_simple()?377:380, 0); lv_obj_set_style_transform_scale(g_t[1], th_simple()?377:380, 0);   /* twice its old 28 px */
     ptext(g_t, "--:--");
     g_wf = *theme_font_original(th_simple()?18:24); g_wf.fallback = &font_weather16;
     pair(root, g_wx, &g_wf, -1, 142, 0);

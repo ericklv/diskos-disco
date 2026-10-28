@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Album Roulette, built in (2.2.0): the spin, from the Album Roulette 1.3.1 app (its timings, easing, winner choice,
+/* Album Roulette, built in: the spin, from the Album Roulette 1.3.1 app (its timings, easing, winner choice,
  * covers and gestures kept as they were), now a screen of mq_ui (SCR_ROULETTE_SPIN) behind the vinyl landing page.
  *
  *   I feel lucky! (roulette.c) -> this screen: the roulette wheel while up to 37 albums are prepared (a background

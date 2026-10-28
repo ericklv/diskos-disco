@@ -1,8 +1,17 @@
-# diskOS Disco handoff - 2.6.1 (current state, updated 2026-10-19)
+# diskOS Disco handoff - 3.2.0 (current state, updated 2026-10-28)
 
 Read this first, then `todo.md` (the live list). Older release-by-release notes follow below as history.
 
 ## Where things are
+- 3.2.0 (2026-10-28): wheel list motion (curvelist.c curvelist_wheel_*, library.c curve_rows), QS style Shade
+  (npshade.c; Display > QS style, cfg qs_style), letter wheel rim index + A-Z keypad (azjump.c; azjump_index from
+  library.c), round track menus (songmenu.c / npmenus.c, orbit.c full ring + cover hub), one raised header line
+  (library.c header_align via ui_header_cb), Play/Shuffle pills (ui.c ui_pill_style), dithered pre-drawn fades and
+  exact colour blending in LVGL (lv_color_op.c, lv_draw_sw_blend_to_rgb888.c), no vertical label scrolling
+  (lv_label.c DISKOS_LABEL_VSCROLL 0 - keep it off), idle power-off by song position (power.c), battery work
+  (main.c loop_rest, ui_loop_wake). Tested by the owner through preview builds 3.1.1-3.3.0.
+- How we work since 3.2.0: Claude delivers patch files; ChatGPT (with repo access) applies them with git am to dev
+  (main for releases). Shelved: a Squash redesign (branch squash-pass, local only).
 - Ring and Braun are frozen (owner, 2026-10-21): fixes that apply to every theme only, no new changes. New work goes
   to Disco, Squash and Null. Stone wasn't mentioned; treated like Ring/Braun until the owner says otherwise.
 - 2.6.2 (2026-10-21): BlueALSA started preferring the chosen codec for known headphones (btcaps_<mac>, bt_born_for,

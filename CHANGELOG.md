@@ -6,6 +6,31 @@ Entries follow the Keep a Changelog format, with Added, Changed, and Fixed categ
 diskOS remains beta software; version numbers do not imply broad hardware or feature validation.
 
 
+## 3.2.0
+
+Wheel lists, the QS style *Shade*, the letter wheel and A–Z keypad, round track menus, one header line everywhere, cleaner fades, idle power-off fixed and a battery-friendlier interface. [Release notes](docs/releases/v3.2.0.md).
+
+### Added
+- Wheel list motion (Disco, Squash, Null): the current row pinned to the middle of the screen, one row above, smaller and greyer rows below under a soft fade; snapping.
+- Display › QS style: *Classic* (as before) or *Shade* - a now-playing shade first (cover tap = play/pause, previous/next, title/artist tap = album, progress, clock and battery), a second pull for the theme's Quick settings; swipe up closes, the Home swipe works.
+- Letter wheel: a rim index along the right edge (left-handed Disco: left), turned clockwise/counter-clockwise, the list following live; Zune uses it too. Holding the rim scrollbar opens the letter picker.
+- A–Z keypad: round keys; empty letters dimmed and untappable, the current letter filled.
+- Round track menus (Music pop-up and Library hold-a-song): cover and back arrow in the centre; Favourite, Lyrics, Album, Artist, View queue, Info, +Queue, +Playlist.
+- Song info: Auto-tag (lyrics and artwork the song is missing).
+
+### Changed
+- One header line on every screen (Disco, Squash, Null): title centred, back arrow beside it, titles that always fit.
+- Play / Shuffle pills the same everywhere; wheel album row with cover, pills, album and artist; album title under its cover; small covers in an artist's album list.
+- List fades only in empty space; pre-drawn, dithered fades; exact, rounded colour blending.
+- Queue, Equalizer, Search and volume pop-up tidied; pressed-state and pop-in motion; *Back* instead of *Cancel* in round menus.
+- Squash screensaver: larger clock, darker picture.
+
+### Fixed
+- Idle power-off: decided by a still song position (the sound chip never goes quiet while paused).
+- Text never scrolls vertically (all themes).
+- Disco: the large wheel row stays clear of the navigation shard.
+- Battery: the interface sleeps between events; idle polls slow down; 15 fps vinyl screensaver; weather backoff without Wi-Fi.
+
 ## 3.1.0
 
 Automatic appearance, menu-edge fades, medium-weight Zune menu fonts, idle timer and queue/history persistence fixes. [Release notes](docs/releases/v3.1.0.md). Device testing pending.

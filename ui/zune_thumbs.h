@@ -18,4 +18,5 @@ void zthumb_mosaic(lv_obj_t *parent, int x, int y, int size, const int *ids, int
 /* a playlist's songs: returns the count; ids4 gets songs of up to four different albums (for the mosaic), ms the length */
 int  zthumb_playlist(long pid, int *ids4, int *nids, long *ms);
 void zthumb_tick(void);
+void zthumb_force(int on);   /* load covers on any screen while a menu needs one */
 #endif

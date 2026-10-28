@@ -1242,7 +1242,7 @@ static lv_obj_t *zi_btn(lv_obj_t *par, const char *glyph, int x, int d, const ch
     ui_on(b, zi_cmd_cb, LV_EVENT_CLICKED, (void *)cmd, action, UI_CORE);
     return l;
 }
-static void zi_scrub(long pos, long dur, int on){          /* Figma 13.3: the cover dims further, a big timestamp */
+static void zi_scrub(long pos, long dur, int on){          /* Figma the cover dims further, a big timestamp */
     if(!g_zi_big) return;
     if(!on || dur <= 0){
         lv_obj_add_flag(g_zi_big, LV_OBJ_FLAG_HIDDEN); lv_obj_add_flag(g_zi_of, LV_OBJ_FLAG_HIDDEN);
@@ -1706,7 +1706,10 @@ lv_obj_t *kit_default_header(lv_obj_t *root, const char *title, lv_event_cb_t ba
     return t;
 }
 lv_obj_t *ui_header_cb(lv_obj_t *root, const char *title, lv_event_cb_t back_cb){
-    return theme_kit()->header(root, title, back_cb);
+    uint32_t n0 = lv_obj_get_child_count(root);
+    lv_obj_t *t = theme_kit()->header(root, title, back_cb);
+    library_header_lift(root, n0, t);   /* Disco, Squash, Null: the one header line - raised, title centred, arrow in view */
+    return t;
 }
 lv_obj_t *ui_header(lv_obj_t *root, const char *title){ return ui_header_cb(root, title, NULL); }
 
@@ -3046,6 +3049,7 @@ static void make_art_key(const track_state_t *st, char *out, int cap)
 #define COVER_SETTLE_MS 300
 static art_req_t g_settle_job; static unsigned g_settle_due; static int g_settle_have;
 static void art_post_job(const art_req_t *jp);
+int ui_art_settling(void){ return g_settle_have; }
 static void art_settle_tick(void){                     /* the cover timer: post a waiting job once it has settled */
     if(g_settle_have && (int)(art_clock_ms() - g_settle_due) >= 0){   /* wrap-safe */ g_settle_have = 0; art_post_job(&g_settle_job); }
 }
@@ -3107,6 +3111,7 @@ static void update_cover_for_path(const track_state_t *st)
      * the songs you fly past start no decode at all (the loading symbol shows at once, as before); a newer song
      * simply replaces the waiting job. */
     g_settle_job = job; g_settle_due = art_clock_ms() + COVER_SETTLE_MS; g_settle_have = 1;
+    ui_art_wake();
 }
 static void art_post_job(const art_req_t *jp)
 {
@@ -4258,7 +4263,7 @@ void ui_show_volume(int vol)
         lv_obj_remove_style_all(g_vol_panel);
         lv_obj_set_size(g_vol_panel, 360, 360);
         lv_obj_set_style_bg_color(g_vol_panel, TC(SCRIM), 0);
-        lv_obj_set_style_bg_opa(g_vol_panel, 115, 0);
+        lv_obj_set_style_bg_opa(g_vol_panel, 175, 0);   /* the screen behind recedes: the number never sits on readable text */
         lv_obj_clear_flag(g_vol_panel, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);   /* taps pass through */
 
         g_vol_arc = lv_arc_create(g_vol_panel);
@@ -4431,6 +4436,7 @@ void ui_show_volume(int vol)
         g_vol_suppress = 0;
         char b[12]; snprintf(b, sizeof b, "%d", vol); lv_label_set_text(g_vol_num, b);
     }
+    if(lv_obj_has_flag(g_vol_panel, LV_OBJ_FLAG_HIDDEN)) anim_pop_in(g_vol_panel);   /* a quick fade-and-rise on opening */
     lv_obj_remove_flag(g_vol_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_move_foreground(g_vol_panel);
     if(zvol_opening && screen_get_anim())anim_fade(g_vol_panel,0,LV_OPA_COVER,100,NULL);
@@ -4467,3 +4473,28 @@ void ui_test_imm_out(int v){ imm_out_exec(NULL, v); }                   /* host 
 
 /* Host preview accessors; unused sections are discarded from device builds. */
 lv_obj_t *ui_test_zune_np_part(int i){lv_obj_t *p[]={title,artist,album,t_elapsed,t_remain,g_zfmt,cover,btn_prev,btn_pp,btn_next};return i>=0&&i<10?p[i]:NULL;}
+
+/* the one Play / Shuffle pill look (Disco, Squash, Null) - a full pill 40 px high; the primary action filled in
+ * the accent with dark ink, the others in the raised surface with a fine outline; icon and word in one 16 px line.
+ * Applied to an existing button and its labels; the theme kit then leaves it alone. */
+void ui_pill_style(lv_obj_t *b, int primary){
+    if(!b || !library_lift()) return;
+    lv_obj_set_height(b, 40);
+    lv_obj_set_style_radius(b, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(b, primary ? TC(ACCENT_PRIMARY) : TC(SURFACE_RAISED), 0); lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_opa(b, LV_OPA_80, LV_STATE_PRESSED);
+    lv_obj_set_style_border_width(b, primary ? 0 : 1, 0); lv_obj_set_style_border_color(b, TC(BORDER), 0);
+    lv_obj_set_style_border_opa(b, LV_OPA_COVER, 0);
+    lv_obj_set_style_shadow_width(b, 0, 0); lv_obj_set_style_outline_width(b, 0, 0);
+    for(uint32_t i = 0; i < lv_obj_get_child_count(b); i++){
+        lv_obj_t *l = lv_obj_get_child(b, i);
+        if(!lv_obj_check_type(l, &lv_label_class)) continue;
+        lv_obj_set_style_text_font(l, th_null() ? TF(UI_14) : TF(UI_16), 0);   /* Null: its wide face one size down */
+        lv_obj_set_style_text_color(l, primary ? TC(CANVAS) : TC(TEXT_PRIMARY), 0);
+        kit_keep(l);
+        lv_point_t ts; lv_text_get_size(&ts, lv_label_get_text(l), lv_obj_get_style_text_font(l, 0), 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+        if(ts.x + 24 > lv_obj_get_width(b) && lv_obj_get_width(b) > 60){   /* never clip the word: grow around the centre */
+            int grow = ts.x + 24 - lv_obj_get_width(b); lv_obj_set_width(b, ts.x + 24); lv_obj_set_x(b, lv_obj_get_x(b) - grow / 2); }
+    }
+    kit_keep(b);
+}

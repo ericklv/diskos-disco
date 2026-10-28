@@ -2,7 +2,7 @@
 
 > **Development builds on `dev` are experimental / in testing.** Use tagged releases for the published downloads. [Development notes](docs/DEV.md).
 
-**Disco! 3.1.0:** New track action sheets, Zune Light/Dark/Auto, softer menu edges and queue reliability fixes. [Release notes](docs/releases/v3.1.0.md) · [Validation notes](docs/RELEASE_3.1.0.md).
+**Disco! 3.2.0:** Wheel lists, a now-playing *Shade* before Quick settings, the letter wheel and A–Z keypad, round track menus, one header line everywhere and a battery-friendlier interface. [Release notes](docs/releases/v3.2.0.md) · [Changelog](CHANGELOG.md).
 
 <p align="center">
   <b>Your music. Your kind of Disco.</b><br>
@@ -41,11 +41,21 @@
 > a power cut, a bad cable or an interrupted flash can leave it unbootable. Back up your music and keep the
 > saved stock image somewhere safe before you start. Not affiliated with FiiO, Snowsky or Ingenic.
 
+## New in 3.2.0
+
+- **Wheel lists** (Display › your theme's settings › Scroll › *Wheel*, Disco/Squash/Null): the current row sits large in the middle of the screen, one row above it, smaller and greyer rows below that sink under a soft fade.
+- **QS style › Shade** (Display › QS style, all themes): the pull from the top first shows what's playing — cover (tap: play/pause), previous and next, title and artist (tap: the album), progress, clock and battery. Pull again for the theme's Quick settings; swipe up to close.
+- **Letter wheel and A–Z keypad**: hold the letter dot (or the rim scrollbar) and turn — clockwise forward, counter-clockwise back — while the list follows; or open the round A–Z keypad from the A–Z pill. Empty letters are dimmed.
+- **Round track menus** on Music and in the Library: Favourite, Lyrics, Album, Artist, View queue, Info, +Queue, +Playlist around the song's cover.
+- **One header line everywhere**, the same Play/Shuffle pills on every list, cleaner and band-free fades, **Auto-tag** in Song info.
+- **Fixed:** idle power-off works again; text never scrolls up and down.
+- **Battery:** the interface sleeps between touches and player events instead of polling constantly.
+
+[3.2.0 release notes](docs/releases/v3.2.0.md)
+
 ## New in 3.1.0
 
-A clearer Focus A–Z wheel, with theme-native typography, a fixed top selection and subtle fades. Settings now share one hierarchy across every theme, with dedicated theme settings and Battery & power controls. Idle shutdown retries failed requests and cancels stale requests before handoff.
-
-[3.1.0 release notes](docs/releases/v3.1.0.md)
+A clearer Focus A–Z wheel (now the letter wheel), settings with one hierarchy across every theme, Light/Dark/Auto, track action sheets (now round track menus) and queue reliability fixes. [3.1.0 release notes](docs/releases/v3.1.0.md)
 
 ## Introduced in 3.0.0 — hello, Zune.
 

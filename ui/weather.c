@@ -43,6 +43,7 @@ static int g_wready = 0;     /* a fresh result is waiting          (guarded) */
 static int g_inflight = 0;   /* a fetch thread is running          (guarded) */
 static int g_have = 0;       /* got weather at least once          (main thread only) */
 static uint32_t g_last = 0;  /* tick of last fetch start           (main thread only) */
+static int g_fails = 0;       /* failed fetches in a row before the first success (main thread only) */
 static int g_wfail = 0;      /* last fetch returned no usable data (guarded) */
 static int g_wgen = 0;       /* bumps when the location changes    (main thread only) */
 static int g_wjobgen = 0;    /* g_wgen the in-flight fetch serves  (main thread only) */
@@ -273,7 +274,7 @@ static void weather_app_refresh(void);   /* fwd */
  * Settings. Off = no wget, no display (battery); on = force a refetch on the next poll. */
 void weather_set_enabled(int on)
 {
-    if (on) { g_last = 0; }
+    if (on) { g_last = 0; g_fails = 0; }
     else    { home_set_weather(""); saver_set_weather(""); }
 }
 
@@ -304,17 +305,24 @@ void weather_poll(lv_timer_t *t)
         if (g_wjobgen != g_wgen) {
             /* result is for a since-changed location -> discard + refetch the current one now */
             g_last = 0;
+        } else if (fail) {
+            if (!g_have && g_fails < 3) g_fails++;
         } else if (!fail) {        /* keep last-good on failure; only update on success.
                                     * g_wbuf safe here: worker set g_inflight=0 under the same
                                     * lock and the next fetch only starts below, after this use. */
-            g_have = 1;
+            g_have = 1; g_fails = 0;
             home_set_weather(g_wbuf);
             saver_set_weather(g_wbuf);
         }
         weather_app_refresh();     /* shows data, or "Weather unavailable" if none yet */
     }
     uint32_t now = lv_tick_get();
-    uint32_t interval = g_have ? 600000u : 20000u;
+    /* Before the first reading: try after 20 s, then back off to 1 and 5 minutes while fetches keep failing
+     * (wrong place name, no internet behind the Wi-Fi). Without Wi-Fi nothing is tried, so a reading follows
+     * within seconds of Wi-Fi coming up. */
+    static const uint32_t RETRY[4] = { 20000u, 20000u, 60000u, 300000u };
+    uint32_t interval = g_have ? 600000u : RETRY[g_fails];
+    if (!ui_net_up()) return;
     if (!inflight && (now - g_last) > interval) weather_fetch_async();
 }
 
@@ -423,7 +431,7 @@ static void loc_done(const char *text)
     simple_cfg_set_str("weather_loc", text ? text : "");
     g_wgen++;                   /* invalidate any in-flight fetch for the old location */
     g_have = 0;                 /* force a fresh fetch + show "Fetching" */
-    g_last = 0;
+    g_last = 0; g_fails = 0;
     weather_fetch_async();
     weather_app_refresh();
 }
@@ -437,7 +445,7 @@ static void auto_loc_cb(lv_event_t *e)
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
     simple_cfg_set_str("weather_loc", "");
     g_wgen++;                   /* invalidate any in-flight fetch for the old location */
-    g_have = 0; g_last = 0;
+    g_have = 0; g_last = 0; g_fails = 0;
     weather_fetch_async();
     weather_app_refresh();
 }

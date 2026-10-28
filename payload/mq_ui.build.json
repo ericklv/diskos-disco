@@ -1,17 +1,17 @@
 {
-  "version": "3.1.0",
-  "revision": "Completed track action sheets and Zune Dark Light Auto",
-  "baseline": "v3.0.1",
-  "source_commit": "666cc7d273554057aebd540e228f549c14de085f",
-  "ui_source_sha256": "835654ffc9a38aaa715760756e80b21439641e747f093007dae5b4998c7eafe1",
+  "version": "3.2.0",
+  "revision": "Wheel lists, QS style Shade, letter wheel and A-Z keypad, round track menus, header line, fades, idle power-off fix, battery work",
+  "baseline": "v3.1.0",
+  "source_commit": "the v3.2.0 release commit (ui source as hashed below)",
+  "ui_source_sha256": "b536e5b1fbf13f1b50e1adfecd5c03c34ac825e02910fd56074dd685c6802baa",
   "ui_source_hash_recipe": "sorted tracked ui paths: path + NUL + file bytes + NUL",
   "compiler": "musl-cross-make GCC 11.2.0, musl 1.2.6; mipsel-linux-musl, -ffp-contract=off",
   "abi": "static little-endian MIPS32r2, o32, FP64, NaN2008",
-  "status": "Replacement Disco 3.1.0: track action sheets for Disco/Squash/Null; Zune Dark/Light/Auto enabled including Music canvas. Fresh static MIPS build. Device acceptance pending.",
+  "status": "Disco 3.2.0. Fresh static MIPS build from the release source; the changes were tried by the owner through preview builds 3.1.1-3.3.0.",
   "binary": {
-    "bytes": 7175156,
-    "sha256": "b5071a147964f65712188f25edfacdc34e6926a559551195dd4648f7f240fd35",
-    "md5": "1ba0a9a7d7bcc58e927cd67105d7a898"
+    "bytes": 7264288,
+    "sha256": "c2acc7e8f2180daa837b5272f01c9d7ddcebe46c6bd357ffd310e1bebd6ae06f",
+    "md5": "f0504c65959114ea2fef1a9d9e313624"
   },
   "artwork_helper": {
     "bytes": 119424,
@@ -23,5 +23,5 @@
     "commit": "2bcb014b23a8c8cccf534eea8bda2fe5df453cfd",
     "license": "LGPL-2.1-or-later"
   },
-  "baseline_commit": "80c504528b1a33c01c8731ed948218b2804c5bb3"
+  "baseline_commit": "243beb125ca431d3e84141b14ffa7ad4f4b598ec"
 }

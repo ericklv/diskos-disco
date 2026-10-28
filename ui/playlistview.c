@@ -376,6 +376,13 @@ void plview_create(lv_obj_t *root){
     g_menu_btn = menu_btn;
     g_clear_btn = icon_btn(root, 246, 68, 56, "Clear", TC(TEXT_PRIMARY), clear_cb);   /* the Queue only */
     lv_obj_add_flag(g_clear_btn, LV_OBJ_FLAG_HIDDEN);
+    if(library_lift()){   /* the shared Play / Shuffle pills; More and Clear in the same shape */
+        lv_obj_set_width(g_play_btn, 100); lv_obj_set_x(g_play_btn, 58); ui_pill_style(g_play_btn, 1);
+        lv_obj_set_width(g_shuffle_btn, 100); lv_obj_set_x(g_shuffle_btn, 164); ui_pill_style(g_shuffle_btn, 0);
+        ui_pill_style(menu_btn, 0); lv_obj_set_x(menu_btn, 270); ui_pill_style(g_clear_btn, 0);
+        lv_obj_t *pl = lv_obj_get_child(g_play_btn, 0); if(pl) lv_label_set_long_mode(pl, LV_LABEL_LONG_CLIP);
+        lv_obj_t *sl = lv_obj_get_child(g_shuffle_btn, 0); if(sl) lv_label_set_long_mode(sl, LV_LABEL_LONG_CLIP);
+    }
     for(int i=0;i<3;i++){
         lv_obj_t *d = lv_obj_create(menu_btn);
         lv_obj_remove_style_all(d);

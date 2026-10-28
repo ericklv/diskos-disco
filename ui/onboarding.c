@@ -21,7 +21,7 @@ static const char *hint_key(const char *key){
 static const char *keys[] = {"hint_menu", "hint_nav", "hint_library", "hint_music", "hint_shortcuts", "hint_lock","hint_back","hint_home","hint_quick","hint_radio_hold","hint_seek","hint_precision","hint_music_gestures","hint_clock","hint_volume","hint_az","hint_flow","hint_immersive","hint_popup","hint_handle","hint_eq","hint_rim","hint_brightness","hint_pick","hint_shelf_pick"};
 static const int limits[] = {2, 2, 1, 1, 1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
 static const char *text[] = {NULL, "Arrows: sections\nTap icon: open", "Hold an item\nfor actions", "Tap title for more", NULL,
-                                       "Tip: the power button locks\nthe screen in a pocket","Swipe inward from the back edge\nto return one screen.","On other screens, swipe up\nfrom the bottom to reach Music.","Pull down from the top\nfor Quick Settings.","Tap Wi-Fi, BT or EQ to switch.\nHold to open its settings.","Tap or drag progress\nto seek through the track.","Hold the progress line or arc:\nlet go where you want to be.","Double-tap: play / pause.\nSwipe right: next; left: previous.","Hold the clock/status area\nto hide it. Hold again to show.","Drag the volume control.\nTap outside it to dismiss.","Tap A-Z, then a letter\nto jump through the list.","Drag covers to browse. Tap to\nopen tracks; hold to play album.","Tap the full-screen artwork\nto return to Music.","Swipe back from the edge\nto close track actions.","Drag menu text to browse. Hold\nhandle ends for continuous scroll.","Tap a band, then drag or use +/-.\nTap frequency / gain to edit either.","Drag along the outer rim\nto scroll long lists quickly.","Drag the brightness bar or arc\nto adjust the screen.","Swipe across an item\nto pick several.","Swipe from the middle\nto select"};
+                                       "Tip: the power button locks\nthe screen in a pocket","Swipe inward from the back edge\nto return one screen.","On other screens, swipe up\nfrom the bottom to reach Music.","Pull down from the top\nfor Quick Settings.","Tap Wi-Fi, BT or EQ to switch.\nHold to open its settings.","Tap or drag progress\nto seek through the track.","Hold the progress line or arc:\nlet go where you want to be.","Double-tap: play / pause.\nSwipe right: next; left: previous.","Hold the clock/status area\nto hide it. Hold again to show.","Drag the volume control.\nTap outside it to dismiss.","Tap A-Z, then a letter\nto jump through the list.","Drag covers to browse. Tap to\nopen tracks; hold to play album.","Tap the full-screen artwork\nto return to Music.","Tap the middle of the menu\nto go back.","Drag menu text to browse. Hold\nhandle ends for continuous scroll.","Tap a band, then drag or use +/-.\nTap frequency / gain to edit either.","Drag the rim to scroll fast.\nHold it still to pick a letter.","Drag the brightness bar or arc\nto adjust the screen.","Swipe across an item\nto pick several.","Swipe from the middle\nto select"};
 _Static_assert(sizeof keys/sizeof *keys==HINT_COUNT,"hint keys");
 _Static_assert(sizeof limits/sizeof *limits==HINT_COUNT,"hint limits");
 _Static_assert(sizeof text/sizeof *text==HINT_COUNT,"hint text");
@@ -31,6 +31,8 @@ const char *onboarding_gesture_text(int id){
     if(th_simple()&&id==HINT_VOLUME)return "Drag the bottom arc for volume. Tap D! or outside to close; it auto-hides when idle.";
     if(th_simple()&&id==HINT_MUSIC_GESTURES)return "Double-tap track text: play/pause. Swipe right: next; left: previous.";
     if(id==HINT_BACK)return disco_mirror()?"Swipe left from the right edge to go back.":"Swipe right from the left edge to go back.";
+    if(id==HINT_QUICK && simple_cfg_get_int("qs_style",0)==1)return "Pull down: what\'s playing.\nPull again for Quick Settings.";
+    if(id==HINT_AZ && simple_cfg_get_int("library_seeking",0)==1)return "Tap the letter dot, then turn:\nclockwise on, counter-clockwise back.";
     if(id==HINT_QUICK)return th_null()?"Pull down from the top for QS. Swipe up beside the panel, tap outside, or tap its bottom arrow to close.":"Pull down from the top for QS; swipe up to close.";
     if(id==HINT_NAV)return th_null()?"Tap the side arrow for the menu. Drag text or the handle to browse; tap an item to open.":"Tap the side tab for the menu. Arrows browse; centre icon opens. Double-tap / hold shortcuts are configurable.";
     if(id==HINT_HANDLE){
@@ -70,7 +72,7 @@ static int eligible(int id){
     int mode=simple_cfg_get_int(hint_key("disco_hints"),0);
     if(!started || (!th_disco_family() && !th_null()) || mode==2 || (shown & (1u<<id)))return 0;
     if(mode==1)return 1; /* explicitly On: once per context per session, even after learning */
-    if(id<HINT_BACK && id!=HINT_LOCK && simple_cfg_get_int(hint_key("hint_starts"),0)>=5)return 0;   /* the lock tip is new in 2.1.0: also for settled users */
+    if(id<HINT_BACK && id!=HINT_LOCK && simple_cfg_get_int(hint_key("hint_starts"),0)>=5)return 0;   /* the lock tip is new in also for settled users */
     int fallback=id==HINT_MENU && simple_cfg_get_int(hint_key("disco_nav_hint"),0)?2:0;
     return simple_cfg_get_int(hint_key(keys[id]),fallback)<limits[id];
 }

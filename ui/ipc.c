@@ -296,6 +296,8 @@ static int rx_do_reopen(void){
     return 0;
 }
 
+static void (*g_rx_notify)(void);   /* set once before the receive thread starts (pthread_create publishes it) */
+void ipc_set_rx_notify(void (*cb)(void)){ g_rx_notify = cb; }
 static void *ipc_thread(void*arg){
     (void)arg;
     /* Wait (up to 1s) for a /ui frame - mq_timedreceive instead of a permanent block so a
@@ -308,7 +310,7 @@ static void *ipc_thread(void*arg){
         if(want) rx_do_reopen();
         struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts); ts.tv_sec += 1;
         ssize_t n = mq_timedreceive(g_rx, g_rxbuf, g_rxbufsz, NULL, &ts);
-        if(n>=0){ pthread_mutex_lock(&g_recov_mu); g_rx_frames++; pthread_mutex_unlock(&g_recov_mu); parse_frame(g_rxbuf,(int)n); }
+        if(n>=0){ pthread_mutex_lock(&g_recov_mu); g_rx_frames++; pthread_mutex_unlock(&g_recov_mu); parse_frame(g_rxbuf,(int)n); if(g_rx_notify) g_rx_notify(); }
         else if(errno==ETIMEDOUT) continue;   /* normal idle wake */
         else if(errno==EINTR) continue;
         else if(errno==EBADF){ if(rx_do_reopen()!=0) usleep(50000); }  /* lost fd -> reattach now (we're on the RX thread); if the queue is still absent, back off 50ms instead of busy-spinning on the dead fd */

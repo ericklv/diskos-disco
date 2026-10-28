@@ -15,11 +15,16 @@ static void btn_cb(lv_event_t *e){
 }
 /* Disco: on a screen (not a popup on the top layer) the navigation circle's sliver owns 3 o'clock, so the buttons
  * spread over the rest of the ring, from 45 degrees below it round to 45 degrees above it */
+static int g_spread;      /* orbit_spread(): the next popup polish uses the wider track-menu ring */
+void orbit_spread(void){ g_spread = 1; }
+static int g_full_ring;   /* orbit_full_ring(): the next menu keeps the whole ring, even on a Disco screen */
+void orbit_full_ring(void){ g_full_ring = 1; }
 static int disco_screen_menu(lv_obj_t *root){
-    if(!th_disco_family()) return 0;
+    if(g_full_ring || !th_disco_family()) return 0;
     for(lv_obj_t *p = root; p; p = lv_obj_get_parent(p)) if(p == lv_layer_top() || p == lv_layer_sys()) return 0;
     return 1;
 }
+#define ORBIT_SPREAD_R 126   /* track menus: buttons further apart */
 #define DISCO_DEG (-1000)                                            /* first_deg marker: the Disco spread */
 static float orbit_deg(const orbit_t *o, int i){
     if(o->first_deg == DISCO_DEG) return o->n > 1 ? 45.0f + i * 270.0f / (o->n - 1) : 180.0f;
@@ -28,6 +33,7 @@ static float orbit_deg(const orbit_t *o, int i){
 void orbit_create(orbit_t *o, lv_obj_t *root, const orbit_item_t *it, int n, int first_deg, orbit_pick_cb pick){
     if(n > 8) n = 8;
     if(disco_screen_menu(root)) first_deg = DISCO_DEG;
+    g_full_ring = 0;
     o->n = n; o->pick = pick; o->first_deg = first_deg; o->ring = o->hub = o->hub_icon = o->hub_cap = NULL;
     for(int i = 0; i < n; i++){
         float a = orbit_deg(o, i) * 3.14159265f / 180.0f;
@@ -90,7 +96,8 @@ void orbit_create(orbit_t *o, lv_obj_t *root, const orbit_item_t *it, int n, int
 void orbit_popup_polish(orbit_t *o){
     for(int i = 0; i < o->n; i++){
         float a = orbit_deg(o, i) * 3.14159265f / 180.0f;
-        int cx = (int)lroundf(108 * cosf(a)), cy = (int)lroundf(108 * sinf(a));
+        int rad = g_spread ? ORBIT_SPREAD_R : 108;
+        int cx = (int)lroundf(rad * cosf(a)), cy = (int)lroundf(rad * sinf(a));
         lv_obj_set_size(o->btn[i], 56, 56);
         lv_obj_align(o->btn[i], LV_ALIGN_CENTER, cx, cy - 8);
         lv_obj_set_ext_click_area(o->btn[i], 2);
@@ -98,12 +105,18 @@ void orbit_popup_polish(orbit_t *o){
         lv_obj_set_style_text_font(o->icon[i], old==&font_theme_20?&font_theme_24:TF(UI_24), 0);
         if(o->cap[i]){
             lv_obj_set_style_text_font(o->cap[i], TF(UI_16), 0);
+            if(g_spread){   /* a fixed label: its own width, never scrolling, never shortened */
+                lv_label_set_long_mode(o->cap[i], LV_LABEL_LONG_CLIP);
+                lv_obj_set_size(o->cap[i], LV_SIZE_CONTENT, lv_font_get_line_height(TF(UI_16)));
+            } else {
             lv_label_set_long_mode(o->cap[i], LV_LABEL_LONG_SCROLL_CIRCULAR);
             lv_obj_set_size(o->cap[i], 96, lv_font_get_line_height(TF(UI_16)));
+            }
             lv_obj_set_style_text_align(o->cap[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_align(o->cap[i], LV_ALIGN_CENTER, cx, cy + 29);
         }
     }
+    g_spread = 0;
 }
 void orbit_cap_width(orbit_t *o, int w, const lv_font_t *font){
     for(int i = 0; i < o->n; i++){
@@ -218,4 +231,29 @@ lv_obj_t *orbit_title(lv_obj_t *root, const char *text){
     if(th_braun()) lv_obj_set_style_text_font(t, br_font(14, 0), 0);
     lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 16);
     return t;
+}
+
+/* the track menus' hub - the cover filling the disc, a dark round back arrow over its centre. Returns the
+ * image, for the caller to fill (cover now, or a thumbnail that arrives later). */
+lv_obj_t *orbit_hub_cover_back(orbit_t *o){
+    if(!o->hub) return NULL;
+    lv_label_set_text(o->hub_icon, ""); lv_label_set_text(o->hub_cap, "");
+    lv_obj_set_style_clip_corner(o->hub, true, 0);
+    lv_obj_t *img = lv_image_create(o->hub);
+    lv_obj_center(img); lv_obj_clear_flag(img, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_t *d = lv_obj_create(o->hub);
+    lv_obj_remove_style_all(d); lv_obj_set_size(d, 36, 36); lv_obj_center(d);
+    lv_obj_set_style_radius(d, LV_RADIUS_CIRCLE, 0); lv_obj_set_style_bg_color(d, TC(CANVAS), 0);
+    lv_obj_set_style_bg_opa(d, 190, 0); lv_obj_clear_flag(d, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_t *l = lv_label_create(d); lv_label_set_text(l, LV_SYMBOL_LEFT);
+    lv_obj_set_style_text_font(l, TF(UI_18), 0); lv_obj_set_style_text_color(l, TC(TEXT_PRIMARY), 0);
+    lv_obj_align(l, LV_ALIGN_CENTER, -1, 0);
+    return img;
+}
+/* fit a square cover image to the hub (88 px) */
+void orbit_hub_cover_set(lv_obj_t *img, const void *src){
+    if(!img) return;
+    if(!src){ lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN); return; }
+    lv_image_set_src(img, src); lv_obj_remove_flag(img, LV_OBJ_FLAG_HIDDEN);
+    const lv_image_dsc_t *d = src; if(d->header.w) lv_image_set_scale(img, 256 * ORBIT_HUB / d->header.w);
 }

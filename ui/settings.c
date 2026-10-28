@@ -412,7 +412,8 @@ static const char *OPT_DEQ[] = { "Disco", "Accent" };
 static const char *OPT_DSHAPE[] = { "Linear", "Arc" };
 static const char *OPT_DTAL[] = { "Centred", "Left" };
 static const char *OPT_SIMPLE_BG[]={"Plain","Blur","Cover"};
-static const char *OPT_DSCROLL[] = { "Classic", "Straight", "Disco" };
+static const char *OPT_QSSTYLE[] = { "Classic", "Shade" };   /* QS style 1 and 2 (all themes) */
+static const char *OPT_DSCROLL[] = { "Classic", "Straight", "Disco", "Wheel" };
 static const char *OPT_DSIDE[] = { "Right", "Left" };
 /* Side: pick with the arrows, then Apply (on the Side page) - the interface restarts with the hub (and everything around it) on that side */
 static void apply_disco_side_ok(int v){
@@ -820,6 +821,8 @@ static const setting_t TABLE[] = {
       "Screen backlight level. While Outdoor Mode is on the screen stays at full brightness.", NULL },
     { "Display", "Theme", ST_ACTION, NULL, 0,0,0, NULL,0, LV_SYMBOL_RIGHT, apply_grp_themecolours, 0,
       "Theme, appearance, automatic switching, Outdoor Mode and accent colour.", NULL },
+    { "Display", "QS style", ST_CYCLER, "qs_style", 0,0,0, OPT_QSSTYLE, 2, NULL, NULL, 0,
+      "Pulling down from the top: Classic opens Quick settings. Shade shows what's playing first; pull again for Quick settings.", NULL },
     {"Display","Null Options",ST_ACTION,NULL,0,0,0,NULL,0,LV_SYMBOL_RIGHT,apply_null_options,0,"Null theme settings",NULL},
     {"Null Options","Menu items",ST_ACTION,NULL,0,0,0,NULL,0,LV_SYMBOL_RIGHT,apply_null_menu,0,"Choose and reorder destinations and installed apps",NULL},
     {"Null Options","Quick settings",ST_ACTION,NULL,0,0,0,NULL,0,LV_SYMBOL_RIGHT,apply_null_qs,0,"Choose up to eight quick items and arrange their order",NULL},
@@ -835,7 +838,7 @@ static const setting_t TABLE[] = {
     {"Null Options","Track number",ST_TOGGLE,"null_trackno",0,1,1,NULL,0,NULL,NULL,0,"Prefix the Music title with its tag track number.",NULL},
     {"Null Options","Close nav bar",ST_CYCLER,"null_autohide",0,0,3,OPT_NULLAUTO,4,NULL,apply_null_live,2,"Navigation drawer timeout",NULL},
     {"Null Options","Side",ST_CYCLER,"null_side",0,0,1,OPT_DSIDE,2,NULL,apply_null_live,0,"Navigation opener handedness",NULL},
-    {"Null Options","Scroll",ST_CYCLER,"null_scroll",0,0,0,OPT_DSCROLL,3,NULL,NULL,0,"Classic curves; Straight stays flat; Disco swings rows. Saved separately for Null.",NULL},
+    {"Null Options","Scroll",ST_CYCLER,"null_scroll",0,0,0,OPT_DSCROLL,4,NULL,NULL,0,"Classic curves; Straight stays flat; Disco swings rows. Saved separately for Null.",NULL},
     {"Null Options","Double tap",ST_CYCLER,"null_nav_double",0,0,0,OPT_NAV_ACTION,DISCO_NAV_COUNT,NULL,NULL,DISCO_NAV_SEARCH,"Double-tap the centre of the open menu handle. Dragging still scrolls.",NULL},
     {"Null Options","Handle hold",ST_CYCLER,"null_nav_hold",0,0,0,OPT_NAV_ACTION,DISCO_NAV_COUNT,NULL,NULL,DISCO_NAV_MUSIC,"Hold the centre of the open menu handle. Its ends retain continuous scroll.",NULL},
     {"Null Options","Arrow colours",ST_TOGGLE,"null_drawer_state_colours",0,1,1,NULL,0,NULL,apply_null_live,1,"Closed blue/red; open yellow/lime",NULL},
@@ -950,7 +953,7 @@ static const setting_t TABLE[] = {
       "Linear below the title, or Arc round the rim. Tap or drag either to seek.", NULL },
     { "Disco Layout", "Side", ST_CYCLER, "disco_side_pick", 0,0,0, OPT_DSIDE, 2, NULL, NULL, 0,
       "Pick a side, then Apply. The screen restarts; your music keeps playing.", NULL },
-    { "Disco Layout", "Scroll", ST_CYCLER, "disco_scroll", 0,0,0, OPT_DSCROLL, 3, NULL, NULL, 0,
+    { "Disco Layout", "Scroll", ST_CYCLER, "disco_scroll", 0,0,0, OPT_DSCROLL, 4, NULL, NULL, 0,
       "Classic follows the rim; Straight keeps rows flat; Disco swings rows round the menu.", NULL },
     { "Disco Layout", "Double tap", ST_CYCLER, "disco_nav_double", 0,0,0, OPT_NAV_ACTION, DISCO_NAV_COUNT, NULL, NULL, DISCO_NAV_SEARCH,
       "Double-tap the icon in the open navigation circle.", NULL },
@@ -1827,9 +1830,10 @@ static void hub_cb(lv_event_t *e){ list_back_cb(e); }
 /* Disco: the categories as a curved list of rounded rows (as Quick Settings), clear of the navigation sliver */
 static void disco_cat_cb(lv_event_t *e){ if(lv_event_get_code(e) == LV_EVENT_CLICKED) cat_pick((int)(intptr_t)lv_event_get_user_data(e)); }
 static void settings_disco_list(lv_obj_t *root){          /* styled like the submenus: curved rows, 4 in view, scroll dots */
-    lv_obj_t *t = lv_label_create(root); lv_label_set_text(t, "Settings");
-    lv_obj_set_style_text_font(t, th_simple()?TF(HEADER):TF(UI_20), 0); lv_obj_set_style_text_color(t, th_simple()?TC(ACCENT_PRIMARY):TC(TEXT_PRIMARY), 0);
-    lv_obj_align(t, LV_ALIGN_TOP_MID, 0, th_simple()?24:28);
+    lv_obj_t *t = lv_label_create(root); lv_label_set_text(t, th_null() ? "SETTINGS" : "Settings");   /* Null: titles in capitals */
+    lv_obj_set_style_text_font(t, (th_simple()||th_null())?TF(HEADER):TF(UI_20), 0); lv_obj_set_style_text_color(t, th_simple()?TC(ACCENT_PRIMARY):TC(TEXT_PRIMARY), 0);
+    if(th_null()){ lv_obj_add_flag(t, THEME_TITLE_STEPPED); kit_keep(t); }
+    lv_obj_align(t, LV_ALIGN_TOP_MID, 0, (th_simple()?24:th_null()?36:28) - library_lift());   /* on the raised header line */
     lv_obj_t *list = make_list(root);
     static curvelist_t cl; curvelist_attach(&cl, list, root, 288);
     for(int g = 0; g < N_GROUPS; g++){
@@ -1900,24 +1904,28 @@ static void howto_next(lv_event_t *e){
 }
 static void howto_body(lv_obj_t *root){
     static const char *titles[]={"Navigate","Navigation menu","Music","Seek / artwork","Quick Settings","Library","Queue / picking","Clock / volume","More shortcuts","Start-up / battery","Disc Shelf","Shuffle!"};
-    char music[256],nav[256],quick[256],more[256],seek[256];
+    char music[256],nav[256],quick[320],more[256],seek[256],lib[320];
+    snprintf(lib,sizeof lib,"Hold an item for its round menu; the middle goes back. %s Drag the rim to scroll; hold it still to pick a letter. Scroll > Wheel keeps the current row in the middle. Cover flow: drag to browse; tap for tracks; hold to play.",
+             simple_cfg_get_int("library_seeking",0)==1?"Tap the letter dot, then turn: clockwise forward, counter-clockwise back.":"Tap A-Z, then a letter on the round keypad.");
     int hold=simple_cfg_get_int(th_null()?"null_title_hold":"disco_title_hold",0);
     int mode=simple_cfg_get_int(th_null()?"null_controls":"disco_controls",0);
     snprintf(nav,sizeof nav,"%s",th_null()?"Side arrow: open menu. Drag text or handle. Hold handle ends to scroll; double-tap / hold its centre for your shortcuts.":"Side tab: open menu. Arrows: browse. Centre icon: open. Double-tap / hold the centre for your chosen shortcuts.");
     snprintf(music,sizeof music,"Title tap: track actions / Mood. Hold: %s. %s",hold==0?"Immersive":hold==1?"favourite / unfavourite":"no action",mode==2?"Double-tap the gesture field: play/pause. Swipe right: next; left: previous.":mode==1?"Auto-fade: tap once to reveal controls, then tap a button.":"Use the previous, play/pause and next buttons.");
-    snprintf(quick,sizeof quick,"Tap Wi-Fi / BT to toggle; hold for connections. Tap EQ to switch it on or off; hold for the Equalizer. Drag brightness. %s",th_null()?"Tap outside / bottom arrow, or swipe up beside the panel to close.":"Swipe up to close.");
+    snprintf(quick,sizeof quick,"%sTap Wi-Fi / BT to toggle; hold for connections. Tap EQ to switch it on or off; hold for the Equalizer. Drag brightness. %s",
+             simple_cfg_get_int("qs_style",0)==1?"Shade: pull down for what's playing (tap the cover: play/pause; the title: its album), pull again for QS. ":"",
+             th_null()?"Tap outside / bottom arrow, or swipe up beside the panel to close.":"Swipe up to close.");
     snprintf(more,sizeof more,"%s EQ: tap a band; drag or use +/-. Tap gain/frequency to switch. Power button: pocket lock.",onboarding_gesture_text(HINT_SHORTCUTS));
-    {   /* Immersive: with Circular control on, taps don't close it (2.5.4) */
+    {   /* Immersive: with Circular control on, taps don't close it */
         int circ=simple_cfg_get_int("imm_scrub",0), vol=simple_cfg_get_int("imm_scrub_action",0)==1;
         const char *imm=circ?(vol?"Full-screen artwork: turn it for volume; swipe from the edge to return.":"Full-screen artwork: turn it to seek; swipe from the edge to return."):"Tap full-screen artwork for playback controls; swipe from the left edge to return.";
-        snprintf(seek,sizeof seek,"%s %s Back swipe closes the track popup.",th_null()?"Tap or drag progress to seek; hold for a big time preview, let go to jump.":"Tap / drag progress to seek; hold for a big time preview, let go to jump.",imm);
+        snprintf(seek,sizeof seek,"%s %s The track menu closes from its middle.",th_null()?"Tap or drag progress to seek; hold for a big time preview, let go to jump.":"Tap / drag progress to seek; hold for a big time preview, let go to jump.",imm);
     }
-    const char *bodies[]={disco_mirror()?"Swipe left from the right edge: back. Swipe up from the bottom on other screens: Music. Pull down from the top: QS.":"Swipe right from the left edge: back. Swipe up from the bottom on other screens: Music. Pull down from the top: QS.",nav,music,seek,quick,"Hold an item for actions. Tap A-Z, then a letter. Drag the rim to scroll. Cover flow: drag to browse; tap for tracks; hold to play.","Swipe across songs, albums, artists or folders to pick several. Queue: add songs, then Play on the Queue screen, even with nothing playing.","Clock: tap for Weather; hold the top strip to hide/show. Drag volume to adjust; tap outside to dismiss.",more,"Hold Volume Up at power-on: the other interface, once. Always: Controls > Default UI. Battery: hold the line under the bar to reset totals.","Open Disc Shelf. In Server, choose Navidrome or SMB3. Swipe rows to select, then Download. Nothing syncs with it closed. SMB3 is experimental.","Set Navigation > Gestures > Menu hold to Shuffle! Hold the open menu control to shuffle all songs, return to Music and see Happy listening!"};
+    const char *bodies[]={disco_mirror()?"Swipe left from the right edge: back. Swipe up from the bottom on other screens: Music. Pull down from the top: QS.":"Swipe right from the left edge: back. Swipe up from the bottom on other screens: Music. Pull down from the top: QS.",nav,music,seek,quick,lib,"Swipe across songs, albums, artists or folders to pick several. Queue: add songs, then Play on the Queue screen, even with nothing playing.","Clock: tap for Weather; hold the top strip to hide/show. Drag volume to adjust; tap outside to dismiss.",more,"Hold Volume Up at power-on: the other interface, once. Always: Controls > Default UI. Battery: hold the line under the bar to reset totals.","Open Disc Shelf. In Server, choose Navidrome or SMB3. Swipe rows to select, then Download. Nothing syncs with it closed. SMB3 is experimental.","Set Navigation > Gestures > Menu hold to Shuffle! Hold the open menu control to shuffle all songs, return to Music and see Happy listening!"};
     _Static_assert(sizeof titles/sizeof *titles==sizeof bodies/sizeof *bodies,"one body per how-to page");
     if(th_zune()){bodies[1]="Main menu: drag the list and tap an item. Tap, double-tap or hold the edge icon for your shortcuts. Set them in Display > Music screen > Zune.";}
     if(th_simple()){
         snprintf(nav,sizeof nav,"Tap D! to open. Drag the wheel to browse; release to snap. Tap the icon to open. D! closes; double-tap D! / hold either icon for your shortcuts.");
-        snprintf(quick,sizeof quick,"Eight icon slots. Tap Wi-Fi / Bluetooth to toggle; hold for connections. Tap EQ to switch it; hold for the Equalizer. Hold other icons for names. Drag the sun arc for brightness; battery arc shows charge.");
+        snprintf(quick,sizeof quick,"%sEight icon slots. Tap Wi-Fi / Bluetooth to toggle; hold for connections. Tap EQ to switch it; hold for the Equalizer. Hold other icons for names. Drag the sun arc for brightness; battery arc shows charge.",simple_cfg_get_int("qs_style",0)==1?"Shade: pull down for what's playing, again for QS. ":"");
         bodies[7]="Clock: tap for Weather; hold the top strip to hide/show. Drag the bottom volume arc. Tap D! / outside to close; it auto-hides after input stops.";
         bodies[1]=nav;bodies[2]="Tap track text for actions / Mood. Double-tap: play/pause. Swipe right: next; left: previous. Hold uses your Title hold setting.";bodies[4]=quick;
     }

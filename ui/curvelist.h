@@ -12,6 +12,11 @@ void curvelist_braun_row(lv_obj_t *row);
 void curvelist_braun_watch(lv_obj_t *list);  /* Braun: keep a list's visible rows styled as it fills */  /* Braun: restyle one list row (straight, rule, dark type, focus dot) */    /* after (re)filling the rows */
 /* Original floored circle spans, cached for the list radii 150, 172 and 180. */
 int curvelist_circle_half(int radius, int distance);
-int curvelist_disco_scroll(void);   /* Disco > Scroll: 0 Classic, 1 Straight, 2 Disco (0 outside Disco/Null) */
+void curvelist_edge_fade(lv_obj_t *list);   /* Disco, Squash, Null: soft top/bottom edges in the list's empty space */
+int curvelist_disco_scroll(void);
+const lv_image_dsc_t *curvelist_fade_strip(int vertical, int len, int opaque_end, lv_color_t col);   /* dithered fade ramp */
+int  curvelist_wheel(void);                                 /* List motion "Wheel" is on (Disco, Squash, Null) */
+void curvelist_wheel_list(lv_obj_t *list, int row_h);       /* Wheel: centring pads + snap */
+void curvelist_wheel_row(lv_obj_t *row, lv_obj_t *list);    /* Wheel: one row's size, place and colour */   /* Disco > Scroll: 0 Classic, 1 Straight, 2 Disco (0 outside Disco/Null) */
 int curvelist_disco_geom(int mode, int y1, int y2, int full_w, int *w, int *shift);   /* 1 = handled */
 #endif

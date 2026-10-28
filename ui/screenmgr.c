@@ -480,5 +480,6 @@ void screens_init(void)
 }
 
 void screen_set_anim(int on){ s_anim = on ? 1 : 0; }
+
 int  screen_get_anim(void){ return s_anim; }
 void screen_skip_anim_once(void){ s_skip = 1; }

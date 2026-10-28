@@ -64,6 +64,8 @@ See `docs/HARDWARE.md` for the full map and the reproducible probe commands.
 
 ## Working habits
 
+- **No vertical text scrolling, ever, in any theme.** Labels must fit or scroll sideways / end in "..."; the bundled LVGL has vertical label scrolling switched off (`DISKOS_LABEL_VSCROLL 0` in `lv_label.c`). See `docs/DESIGN_SYSTEM.md`.
+
 - **Honest limitations.** When something is blocked by hardware (no 5 GHz, no GPU, DAC ioctls
   not yet reverse-engineered) or a toolchain gap, say so plainly instead of implying it works.
 - **Test before claiming success.** A change to the image builder or the boot hook is not

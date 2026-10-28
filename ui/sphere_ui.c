@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* SongSphere, built in (2.2.0): music by mood. The same app as the add-on (ui/songsphere: the sphere and its data are
+/* SongSphere, built in: music by mood. The same app as the add-on (ui/songsphere: the sphere and its data are
  * shared), as one screen of mq_ui with four pages:
  *   first page  - Play Music / Place Music, how much is placed
  *   Place Music - albums or artists (most played first), curved list; a tap opens the tag page

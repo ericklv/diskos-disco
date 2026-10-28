@@ -6,6 +6,10 @@
 /*********************
  *      INCLUDES
  *********************/
+/* diskOS (all themes): text never scrolls vertically - not anywhere, not for any reason. A label in a scrolling long
+ * mode whose text is taller than its box (a wrapped line, a large font size setting, a box set too short) stays still
+ * on its first lines instead of rolling up and down. Horizontal scrolling of a long single line is unaffected. */
+#define DISKOS_LABEL_VSCROLL 0
 #include "lv_label_private.h"
 #include "../../misc/lv_area_private.h"
 #include "../../misc/lv_anim_private.h"
@@ -990,7 +994,7 @@ static void lv_label_refr_text(lv_obj_t * obj)
             label->offset.x = 0;
         }
 
-        if(size.y > lv_area_get_height(&txt_coords) && hor_anim == false) {
+        if(DISKOS_LABEL_VSCROLL && size.y > lv_area_get_height(&txt_coords) && hor_anim == false) {
             lv_anim_set_values(&a, 0, lv_area_get_height(&txt_coords) - size.y - (lv_font_get_line_height(font)));
             lv_anim_set_exec_cb(&a, set_ofs_y_anim);
 
@@ -1084,7 +1088,7 @@ static void lv_label_refr_text(lv_obj_t * obj)
             label->offset.x = 0;
         }
 
-        if(size.y > lv_area_get_height(&txt_coords) && hor_anim == false) {
+        if(DISKOS_LABEL_VSCROLL && size.y > lv_area_get_height(&txt_coords) && hor_anim == false) {
             lv_anim_set_values(&a, 0, -size.y - (lv_font_get_line_height(font)));
             lv_anim_set_exec_cb(&a, set_ofs_y_anim);
             lv_anim_set_duration(&a, anim_time);

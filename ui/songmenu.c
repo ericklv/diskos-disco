@@ -9,6 +9,8 @@
  *   genre: Play, Shuffle, Add to queue, Playlist (Mood: SongSphere's tag page, when SongSphere is on)
  * The name sits at the top; the hub in the middle cancels. Favourite is filled red when it already is one. */
 #include "screens.h"
+#include "anim.h"
+#include "zune_thumbs.h"
 #include "theme.h"
 #include "braun.h"
 #include "orbit.h"
@@ -17,7 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 
-enum { A_QUEUE, A_PLAYLIST, A_FAV, A_ALBUM, A_ARTIST, A_INFO, A_TAGS, A_RENAME, A_COPYMOVE, A_DELETE, A_PLAY, A_SHUFFLE, A_MOOD, A_SELECT, A_N };
+enum { A_QUEUE, A_PLAYLIST, A_FAV, A_ALBUM, A_ARTIST, A_INFO, A_TAGS, A_RENAME, A_COPYMOVE, A_DELETE, A_PLAY, A_SHUFFLE, A_MOOD, A_SELECT, A_LYRICS, A_VQUEUE, A_N };   /* LYRICS, VQUEUE: the song ring only */
 static void (*g_sel_next)(void), (*g_sel)(void);   /* Zune: "Select" starts picking from this item (the Library sets it per hold) */
 void songmenu_offer_select(void (*fn)(void)){ g_sel_next = fn; }
 static lv_obj_t *g_ov;
@@ -30,7 +32,8 @@ static void (*g_done)(void);
 static char g_gcol[8], g_gval[256];          /* group menu: SONG column + value */
 static void (*g_gplay)(int shuffle);         /* group menu: the list's own play action */
 
-static void close_ov(void){ if(g_ov){ lv_obj_delete(g_ov); g_ov = NULL; } }
+static int g_song_ring;   /* this menu is a song's round menu (Disco, Squash, Null) */
+static void close_ov(void){ if(g_ov){ lv_obj_delete(g_ov); g_ov = NULL; } zthumb_force(0); }
 void songmenu_close(void){ if(g_ov){ lv_obj_delete_async(g_ov); g_ov = NULL; } }   /* a screen change: never act on the old row */
 static int is_current(const char *path){ track_state_t st; ipc_get_state(&st); return st.have_track && !strcmp(st.path, path); }
 static void pick(int i){
@@ -45,6 +48,10 @@ static void pick(int i){
                 ui_toast(t); }
             else ui_toast_icon(LV_SYMBOL_LIST, ui_current_accent(), r > 0 ? "Added to the queue" : r < 0 ? "The queue is full" : "Can't queue that");
         } break;
+        case A_LYRICS:
+            if(is_current(g_path)) lyrics_open(); else ui_toast("Lyrics show for the song that's playing");
+            break;
+        case A_VQUEUE: queue_open(); break;
         case A_PLAYLIST:
             if(g_gcol[0]) plpick_set_group(g_gcol, g_gval);
             else if(g_is_dir) plpick_set_folder(g_path); else plpick_set_song(g_path, 0, NULL);
@@ -120,7 +127,7 @@ static void sheet_pick(lv_event_t *e){pick((int)(intptr_t)lv_event_get_user_data
 static void open_menu(const char *title, const int *acts, int n){
     close_ov();
     if(th_zune()){ zune_menu(title, acts, n); return; }
-    if(!g_is_dir && !g_gcol[0] && (th_disco()||th_simple()||th_null())){
+    if(!g_song_ring && !g_is_dir && !g_gcol[0] && (th_disco()||th_simple()||th_null())){
         static const int order[]={A_FAV,A_ALBUM,A_ARTIST,A_PLAYLIST,A_QUEUE,A_INFO,A_TAGS,A_RENAME,A_COPYMOVE,A_DELETE};
         static const char *const names[]={"Favourite","Go to album","Go to artist","Add to playlist","Add to queue","Song info","Tags","Rename","Copy/Move","Delete"};
         static const char *const icons[]={TH_IC_HEART,LV_SYMBOL_IMAGE,LV_SYMBOL_HOME,LV_SYMBOL_PLUS,LV_SYMBOL_LIST,LV_SYMBOL_FILE,LV_SYMBOL_EDIT,LV_SYMBOL_EDIT,LV_SYMBOL_COPY,LV_SYMBOL_TRASH};
@@ -130,6 +137,7 @@ static void open_menu(const char *title, const int *acts, int n){
         g_ov=lv_obj_create(lv_layer_top());lv_obj_remove_style_all(g_ov);kit_keep(g_ov);lv_obj_set_size(g_ov,360,360);
         const void *cover=is_current(g_path)?ui_current_cover_dsc():NULL;
         track_sheet_build(g_ov,title,g_have_song?g_song.artist:"",cover,labels,glyphs,g_nact,sheet_pick,hub_cb);
+        anim_pop_in(g_ov);                       /* the sheet fades and rises in */
         return;
     }
     g_ov = lv_obj_create(lv_layer_top());
@@ -145,6 +153,15 @@ static void open_menu(const char *title, const int *acts, int n){
     orbit_item_t it[8];
     g_nact = n > 8 ? 8 : n;
     for(int i = 0; i < g_nact; i++){ g_act[i] = acts[i]; it[i].glyph = GLYPH[acts[i]]; it[i].cap = CAP[acts[i]]; }
+    if(g_song_ring){   /* the song menu's own wording */
+        static const char *const SCAP[A_N] = { [A_QUEUE] = "+Queue", [A_PLAYLIST] = "+Playlist", [A_FAV] = "Favourite", [A_ALBUM] = "Album",
+                                               [A_ARTIST] = "Artist", [A_INFO] = "Info", [A_TAGS] = "Tags", [A_LYRICS] = "Lyrics", [A_VQUEUE] = "View queue" };
+        static const char *const NCAP[A_N] = { [A_QUEUE] = "+Queue", [A_PLAYLIST] = "+List", [A_FAV] = "Fav", [A_ALBUM] = "Album",
+                                               [A_ARTIST] = "Artist", [A_INFO] = "Info", [A_TAGS] = "Tags", [A_LYRICS] = "Lyrics", [A_VQUEUE] = "Queue" };   /* Null: its wide face */
+        for(int i = 0; i < g_nact; i++){ const char *const *c = th_null() ? NCAP : SCAP; if(c[g_act[i]]) it[i].cap = c[g_act[i]];
+            if(g_act[i] == A_LYRICS) it[i].glyph = LV_SYMBOL_AUDIO;
+            if(g_act[i] == A_VQUEUE) it[i].glyph = th_null() ? LV_SYMBOL_RIGHT : LV_SYMBOL_BARS; }
+    }
     g_sel = g_sel_next; g_sel_next = NULL;                                   /* offered for this menu only */
     if(g_sel && th_zune() && g_nact < 8){ g_act[g_nact] = A_SELECT; it[g_nact].glyph = GLYPH[A_SELECT]; it[g_nact].cap = CAP[A_SELECT]; g_nact++; }
     orbit_create(&g_orb, g_ov, it, g_nact, -90, pick);
@@ -152,7 +169,14 @@ static void open_menu(const char *title, const int *acts, int n){
         if(g_act[i] == A_FAV){ lv_obj_set_style_text_font(g_orb.icon[i], &font_theme_20, 0); orbit_set_on(&g_orb, i, g_fav, ui_current_accent()); }
         if(g_act[i] == A_DELETE && !th_braun()) lv_obj_set_style_text_color(g_orb.icon[i], ui_current_accent(), 0);
     }
-    orbit_hub_create(&g_orb, g_ov, hub_cb, g_gcol[0] ? LV_SYMBOL_LIST : g_is_dir ? LV_SYMBOL_DIRECTORY : LV_SYMBOL_AUDIO, "Cancel");
+    if(library_lift() || g_song_ring) orbit_hub_create(&g_orb, g_ov, hub_cb, LV_SYMBOL_LEFT, "Back");   /* Back, not Cancel */
+    else orbit_hub_create(&g_orb, g_ov, hub_cb, g_gcol[0] ? LV_SYMBOL_LIST : g_is_dir ? LV_SYMBOL_DIRECTORY : LV_SYMBOL_AUDIO, "Cancel");
+    if(g_song_ring){   /* the hub: the song's cover with a back arrow */
+        lv_obj_t *img = orbit_hub_cover_back(&g_orb);
+        if(is_current(g_path)) orbit_hub_cover_set(img, ui_current_cover_dsc());
+        else if(g_have_song && g_song.id > 0){ lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN); zthumb_force(1); zthumb_bind(img, g_song.id, ORBIT_HUB); }
+        else lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
+    }
     lv_obj_t *t = lv_label_create(g_ov);
     lv_label_set_text(t, title);
     lv_label_set_long_mode(t, LV_LABEL_LONG_SCROLL_CIRCULAR);
@@ -162,7 +186,12 @@ static void open_menu(const char *title, const int *acts, int n){
     lv_obj_set_height(t, lv_font_get_line_height(ui_font_cjk(18)));     /* fork: one line + "...", never wraps into the orbit */
     lv_obj_set_style_text_color(t, TC(TEXT_PRIMARY), 0);
     lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 10);
+    if(g_song_ring) lv_obj_add_flag(t, LV_OBJ_FLAG_HIDDEN);   /* the wider ring reaches the top: the cover says which song */
+    if(g_song_ring) orbit_spread();
     orbit_popup_polish(&g_orb);
+    if(g_song_ring){ void disco_vec_icon(lv_obj_t *, const char *, int);   /* album: a record; artist: a microphone */
+        for(int i = 0; i < g_nact; i++){ if(g_act[i] == A_ALBUM) disco_vec_icon(g_orb.icon[i], "@vinyl", 24);
+                                         if(g_act[i] == A_ARTIST) disco_vec_icon(g_orb.icon[i], "@mic", 24); } }
     if(g_fav) for(int i=0;i<g_nact;i++) if(g_act[i]==A_FAV) orbit_set_on(&g_orb,i,1,ui_current_accent());
     if(screen_current()==SCR_LIBRARY)onboarding_discovered(HINT_LIBRARY);
     disco_menu_glass(&g_orb, g_ov);                                   /* Disco: glass over the cover backdrop */
@@ -178,7 +207,10 @@ void songmenu_open_song(const char *path){                   /* Library */
     g_gcol[0] = 0; g_is_dir = 0; g_done = NULL; load_song(path);
     const char *sl = strrchr(path, '/'); snprintf(g_name, sizeof g_name, "%s", sl ? sl + 1 : path);
     static const int A[7] = { A_QUEUE, A_PLAYLIST, A_FAV, A_ALBUM, A_ARTIST, A_INFO, A_TAGS };
-    open_menu(g_have_song && g_song.title[0] ? g_song.title : g_name, A, 7);
+    static const int R[8] = { A_FAV, A_LYRICS, A_ALBUM, A_ARTIST, A_VQUEUE, A_INFO, A_QUEUE, A_PLAYLIST };   /* as the Music pop-up, clockwise from 12 */
+    g_song_ring = library_lift() > 0;
+    open_menu(g_have_song && g_song.title[0] ? g_song.title : g_name, g_song_ring ? R : A, g_song_ring ? 8 : 7);
+    g_song_ring = 0;
 }
 void songmenu_open_file(const char *dir, const char *name, void (*done)(void)){   /* folder browser: a song */
     char p[600]; snprintf(p, sizeof p, "%s/%s", dir, name);

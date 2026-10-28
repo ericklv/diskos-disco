@@ -132,7 +132,94 @@ int curvelist_disco_geom(int mode, int y1, int y2, int full_w, int *w, int *shif
     *w = right - left; *shift = (left + right) / 2 - 180;
     return 1;
 }
+/* ---- Wheel (List motion 4, Disco / Squash / Null): the row in the middle is the current one - large, in the main
+ * text colour, no pill; the rows next to it a size smaller and grey; the outer ones smallest and dim, sinking under
+ * the soft edges. Rows step between three sizes (no per-frame scaling); spacing tightens away from the middle. */
+#define WHEEL_MODE 3
+int curvelist_wheel(void){ return curvelist_disco_scroll() == WHEEL_MODE && (th_disco_family() || th_null()) && !th_zune(); }
+static lv_color_t g_wheel_icon;   /* Squash: the colour icons take in this row (its orange, faded like the text) */
+static int is_icon(lv_obj_t *l){ const char *t = lv_label_get_text(l); return t && (unsigned char)t[0] >= 0xE0 && strcmp(t, LV_SYMBOL_RIGHT) && strcmp(t, LV_SYMBOL_LEFT); }   /* a symbol glyph, not the › chevron */
+static void wheel_paint(lv_obj_t *o, lv_color_t c){
+    for(uint32_t i = 0; i < lv_obj_get_child_count(o); i++){
+        lv_obj_t *ch = lv_obj_get_child(o, i);
+        if(lv_obj_check_type(ch, &lv_button_class)) continue;   /* a button inside a row keeps its own colours */
+        if(lv_obj_check_type(ch, &lv_label_class)) lv_obj_set_style_text_color(ch, th_simple() && is_icon(ch) ? g_wheel_icon : c, 0);
+        else if(lv_obj_check_type(ch, &lv_image_class)) lv_obj_set_style_image_opa(ch, c.red == TC(TEXT_PRIMARY).red ? LV_OPA_COVER : LV_OPA_60, 0);
+        else wheel_paint(ch, c);
+    }
+}
+/* The current row is pinned to the middle of the screen. The list starts one row above it (the one row that fits
+ * under the header) and runs down to the bottom edge; rows snap so one always rests exactly in the middle. */
+#define WHEEL_FADE_TOP 26   /* Wheel: the soft top edge, taken from the header's space above the row above */
+#define WHEEL_FADE_BOT 52   /* Wheel: the soft bottom edge, the footer's space at the foot of the screen */
+#define WHEEL_ABOVE 46      /* room for the one row shown above the current one */
+void curvelist_wheel_list(lv_obj_t *list, int row_h){
+    int top = 50, h = 352 - top;   /* the list starts right under the header line: more shows above the current row */
+    if(lv_obj_get_y(list) != top || lv_obj_get_height(list) != h){ lv_obj_set_y(list, top); lv_obj_set_height(list, h); }
+    int pt = 180 - row_h / 2 - top, pb = h - pt - row_h; if(pb < 0) pb = 0;
+    if(lv_obj_get_style_pad_top(list, 0) != pt || lv_obj_get_style_pad_bottom(list, 0) != pb){
+        lv_obj_set_style_pad_top(list, pt, 0); lv_obj_set_style_pad_bottom(list, pb, 0); }
+    lv_obj_set_scroll_snap_y(list, LV_SCROLL_SNAP_START);
+}
+void curvelist_wheel_row(lv_obj_t *r, lv_obj_t *list){
+    lv_area_t a, l; lv_obj_get_coords(r, &a); lv_obj_get_coords(list, &l);
+    int h = lv_area_get_height(&a); if(h < 1) return;
+    lv_area_t sc; lv_obj_get_coords(lv_obj_get_parent(list), &sc);
+    int cy = (a.y1 + a.y2) / 2 - lv_obj_get_style_translate_y(r, 0), vc = sc.y1 + 180;   /* the screen's middle */
+    (void)l;
+    int dq = (cy - vc) * 100 / h;                                   /* distance from the middle, in hundredths of a row */
+    int ad = abs(dq), lvl = ad < 50 ? 0 : ad < 150 ? 1 : 2;
+    static const int SC[3] = { 282, 218, 176 };                     /* 110 %, 85 %, 69 % */
+    intptr_t key = ((intptr_t)lvl << 20 | ((dq / 10) & 0xFFFF)) + 0x5A000000;
+    /* the middle row in the main text colour (white, or black on light); the rest greyed towards the background */
+    lv_color_t want = lvl == 0 ? TC(TEXT_PRIMARY) : theme_color_mix(TC(CANVAS), TC(TEXT_PRIMARY), lvl == 1 ? 120 : 185);
+    lv_obj_t *probe = NULL;                                         /* a theme pass may have restyled the row since */
+    for(uint32_t i = 0; i < lv_obj_get_child_count(r) && !probe; i++) if(lv_obj_check_type(lv_obj_get_child(r, i), &lv_label_class) && !is_icon(lv_obj_get_child(r, i))) probe = lv_obj_get_child(r, i);   /* a text label, not an icon */
+    int fresh = lv_obj_get_style_bg_opa(r, 0) == LV_OPA_TRANSP && lv_obj_get_style_border_width(r, 0) == 0 && (!probe || lv_color_eq(lv_obj_get_style_text_color(probe, 0), want));
+    if(fresh && (intptr_t)lv_obj_get_user_data(r) == key) return;
+    lv_obj_set_user_data(r, (void *)key);
+    lv_obj_set_style_bg_opa(r, LV_OPA_TRANSP, 0); lv_obj_set_style_border_width(r, 0, 0);   /* no pill */
+    lv_obj_set_style_shadow_width(r, 0, 0); lv_obj_set_style_outline_width(r, 0, 0);
+    if(!lv_obj_get_style_transform_pivot_x(r, 0)) lv_obj_set_style_transform_pivot_x(r, 18, 0);   /* from the text's start (left edges in line), unless the row set its own pivot (centred content) */ lv_obj_set_style_transform_pivot_y(r, h / 2, 0);
+    lv_obj_set_style_transform_scale(r, SC[lvl], 0);
+    {   /* Disco's navigation shard on the rim: no row reaches under it. A row whose far end (a time, a count, a ›)
+         * would - at its size here, or already at full width - moves left until it is 16 px clear, as far as the round
+         * edge on the left allows; whatever is still over is taken off its size. Rows are never narrowed: their parts
+         * would be cut. Left-handed: rows already start right of the shard. */
+        int sc = SC[lvl], w0 = lv_obj_get_width(r), shift = 0;
+        lv_area_t ra; lv_obj_get_coords(lv_obj_get_parent(list), &ra);   /* its screen, which may be sliding in */
+        int ax1 = a.x1 - lv_obj_get_style_translate_x(r, 0) - ra.x1;      /* where the row sits on its screen, before any shift of ours */
+        int ay = (a.y1 + a.y2) / 2 - ra.y1;
+        int y1 = ay - h * sc / 512, y2 = y1 + h * sc / 256;
+        int rx = lv_obj_has_flag(r, LV_OBJ_FLAG_USER_2) ? 0 : disco_clear_right(y1, y2);
+        int pv = lv_obj_has_flag(r, LV_OBJ_FLAG_USER_2) ? w0 / 2 : 18;   /* USER_2: centred content (the album row) */
+        if(rx > 0){
+            int limit = rx - 16, right = ax1 + pv + (w0 - pv) * sc / 256, over = right - limit;
+            if(over > 0){
+                int cy = ay, dy = abs(cy - 180), edge = 180 - (dy < 180 ? curvelist_circle_half(180, dy) : 0) + 12;
+                int left = ax1 + pv - pv * sc / 256;                          /* the row's left end at this size */
+                shift = over < left - edge ? over : (left - edge > 0 ? left - edge : 0);
+                over -= shift;
+                if(over > 0 && w0 - pv > 0){ sc = (limit + shift - ax1 - pv) * 256 / (w0 - pv); if(sc < 160) sc = 160; }
+            }
+        }
+        if(lv_obj_get_style_transform_pivot_x(r, 0) != pv) lv_obj_set_style_transform_pivot_x(r, pv, 0);
+        if(sc != SC[lvl]) lv_obj_set_style_transform_scale(r, sc, 0);
+        lv_obj_set_style_translate_x(r, -shift, 0);
+    }
+    lv_obj_set_style_translate_y(r, 0, 0);   /* natural spacing: rows of different heights (an album's cover row) never overlap */
+    g_wheel_icon = lvl == 0 ? TC(ACCENT_PRIMARY) : theme_color_mix(TC(CANVAS), TC(ACCENT_PRIMARY), lvl == 1 ? 120 : 185);   /* Squash icons stay orange */
+    wheel_paint(r, want);
+}
 static void curve(curvelist_t *c){
+    if(curvelist_wheel()){
+        curvelist_wheel_list(c->list, 48);
+        for(uint32_t i = 0; i < lv_obj_get_child_count(c->list); i++){
+            lv_obj_t *r = lv_obj_get_child(c->list, i);
+            if(lv_obj_has_flag(r, LV_OBJ_FLAG_USER_1)) curvelist_wheel_row(r, c->list);
+        }
+        return;
+    }
     if(th_braun()){                                               /* Braun: straight rows, restyled */
         uint32_t n = lv_obj_get_child_count(c->list);
         for(uint32_t i = 0; i < n; i++){
@@ -206,18 +293,55 @@ static void dots(curvelist_t *c){
 static void scroll_cb(lv_event_t *e){ curvelist_t *c = lv_event_get_user_data(e); curve(c); dots(c); }
 /* Fixed viewport overlays: transparent beside the rows, opaque at the safe
  * edges. Drawing after children keeps them stationary during scrolling and
- * adds no objects, input surfaces or animation timers. */
+ * adds no objects, input surfaces or animation timers.
+ * Each band only takes space that holds no row at rest: the list's own padding plus however far it is scrolled
+ * on that side. At the top of a list the first row is never faded, at the end the last one is not either; rows
+ * only fade while they are on their way out of view. */
+/* Pre-rendered edge fades: a 16 px wide strip of the theme's background whose transparency ramps over the band,
+ * with a 4x4 ordered dither in the ramp - a plain gradient breaks into visible steps (blocks) on the panel, most of
+ * all where two fades overlap. Built once per size and colour, then tiled across the band. */
+static const uint8_t BAYER4[4][4] = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
+const lv_image_dsc_t *curvelist_fade_strip(int vertical, int len, int opaque_end, lv_color_t col){
+    static lv_image_dsc_t dsc[4]; static uint8_t *buf[4]; static int key_len[4]; static uint32_t key_col[4]; static int key_v[4], key_e[4];
+    uint32_t c = lv_color_to_u32(col); if(len < 2) len = 2;
+    for(int i = 0; i < 4; i++) if(buf[i] && key_len[i] == len && key_col[i] == c && key_v[i] == vertical && key_e[i] == opaque_end) return &dsc[i];
+    static int next; int i = next++ & 3;
+    int w = vertical ? 16 : len, h = vertical ? len : 16;
+    lv_free(buf[i]); buf[i] = lv_malloc((size_t)w * h * 4); if(!buf[i]) return NULL;
+    for(int y = 0; y < h; y++) for(int x = 0; x < w; x++){
+        int pos = vertical ? y : x;                                       /* 0 .. len-1 along the ramp */
+        int t = opaque_end ? pos : (len - 1 - pos);                        /* 0 = clear end .. len-1 = solid end */
+        int a = 255 * t / (len - 1) + ((int)BAYER4[y & 3][x & 3] - 8) * 3 / 2;   /* +-12: hides the steps */
+        if(t == 0) a = 0;
+        if(t == len - 1) a = 255;
+        if(a < 0) a = 0;
+        if(a > 255) a = 255;
+        uint8_t *px = buf[i] + ((size_t)y * w + x) * 4;
+        px[0] = col.blue; px[1] = col.green; px[2] = col.red; px[3] = (uint8_t)a;
+    }
+    memset(&dsc[i], 0, sizeof dsc[i]);
+    dsc[i].header.magic = LV_IMAGE_HEADER_MAGIC; dsc[i].header.cf = LV_COLOR_FORMAT_ARGB8888;
+    dsc[i].header.w = (uint32_t)w; dsc[i].header.h = (uint32_t)h; dsc[i].header.stride = (uint32_t)w * 4;
+    dsc[i].data = buf[i]; dsc[i].data_size = (uint32_t)w * h * 4;
+    key_len[i] = len; key_col[i] = c; key_v[i] = vertical; key_e[i] = opaque_end;
+    return &dsc[i];
+}
 static void edge_fade_cb(lv_event_t *e){
     if(!(th_disco() || th_simple() || th_null())) return;
     lv_obj_t *list = lv_event_get_current_target(e);
     lv_area_t a; lv_obj_get_coords(list, &a);
     /* Roughly half a standard menu row; clamp for small embedded lists. */
-    int h = th_null() ? 32 : 27;
+    int h = curvelist_wheel() ? WHEEL_FADE_BOT : th_null() ? 32 : 27;   /* Wheel: the footer's space */
     int height = lv_area_get_height(&a);
     if(h > height / 2) h = height / 2;
-    if(h < 2) return;
+    int h_top = curvelist_wheel() ? WHEEL_FADE_TOP : h;       /* Wheel: the header's space above the row above */
+    int room[2] = { lv_obj_get_style_pad_top(list, LV_PART_MAIN) + lv_obj_get_scroll_y(list),
+                    lv_obj_get_style_pad_bottom(list, LV_PART_MAIN) + lv_obj_get_scroll_bottom(list) };
+    int band_h[2];
+    for(int k = 0; k < 2; k++){ int hk = k ? h : h_top; band_h[k] = room[k] < hk ? room[k] : hk; }
+    if(band_h[0] < 2 && band_h[1] < 2) return;
     lv_draw_rect_dsc_t d; lv_draw_rect_dsc_init(&d);
-    lv_obj_t *screen = lv_obj_get_parent(list);
+    lv_obj_t *screen = list;   /* the nearest background actually painted behind the rows (the list's own, in Squash) */
     while(lv_obj_get_parent(screen) && lv_obj_get_style_bg_opa(screen, LV_PART_MAIN) != LV_OPA_COVER)
         screen = lv_obj_get_parent(screen);
     /* Disco can paint album art over its canvas. Repaint that same fixed
@@ -231,34 +355,56 @@ static void edge_fade_cb(lv_event_t *e){
         image.src = backdrop;
         image.recolor = lv_obj_get_style_bg_image_recolor(screen, LV_PART_MAIN);
         image.recolor_opa = lv_obj_get_style_bg_image_recolor_opa(screen, LV_PART_MAIN);
-        for(int edge = 0; edge < 2; edge++) for(int n = 0; n < h; n++){
+        for(int edge = 0; edge < 2; edge++) for(int n = 0, bh = band_h[edge]; bh >= 2 && n < bh; n++){
             lv_area_t line = a;
             line.y1 = line.y2 = edge ? a.y2 - n : a.y1 + n;
             if(!lv_area_intersect(&layer->_clip_area, &original, &line)) continue;
-            image.opa = (lv_opa_t)(255 * (h - 1 - n) / (h - 1));
+            image.opa = (lv_opa_t)(255 * (bh - 1 - n) / (bh - 1));
             if(image.opa) lv_draw_image(layer, &image, &image_area);
         }
         layer->_clip_area = original;
         return;
     }
     lv_color_t canvas = lv_obj_get_style_bg_color(screen, LV_PART_MAIN);
+    lv_area_t sa; lv_obj_get_coords(screen, &sa);
+    int vgrad = lv_obj_get_style_bg_grad_dir(screen, LV_PART_MAIN) == LV_GRAD_DIR_VER;
+    lv_color_t gcol = lv_obj_get_style_bg_grad_color(screen, LV_PART_MAIN);
+    for(int edge = 0; edge < 2; edge++){                                  /* the dithered strips, tiled across */
+        int bh = band_h[edge]; if(bh < 2) continue;
+        lv_color_t col = canvas;
+        if(vgrad){   /* a shaded background: the exact colour it has at this band's height, so no step shows */
+            int ym = edge ? a.y2 - bh / 2 : a.y1 + bh / 2, sh = lv_area_get_height(&sa); if(sh < 1) sh = 1;
+            int t = (ym - sa.y1) * 255 / sh; if(t < 0) t = 0; if(t > 255) t = 255;
+            col = theme_color_mix(gcol, canvas, (uint8_t)t);
+        }
+        const lv_image_dsc_t *img = curvelist_fade_strip(1, bh, edge ? 1 : 0, col);
+        if(!img) continue;
+        lv_area_t band = a;
+        if(edge) band.y1 = band.y2 - bh + 1; else band.y2 = band.y1 + bh - 1;
+        lv_draw_image_dsc_t id; lv_draw_image_dsc_init(&id); id.src = img; id.tile = 1;
+        lv_draw_image(lv_event_get_layer(e), &id, &band);
+    }
+    return;
     d.bg_color = canvas; d.bg_opa = LV_OPA_COVER;
     d.bg_grad.dir = LV_GRAD_DIR_VER; d.bg_grad.stops_count = 2;
     d.bg_grad.stops[0].color = d.bg_grad.stops[1].color = canvas;
     d.bg_grad.stops[0].frac = 0; d.bg_grad.stops[1].frac = 255;
-    lv_area_t band = a; band.y2 = band.y1 + h - 1;
+    lv_area_t band = a; band.y2 = band.y1 + band_h[0] - 1;
     d.bg_grad.stops[0].opa = LV_OPA_COVER;
     d.bg_grad.stops[1].opa = LV_OPA_TRANSP;
-    lv_draw_rect(lv_event_get_layer(e), &d, &band);
-    band = a; band.y1 = band.y2 - h + 1;
+    if(band_h[0] >= 2) lv_draw_rect(lv_event_get_layer(e), &d, &band);
+    band = a; band.y1 = band.y2 - band_h[1] + 1;
     d.bg_grad.stops[0].opa = LV_OPA_TRANSP;
     d.bg_grad.stops[1].opa = LV_OPA_COVER;
-    lv_draw_rect(lv_event_get_layer(e), &d, &band);
+    if(band_h[1] >= 2) lv_draw_rect(lv_event_get_layer(e), &d, &band);
 }
-void curvelist_attach(curvelist_t *c, lv_obj_t *list, lv_obj_t *root, int full_w){
+void curvelist_edge_fade(lv_obj_t *list){
     lv_obj_remove_event_cb(list, edge_fade_cb);
     if(th_disco() || th_simple() || th_null())
         lv_obj_add_event_cb(list, edge_fade_cb, LV_EVENT_DRAW_POST, NULL);
+}
+void curvelist_attach(curvelist_t *c, lv_obj_t *list, lv_obj_t *root, int full_w){
+    curvelist_edge_fade(list);
     c->list = list; c->full_w = full_w; c->cur = -2; c->disco_style=0;
     if(th_braun()){                                                /* Braun: the grille, and the list on the lower segment */
         br_face(root);
@@ -279,8 +425,13 @@ void curvelist_attach(curvelist_t *c, lv_obj_t *list, lv_obj_t *root, int full_w
         lv_obj_add_flag(c->dot[k], LV_OBJ_FLAG_HIDDEN | LV_OBJ_FLAG_IGNORE_LAYOUT);
     }
 }
+static void wheel_settle_cb(lv_timer_t *t){   /* Wheel: once the screen is built and themed, place the rows for real */
+    curvelist_t *c = lv_timer_get_user_data(t);
+    if(c && c->list && lv_obj_is_valid(c->list)){ lv_obj_update_layout(c->list); curve(c); }
+}
 void curvelist_update(curvelist_t *c){
     if(!c->list) return;
     lv_obj_update_layout(c->list);
     curve(c); c->cur = -2; dots(c);
+    if(curvelist_wheel()){ lv_timer_t *t = lv_timer_create(wheel_settle_cb, 60, c); lv_timer_set_repeat_count(t, 1); }
 }

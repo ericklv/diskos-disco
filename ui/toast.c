@@ -7,6 +7,7 @@
 #include "screens.h"
 #include "i18n.h"
 #include "theme.h"
+#include "anim.h"
 #include "scanner.h"
 #include "braun.h"
 #include <math.h>
@@ -73,6 +74,7 @@ void ui_toast_icon(const char *icon, lv_color_t icol, const char *msg)
     lv_obj_set_style_text_color(l, br ? TC(TEXT_PRIMARY) : TC(TEXT_PRIMARY), 0);
 
     g_toast_timer = lv_timer_create(toast_hide_cb, 2400, NULL);
+    anim_toast_in(g_toast);                                     /* eases down into place (Disco, Squash, Null) */
 }
 void ui_toast(const char *msg){ ui_toast_icon(LV_SYMBOL_BULLET, ui_current_accent(), msg); }
 

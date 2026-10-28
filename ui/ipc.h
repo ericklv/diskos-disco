@@ -40,6 +40,7 @@ int  ipc_external_active(void);
 int  ipc_send_cmd(const char *frame);  /* e.g. "0201000C0000" play/pause; 0=queued, -1=failed */
 int  ipc_send_probe(const char *frame);/* background send (state-sync/health): silent, no toast */
 int  ipc_send_quiet(const char *frame);/* background command that retries itself: waits in line, never toasts */
+void ipc_set_rx_notify(void (*cb)(void));   /* called on the receive thread after each player frame (set before ipc_start) */
 void ipc_tx_pump(void);                /* main loop: deliver frames waiting for a busy player (in order) */
 int  ipc_tx_waiting(void);             /* frames still waiting for the player */
 int  ipc_drop_queued(const char *prefix);   /* withdraw waiting frames with this prefix (cancelled operations) */
