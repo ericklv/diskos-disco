@@ -2502,25 +2502,23 @@ int main(int argc, char **argv){
             lv_indev_delete(in);puts("PASS shared immersive: controls tap, cancelled edge swipe, completed edge Back with scrubbing off and on");
         }
         if(getenv("REVIEW_ZUNE_FOLLOWUP")){
-            kbinput_open("search","",zfollow_done);nav_wait(50);
-            const char *sets[]= {
-    "abcdefghijklmnopqrstuvwxyz-._",
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ-._",
-    "0123456789 !\"#$%&'()*+,/:;<=>?",
-    "@[\\]^`{|}~" };
+            /* Zune uses the standard keyboard: no rim keys, every key of all four pages on screen, cancel, typed save */
+            kbinput_open("search","",zfollow_done);nav_wait(50);assert(!ui_action_find("kb.zune.done")&&!ui_action_find("kb.zune.mode"));
+            const char *sets[]={"abcdefghijklmnopqrstuvwxyz","ABCDEFGHIJKLMNOPQRSTUVWXYZ","1234567890'&-.!?,:()/+#@\"*","[]{}%^=_\\|~<>;$`'.,!?-@#*"};
+            extern void kbinput_test_page(void);
             for(int page=0;page<4;page++){
-                if(page==1||page==3)lv_obj_send_event(ui_action_find("kb.zune.shift"),LV_EVENT_CLICKED,NULL);
-                if(page==2)lv_obj_send_event(ui_action_find("kb.zune.mode"),LV_EVENT_CLICKED,NULL);
+                if(page)kbinput_test_page();
                 nav_wait(40);int n=strlen(sets[page]);
                 for(int i=0;i<n;i++){
-                    char txt[]={sets[page][i],0};lv_obj_t *label=find_visible_text(lv_layer_top(),sets[page][i]==' '?"sp":txt);assert(label);lv_obj_t*key=lv_obj_get_parent(label),*modal=lv_obj_get_parent(key),*hit=lv_obj_get_child(modal,lv_obj_get_index(key)+1);assert(lv_obj_has_flag(hit,LV_OBJ_FLAG_ADV_HITTEST));lv_area_t ma;lv_obj_get_coords(modal,&ma);
-                    float angle=(-90.0f+360.0f*i/n)*0.0174532925f;for(int r=128;r<=170;r+=21){lv_point_t pt={ma.x1+180+(int)lroundf(r*cosf(angle)),ma.y1+180+(int)lroundf(r*sinf(angle))};assert(lv_obj_hit_test(hit,&pt));}
+                    char txt[]={sets[page][i],0};lv_obj_t *label=find_visible_text(lv_layer_top(),txt);if(!label){fprintf(stderr,"page %d: no key %s\n",page,txt);abort();}
+                    lv_area_t a;lv_obj_get_coords(lv_obj_get_parent(label),&a);assert(a.x1>=0&&a.y1>=0&&a.x2<360&&a.y2<360);
                 }
             }
-            lv_obj_send_event(find_visible_text(lv_layer_top(),"cancel"),LV_EVENT_CLICKED,NULL);nav_wait(50);assert(!strcmp(zfollow_saved,"CANCEL"));
-            kbinput_open("search","",zfollow_done);nav_wait(30);lv_obj_t*label=find_visible_text(lv_layer_top(),"a");assert(label);lv_obj_t*key=lv_obj_get_parent(label);lv_obj_t*hit=lv_obj_get_child(lv_obj_get_parent(key),lv_obj_get_index(key)+1);lv_obj_send_event(hit,LV_EVENT_SHORT_CLICKED,NULL);lv_obj_send_event(ui_action_find("kb.zune.done"),LV_EVENT_CLICKED,NULL);nav_wait(40);assert(!strcmp(zfollow_saved,"a"));
-            screen_show(SCR_WORKMODE);nav_wait(50);const char*names[]={"playback","usb dac","storage","airplay","bt receiver","usb-c out"};for(int i=0;i<6;i++){lv_obj_t*l=find_visible_text(screen_get_root(SCR_WORKMODE),names[i]);assert(l);lv_obj_t*b=lv_obj_get_parent(l);assert(lv_obj_get_width(b)==144&&lv_obj_get_height(b)==56);lv_area_t a;lv_obj_get_coords(b,&a);assert(a.x1>=38&&a.x2<=333&&a.y1>=113&&a.y2<=288);}
-            screen_show(SCR_QUICK);nav_wait(50);puts("PASS Zune follow-up: keyboard sector targets on all pages, cancel, typed submission, six visible mode targets");
+            lv_obj_send_event(lv_obj_get_parent(find_visible_text(lv_layer_top(),LV_SYMBOL_CLOSE)),LV_EVENT_CLICKED,NULL);nav_wait(50);assert(!strcmp(zfollow_saved,"CANCEL"));
+            kbinput_open("search","",zfollow_done);nav_wait(30);lv_obj_t*label=find_visible_text(lv_layer_top(),"a");assert(label);lv_obj_send_event(lv_obj_get_parent(label),LV_EVENT_SHORT_CLICKED,NULL);
+            lv_obj_send_event(lv_obj_get_parent(find_visible_text(lv_layer_top(),LV_SYMBOL_OK)),LV_EVENT_CLICKED,NULL);nav_wait(40);assert(!strcmp(zfollow_saved,"a"));
+            screen_show(SCR_WORKMODE);nav_wait(300);lv_obj_update_layout(screen_get_root(SCR_WORKMODE));const char*names[]={"playback","usb dac","storage","airplay","bt receiver","usb-c out"};for(int i=0;i<6;i++){lv_obj_t*l=find_visible_text(screen_get_root(SCR_WORKMODE),names[i]);assert(l);lv_obj_t*b=lv_obj_get_parent(l);assert(lv_obj_get_width(b)==144&&lv_obj_get_height(b)==56);lv_area_t a;lv_obj_get_coords(b,&a);assert(a.x1>=38&&a.x2<=333&&a.y1>=113&&a.y2<=288);}
+            screen_show(SCR_QUICK);nav_wait(50);puts("PASS Zune follow-up: standard keyboard on all pages, cancel, typed submission, six visible mode targets");
         }
         if(getenv("REVIEW_ZQS_BANNER")){
             screen_show(SCR_QUICK);nav_wait(100);send_result=0;
