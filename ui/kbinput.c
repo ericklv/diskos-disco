@@ -193,7 +193,7 @@ void kbinput_open(const char *title, const char *initial, kbinput_done_cb_t cb){
     { lv_obj_t *ta_lbl = lv_textarea_get_label(g_ta);   /* pin to the FONT's 24px line height so the text can't clip and centring can't drift */
       if(ta_lbl){ lv_obj_set_style_min_height(ta_lbl, 24, 0); lv_obj_set_style_max_height(ta_lbl, 24, 0); } }
 
-    if(th_zune()){ void zkb_build(lv_obj_t *modal, lv_obj_t *ta, const char *title, int password); zkb_build(g_modal, g_ta, title, g_keep_spaces); return; }
+    /* fork: Zune uses the standard keyboard too (the rim keyboard was hard to type on); zkb_build stays for reference */
     /* Cancel / Save in the wide mid-band, above the keyboard */
     /* Cancel and Save between the field and the keys, where Search has its Search button */
     pill(g_modal, -50, 70, LV_SYMBOL_CLOSE, TC(TEXT_SECONDARY), cancel_btn);
