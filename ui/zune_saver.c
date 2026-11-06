@@ -15,7 +15,7 @@
 #include <time.h>
 
 LV_FONT_DECLARE(font_zune_light_72) LV_FONT_DECLARE(font_zune_light_150) LV_FONT_DECLARE(font_zune_light_32)
-LV_FONT_DECLARE(font_zune_regular_12) LV_FONT_DECLARE(font_zune_regular_13) LV_FONT_DECLARE(font_zune_regular_17)
+LV_FONT_DECLARE(font_zune_regular_12) LV_FONT_DECLARE(font_zune_regular_13) LV_FONT_DECLARE(font_zune_regular_14) LV_FONT_DECLARE(font_zune_regular_17)
 int zhome_battery_pct(void);
 /* light_150 digit box inside the label (measured): top, height, baseline */
 #define ZT_TOP 3
@@ -59,7 +59,7 @@ void zsaver_create(lv_obj_t *root){
     memset(&Z, 0, sizeof Z);
     Z.root = root;
     lv_obj_set_style_bg_color(root, TC(CANVAS), 0); lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
-    Z.batt = lbl(zune_font(&font_zune_regular_12), TC(TEXT_PRIMARY));
+    Z.batt = lbl(zune_font(&font_zune_regular_14), TC(TEXT_PRIMARY));   /* fork: 12 -> 14, easier to read */
     lv_obj_align(Z.batt, LV_ALIGN_TOP_MID, 0, 24);
     /* with music */
     Z.art = lv_obj_create(root); lv_obj_remove_style_all(Z.art); kit_keep(Z.art);
@@ -82,7 +82,7 @@ void zsaver_create(lv_obj_t *root){
     lv_obj_set_size(Z.pfill, 0, 3); lv_obj_set_style_bg_color(Z.pfill, TC(ACCENT_PRIMARY), 0); lv_obj_set_style_bg_opa(Z.pfill, LV_OPA_COVER, 0);
     lv_obj_remove_flag(Z.pfill, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
     Z.ptime = lbl(zune_font(&font_zune_regular_12), TC(TEXT_MUTED)); lv_obj_set_pos(Z.ptime, 168, 240);
-    Z.hint = lbl(zune_font(&font_zune_regular_12), TC(TEXT_PRIMARY)); lv_label_set_text(Z.hint, "tap to wake");
+    Z.hint = lbl(zune_font(&font_zune_regular_14), TC(TEXT_PRIMARY)); lv_label_set_text(Z.hint, "tap to wake");
     lv_obj_align(Z.hint, LV_ALIGN_TOP_MID, 0, 300);
     /* idle */
     Z.it = lbl(&font_zune_light_150, TC(TEXT_PRIMARY)); lv_obj_set_style_text_letter_space(Z.it, -4, 0);
