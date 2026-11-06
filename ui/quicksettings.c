@@ -731,15 +731,15 @@ static void zqs_items_build(void){
 static void zqs_create(lv_obj_t *root){
  g_root=root;lv_obj_set_style_bg_color(root,TC(CANVAS),0);lv_obj_set_style_bg_opa(root,LV_OPA_COVER,0);
  /* Add the arc first: its large transparent object must not intercept rows/banner. */
- lv_obj_t*br=lv_arc_create(root);kit_keep(br);lv_obj_set_size(br,340,340);lv_obj_center(br);lv_obj_add_flag(br,LV_OBJ_FLAG_ADV_HITTEST);lv_arc_set_bg_angles(br,45,135);lv_arc_set_mode(br,LV_ARC_MODE_REVERSE);lv_arc_set_range(br,4,40);lv_arc_set_value(br,ui_get_brightness());
+ lv_obj_t*br=lv_arc_create(root);kit_keep(br);lv_obj_set_size(br,340,340);lv_obj_center(br);lv_obj_add_flag(br,LV_OBJ_FLAG_ADV_HITTEST);lv_arc_set_bg_angles(br,240,300);lv_arc_set_mode(br,LV_ARC_MODE_NORMAL);   /* fork: brightness on the top rim (left = dim) */lv_arc_set_range(br,4,40);lv_arc_set_value(br,ui_get_brightness());
  lv_obj_set_style_arc_width(br,4,LV_PART_MAIN);lv_obj_set_style_arc_color(br,TC(CONTROL_TRACK),LV_PART_MAIN);lv_obj_set_style_arc_width(br,5,LV_PART_INDICATOR);lv_obj_set_style_arc_color(br,TC(TEXT_PRIMARY),LV_PART_INDICATOR);lv_obj_set_style_arc_rounded(br,true,LV_PART_INDICATOR);lv_obj_set_style_bg_color(br,TC(TEXT_PRIMARY),LV_PART_KNOB);lv_obj_set_style_bg_opa(br,LV_OPA_COVER,LV_PART_KNOB);lv_obj_set_style_pad_all(br,5,LV_PART_KNOB);lv_obj_set_style_radius(br,LV_RADIUS_CIRCLE,LV_PART_KNOB);
  lv_obj_add_event_cb(br,bright_change_cb,LV_EVENT_VALUE_CHANGED,NULL);lv_obj_add_event_cb(br,bright_release_cb,LV_EVENT_RELEASED,NULL);lv_obj_add_event_cb(br,bright_release_cb,LV_EVENT_PRESS_LOST,NULL);g_zq_bright=br;
  g_zq_items=zq_plain(root,0,0,360,292);zqs_items_build();
  g_zq_banner=zq_plain(root,44,53,272,52);lv_obj_add_flag(g_zq_banner,LV_OBJ_FLAG_CLICKABLE);ui_on(g_zq_banner,zq_banner_tap,LV_EVENT_CLICKED,NULL,"qs.zune.track",UI_CORE);
  g_zq_row=zq_plain(g_zq_banner,0,0,600,52);g_zq_title=zq_label(g_zq_row,"",0,0,0,&font_zune_light_32,TC(TEXT_PRIMARY));g_zq_artist=zq_label(g_zq_row,"",0,0,0,&font_zune_light_32,TC(TEXT_MUTED));
  g_zq_title_copy=zq_label(g_zq_row,"",0,0,0,&font_zune_light_32,TC(TEXT_PRIMARY));g_zq_artist_copy=zq_label(g_zq_row,"",0,0,0,&font_zune_light_32,TC(TEXT_MUTED));
- lv_obj_t*l=zq_label(root,"brightness",110,304,140,&font_zune_regular_16,TC(TEXT_MUTED));lv_obj_set_style_text_align(l,LV_TEXT_ALIGN_CENTER,0);
- zune_status(root,SCR_QUICK);track_state_t st;ipc_get_state(&st);g_zq_playing=-1;zqs_track(st.have_track?st.title:"",st.artist,ui_is_playing());zqs_paint();
+ lv_obj_t*l=zq_label(root,"brightness",110,24,140,&font_zune_regular_16,TC(TEXT_MUTED));lv_obj_set_style_text_align(l,LV_TEXT_ALIGN_CENTER,0);
+ lv_obj_align(zune_status(root,SCR_QUICK),LV_ALIGN_BOTTOM_MID,0,-26);   /* fork: clock + battery move to the bottom, under the toggles */track_state_t st;ipc_get_state(&st);g_zq_playing=-1;zqs_track(st.have_track?st.title:"",st.artist,ui_is_playing());zqs_paint();
 }
 static lv_obj_t *zqs_test_button(int slot){return slot>=0&&slot<g_nitems?g_zq_hit[slot]:NULL;}
 
